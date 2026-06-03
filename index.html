@@ -235,10 +235,20 @@
     background:var(--surface2);border:1px solid var(--border);color:var(--text);font-weight:700;font-size:14px;margin-bottom:18px}
   .demo-btn:active{background:var(--surface3)}
   .demo-btn svg{width:19px;height:19px;color:var(--bad)}
-  .hist-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)}
+  .hist-row{display:flex;flex-direction:column;padding:11px 0;border-bottom:1px solid var(--border)}
   .hist-row:last-child{border:none}
+  .hist-top{display:flex;align-items:center;justify-content:space-between;width:100%}
+  .hist-note{font-size:12px;color:var(--muted2);margin-top:6px;line-height:1.45;font-style:italic}
   .hist-date{font-size:13px;font-weight:700}
   .hist-sets{font-size:12px;color:var(--muted);margin-top:2px}
+  .session-note{display:block;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
+    padding:11px 13px;color:var(--text);outline:none;resize:vertical;margin-bottom:16px;font-size:13.5px;transition:.15s}
+  .session-note:focus{border-color:var(--accent);background:var(--surface2)}
+  .session-note::placeholder{color:var(--muted2)}
+  .ex-note{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:9px;
+    padding:9px 12px;color:var(--text);outline:none;margin-top:10px;font-size:12.5px;transition:.12s}
+  .ex-note:focus{border-color:var(--accent);background:var(--surface3)}
+  .ex-note::placeholder{color:var(--muted2)}
   .hist-1rm{font-family:var(--display);font-weight:800;color:var(--accent);font-size:15px}
   .spark{margin:6px 0 16px}
 
@@ -1226,14 +1236,29 @@ function App(){
   const adjustRest = (sec)=> setRest(r=> r ? {...r, endsAt: Math.max(Date.now(), r.endsAt+sec*1000), total: Math.max(5, r.total+sec)} : r);
 
   /* ----- workout ----- */
+  // pull the most recent logged sets / note for an exercise (newest log first)
+  const lastSetsFor = (exId)=>{
+    for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.sets&&en.sets.length) return en.sets.map(st=>({weight:st.weight, reps:st.reps, done:false})); }
+    return null;
+  };
+  const lastNoteFor = (exId)=>{
+    for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.note) return en.note; }
+    return '';
+  };
+  const newEntry = (id)=>({ exerciseId:id, sets: lastSetsFor(id) || [{weight:'',reps:'',done:false}], note: lastNoteFor(id) });
+
   const startWorkout = (routine)=>{
-    setActive({ id:uid(), date:todayISO(), startedAt:Date.now(),
+    setActive({ id:uid(), date:todayISO(), startedAt:Date.now(), note:'',
       routineId: routine?routine.id:null, name: routine?routine.name:'Quick Workout',
-      entries:(routine?routine.exerciseIds:[]).map(id=>({exerciseId:id, sets:[{weight:'',reps:'',done:false}]})) });
+      entries:(routine?routine.exerciseIds:[]).map(id=>newEntry(id)) });
     setTab('train');
   };
   const finishWorkout = ()=>{
-    const c = {...active, entries: active.entries.map(en=>({...en, sets: en.sets.filter(s=>+s.weight>0 && +s.reps>0)})).filter(en=>en.sets.length>0)};
+    // with pre-filled presets, the checkmark means "I actually did this set".
+    // If any set is checked, save only checked sets; otherwise fall back to whatever was typed.
+    const anyDone = active.entries.some(en=>en.sets.some(s=>s.done));
+    const keep = anyDone ? (s=>s.done && +s.weight>0 && +s.reps>0) : (s=>+s.weight>0 && +s.reps>0);
+    const c = {...active, entries: active.entries.map(en=>({...en, sets: en.sets.filter(keep)})).filter(en=>en.sets.length>0)};
     if(c.entries.length){ setLogs([c, ...logs]); flash('Workout saved 🔥'); }
     else flash('Nothing logged — discarded');
     setActive(null); setRest(null); setTab('records');
@@ -1259,7 +1284,7 @@ function App(){
         const rec=r[en.exerciseId]; let se=0,mw=0,vol=0,top='';
         valid.forEach(s=>{ const e=epley(s.weight,s.reps), v=+s.weight*+s.reps; if(e>se){se=e;top=`${+s.weight}×${+s.reps}`;} if(+s.weight>mw)mw=+s.weight; vol+=v; });
         rec.best1rm=Math.max(rec.best1rm,se); rec.maxW=Math.max(rec.maxW,mw); rec.bestVol=Math.max(rec.bestVol,vol);
-        rec.count++; rec.sessions.push({date:session.date, top, e1rm:se, vol});
+        rec.count++; rec.sessions.push({date:session.date, top, e1rm:se, vol, note:en.note||'', snote:session.note||''});
       });
     });
     return r;
@@ -1284,7 +1309,7 @@ function App(){
 
       <div className="scroll" key={tab}>
         {tab==='routines' &&
-          <RoutinesView routines={routines} exById={exById} active={active}
+          <RoutinesView routines={routines} exById={exById} active={active} logs={logs} restDefault={restDefault}
             onStart={startWorkout} onNew={()=>setEditRoutine(null)} onEdit={setEditRoutine} onResume={()=>setTab('train')} />}
         {tab==='library' &&
           <LibraryView exercises={exercises} onOpen={setDetailEx} onNew={()=>setNewExOpen(true)} />}
@@ -1311,12 +1336,12 @@ function App(){
 
       {detailEx && <ExerciseDetail ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} />}
       {newExOpen && <NewExerciseSheet onClose={()=>setNewExOpen(false)} onSave={addCustomExercise} />}
-      {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
+      {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {pickerFor==='active' &&
         <ExercisePicker exercises={exercises} preselected={active?active.entries.map(e=>e.exerciseId):[]}
           onClose={()=>setPickerFor(null)}
           onConfirm={(ids)=>{ const ex=active.entries.map(e=>e.exerciseId);
-            const add=ids.filter(id=>!ex.includes(id)).map(id=>({exerciseId:id, sets:[{weight:'',reps:'',done:false}]}));
+            const add=ids.filter(id=>!ex.includes(id)).map(id=>newEntry(id));
             setActive({...active, entries:[...active.entries, ...add]}); setPickerFor(null); }} />}
       {settingsOpen &&
         <SettingsSheet onClose={()=>setSettingsOpen(false)}
@@ -1336,7 +1361,19 @@ function App(){
 /* ============================================================
    ROUTINES
    ============================================================ */
-function RoutinesView({routines, exById, active, onStart, onNew, onEdit, onResume}){
+/* estimate how long a routine takes: per exercise = sets*(work + rest) + setup */
+function lastSetCount(logs, exId){
+  for(const s of (logs||[])){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.sets&&en.sets.length) return en.sets.length; }
+  return null;
+}
+function estimateMinutes(ids, logs, restDefault){
+  if(!ids||!ids.length) return 0;
+  let sec=0;
+  ids.forEach(id=>{ const sets=lastSetCount(logs,id)||3; sec += sets*(45 + (restDefault||90)) + 60; });
+  return Math.max(5, Math.round(sec/60/5)*5);
+}
+
+function RoutinesView({routines, exById, active, logs, restDefault, onStart, onNew, onEdit, onResume}){
   return (
     <div>
       {active &&
@@ -1358,7 +1395,7 @@ function RoutinesView({routines, exById, active, onStart, onNew, onEdit, onResum
               <div className="rc-top">
                 <div style={{flex:1,minWidth:0}} onClick={()=>onEdit(r)}>
                   <div className="rc-name">{r.name}</div>
-                  <div className="rc-meta">{r.exerciseIds.length} exercise{r.exerciseIds.length!==1?'s':''}{r.note?' · '+r.note:''}</div>
+                  <div className="rc-meta">{r.exerciseIds.length} exercise{r.exerciseIds.length!==1?'s':''} · ~{estimateMinutes(r.exerciseIds, logs, restDefault)} min{r.note?' · '+r.note:''}</div>
                 </div>
                 <button className="start-btn" onClick={()=>onStart(r)}>Start</button>
               </div>
@@ -1435,6 +1472,8 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const addSet=(ei)=>{ const e=clone(active); const last=e.entries[ei].sets[e.entries[ei].sets.length-1]; e.entries[ei].sets.push({weight:last?last.weight:'',reps:last?last.reps:'',done:false}); setActive(e); };
   const delSet=(ei,si)=>{ const e=clone(active); e.entries[ei].sets.splice(si,1); if(!e.entries[ei].sets.length) e.entries[ei].sets.push({weight:'',reps:'',done:false}); setActive(e); };
   const removeEx=(ei)=>{ const e=clone(active); e.entries.splice(ei,1); setActive(e); };
+  const updNote=(ei,v)=>{ const e=clone(active); e.entries[ei].note=v; setActive(e); };
+  const updSessionNote=(v)=>{ setActive({...active, note:v}); };
 
   return (
     <div>
@@ -1443,6 +1482,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         <div style={{textAlign:'right'}}><div className="wb-lbl">{totalSets} sets · {Math.round(totalVol).toLocaleString()} {unit}</div>
           <button className="start-btn" style={{marginTop:6}} onClick={onFinish}>Finish ✓</button></div>
       </div>
+      <textarea className="session-note" rows="2" placeholder="Session notes — how you feel, sleep, bodyweight, energy…" value={active.note||''} onChange={e=>updSessionNote(e.target.value)} />
       {active.entries.length===0 && <div className="empty" style={{padding:'30px 20px'}}><p>Empty session — add your first exercise below.</p></div>}
       {active.entries.map((en,ei)=>{
         const ex=exById[en.exerciseId]; if(!ex) return null;
@@ -1473,6 +1513,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
               {en.sets.some(s=>+s.weight>0&&+s.reps>0) &&
                 <div style={{textAlign:'center',fontSize:11.5,color:'var(--muted2)',marginTop:8}}>
                   Top est. 1RM this session: <b style={{color:'var(--accent)'}}>{Math.max(...en.sets.map(s=>epley(s.weight,s.reps)))} {unit}</b></div>}
+              <input className="ex-note" placeholder="Notes — seat height, pin, grip, how it felt…" value={en.note||''} onChange={e=>updNote(ei,e.target.value)} />
             </div>
           </div>
         );
@@ -1561,9 +1602,12 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
             :
             sessions.map((s,i)=>
               <div key={i} className="hist-row">
-                <div><div className="hist-date">{new Date(s.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div>
-                  <div className="hist-sets">Top set {s.top} · {Math.round(s.vol).toLocaleString()} {unit} volume</div></div>
-                <div className="hist-1rm">{s.e1rm} {unit}</div>
+                <div className="hist-top">
+                  <div><div className="hist-date">{new Date(s.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div>
+                    <div className="hist-sets">Top set {s.top} · {Math.round(s.vol).toLocaleString()} {unit} volume</div></div>
+                  <div className="hist-1rm">{s.e1rm} {unit}</div>
+                </div>
+                {(s.note||s.snote) && <div className="hist-note">🗒 {[s.note, s.snote].filter(Boolean).join(' · ')}</div>}
               </div>)}
           {ex.custom && <button className="btn btn-danger btn-sm" style={{marginTop:20}} onClick={()=>onDelete(ex.id)}>{I.trash}Delete this exercise</button>}
         </div>
@@ -1609,7 +1653,7 @@ function NewExerciseSheet({onClose, onSave}){
 /* ============================================================
    ROUTINE EDITOR
    ============================================================ */
-function RoutineEditor({routine, exById, exercises, onClose, onSave, onDelete}){
+function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, onSave, onDelete}){
   const editing=!!routine;
   const [name,setName]=useState(routine?routine.name:''); const [note,setNote]=useState(routine?routine.note||'':'');
   const [ids,setIds]=useState(routine?[...routine.exerciseIds]:[]); const [picking,setPicking]=useState(false);
@@ -1645,6 +1689,10 @@ function RoutineEditor({routine, exById, exercises, onClose, onSave, onDelete}){
           {ids.length>0 &&
             <div>
               <div className="section-h" style={{margin:'20px 0 10px'}}>Muscles Worked</div>
+              <div style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'11px 14px',marginBottom:14,fontSize:13.5}}>
+                {I.timer}<span style={{color:'var(--muted)'}}>Estimated time</span>
+                <b style={{marginLeft:'auto',fontFamily:'var(--display)',fontSize:16,color:'var(--accent)'}}>~{estimateMinutes(ids, logs, restDefault)} min</b>
+              </div>
               <MuscleBreakdown exerciseIds={ids} exById={exById} />
             </div>}
           <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45,marginTop:14}}
