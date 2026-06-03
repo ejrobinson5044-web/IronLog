@@ -277,6 +277,20 @@
   details.help pre{margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;
     font-family:var(--font);font-size:10.5px;line-height:1.5;color:var(--muted);overflow-x:auto;white-space:pre-wrap;word-break:break-word}
   .attrib{font-size:10.5px;color:var(--muted2);text-align:center;line-height:1.5;padding:10px}
+  /* muscle tiers + breakdown */
+  .mtiers{display:flex;flex-direction:column;gap:9px;margin:6px 0 18px}
+  .mtier{display:flex;align-items:center;gap:11px}
+  .mt-dot{width:11px;height:11px;border-radius:999px;flex-shrink:0}
+  .mt-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;flex:0 0 74px}
+  .mt-mus{font-size:14.5px;font-weight:700}
+  .bodyheat{display:block;margin:2px auto 16px;max-width:300px;width:100%}
+  .bodyheat text{fill:var(--muted2);font-size:9px;font-weight:700;font-family:var(--display);letter-spacing:.08em}
+  .mb-list{display:flex;flex-direction:column;gap:8px}
+  .mb-row{display:flex;align-items:center;gap:11px}
+  .mb-name{flex:0 0 86px;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mb-bar{flex:1;height:9px;background:var(--surface3);border-radius:999px;overflow:hidden}
+  .mb-bar>div{height:100%;border-radius:999px;transition:width .35s ease}
+  .mb-pct{flex:0 0 36px;text-align:right;font-family:var(--display);font-weight:800;font-size:13.5px}
 </style>
 </head>
 <body>
@@ -315,8 +329,8 @@ const todayISO = () => new Date().toISOString().slice(0,10);
 const clone = o => JSON.parse(JSON.stringify(o));
 
 const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
-  Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},Other:{c:'#9095ad'}};
-const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff',Shoulders:'#ffb454',Biceps:'#9d7bff',Triceps:'#b794ff',
+  Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},Landmine:{c:'#e8915a'},Other:{c:'#9095ad'}};
+const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff','Front Delts':'#ff9f45','Side Delts':'#ffc04d','Rear Delts':'#e07b3c',Biceps:'#9d7bff',Triceps:'#b794ff',
   Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8'};
 const tint = (hex, a) => { const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
 
@@ -368,6 +382,276 @@ const GIFS = {
   "Bodyweight Hanging Leg Raise": ["Hanging_Leg_Raise/0.jpg", "Hanging_Leg_Raise/1.jpg"],
   "Barbell Shrug": ["Barbell_Shrug/0.jpg", "Barbell_Shrug/1.jpg"],
   "Dumbbell Wrist Curl": ["Seated_Dumbbell_Palms-Up_Wrist_Curl/0.jpg", "Seated_Dumbbell_Palms-Up_Wrist_Curl/1.jpg"],
+  // ----- demo images for the expanded library (CC0) -----
+  "Barbell Snatch": ["Snatch/0.jpg", "Snatch/1.jpg"],
+  "Barbell Power Snatch": ["Power_Snatch/0.jpg", "Power_Snatch/1.jpg"],
+  "Barbell Hang Snatch": ["Hang_Snatch/0.jpg", "Hang_Snatch/1.jpg"],
+  "Barbell Clean": ["Clean/0.jpg", "Clean/1.jpg"],
+  "Barbell Power Clean": ["Power_Clean/0.jpg", "Power_Clean/1.jpg"],
+  "Barbell Hang Clean": ["Hang_Clean/0.jpg", "Hang_Clean/1.jpg"],
+  "Barbell Clean and Jerk": ["Clean_and_Jerk/0.jpg", "Clean_and_Jerk/1.jpg"],
+  "Barbell Clean and Press": ["Clean_and_Press/0.jpg", "Clean_and_Press/1.jpg"],
+  "Barbell Push Press": ["Push_Press/0.jpg", "Push_Press/1.jpg"],
+  "Barbell Split Jerk": ["Split_Jerk/0.jpg", "Split_Jerk/1.jpg"],
+  "Barbell Overhead Squat": ["Overhead_Squat/0.jpg", "Overhead_Squat/1.jpg"],
+  "Barbell Snatch Deadlift": ["Snatch_Deadlift/0.jpg", "Snatch_Deadlift/1.jpg"],
+  "Barbell Clean Pull": ["Clean_Pull/0.jpg", "Clean_Pull/1.jpg"],
+  "Dumbbell Clean": ["Dumbbell_Clean/0.jpg", "Dumbbell_Clean/1.jpg"],
+  "Kettlebell Swing": ["One-Arm_Kettlebell_Swings/0.jpg", "One-Arm_Kettlebell_Swings/1.jpg"],
+  "Kettlebell Goblet Squat": ["Goblet_Squat/0.jpg", "Goblet_Squat/1.jpg"],
+  "Kettlebell Clean": ["Two-Arm_Kettlebell_Clean/0.jpg", "Two-Arm_Kettlebell_Clean/1.jpg"],
+  "Kettlebell Press": ["Two-Arm_Kettlebell_Military_Press/0.jpg", "Two-Arm_Kettlebell_Military_Press/1.jpg"],
+  "Kettlebell Snatch": ["One-Arm_Kettlebell_Snatch/0.jpg", "One-Arm_Kettlebell_Snatch/1.jpg"],
+  "Kettlebell Turkish Get-Up": ["Kettlebell_Turkish_Get-Up_Squat_style/0.jpg", "Kettlebell_Turkish_Get-Up_Squat_style/1.jpg"],
+  "Kettlebell Thruster": ["Kettlebell_Thruster/0.jpg", "Kettlebell_Thruster/1.jpg"],
+  "Kettlebell Windmill": ["Kettlebell_Windmill/0.jpg", "Kettlebell_Windmill/1.jpg"],
+  "Barbell Decline Bench Press": ["Decline_Barbell_Bench_Press/0.jpg", "Decline_Barbell_Bench_Press/1.jpg"],
+  "Dumbbell Incline Bench Press": ["Incline_Dumbbell_Press/0.jpg", "Incline_Dumbbell_Press/1.jpg"],
+  "Dumbbell Incline Fly": ["Incline_Dumbbell_Flyes/0.jpg", "Incline_Dumbbell_Flyes/1.jpg"],
+  "Machine Pec Deck Fly": ["Butterfly/0.jpg", "Butterfly/1.jpg"],
+  "Cable Chest Press": ["Cable_Chest_Press/0.jpg", "Cable_Chest_Press/1.jpg"],
+  "Cable Low Fly": ["Low_Cable_Crossover/0.jpg", "Low_Cable_Crossover/1.jpg"],
+  "Cable Incline Fly": ["Incline_Cable_Flye/0.jpg", "Incline_Cable_Flye/1.jpg"],
+  "Dumbbell Pullover": ["Straight-Arm_Dumbbell_Pullover/0.jpg", "Straight-Arm_Dumbbell_Pullover/1.jpg"],
+  "Smith Machine Bench Press": ["Smith_Machine_Bench_Press/0.jpg", "Smith_Machine_Bench_Press/1.jpg"],
+  "Bodyweight Incline Push-Up": ["Incline_Push-Up/0.jpg", "Incline_Push-Up/1.jpg"],
+  "Bodyweight Decline Push-Up": ["Decline_Push-Up/0.jpg", "Decline_Push-Up/1.jpg"],
+  "Barbell T-Bar Row": ["T-Bar_Row_with_Handle/0.jpg", "T-Bar_Row_with_Handle/1.jpg"],
+  "Machine T-Bar Row": ["Lying_T-Bar_Row/0.jpg", "Lying_T-Bar_Row/1.jpg"],
+  "Barbell Rack Pull": ["Rack_Pulls/0.jpg", "Rack_Pulls/1.jpg"],
+  "Cable Straight-Arm Pulldown": ["Straight-Arm_Pulldown/0.jpg", "Straight-Arm_Pulldown/1.jpg"],
+  "Cable Underhand Pulldown": ["Underhand_Cable_Pulldowns/0.jpg", "Underhand_Cable_Pulldowns/1.jpg"],
+  "Bodyweight Inverted Row": ["Inverted_Row/0.jpg", "Inverted_Row/1.jpg"],
+  "Bodyweight Back Extension": ["Hyperextensions_Back_Extensions/0.jpg", "Hyperextensions_Back_Extensions/1.jpg"],
+  "Bodyweight Superman": ["Superman/0.jpg", "Superman/1.jpg"],
+  "Dumbbell Shrug": ["Dumbbell_Shrug/0.jpg", "Dumbbell_Shrug/1.jpg"],
+  "Cable Shrug": ["Cable_Shrugs/0.jpg", "Cable_Shrugs/1.jpg"],
+  "Machine Shrug": ["Leverage_Shrug/0.jpg", "Leverage_Shrug/1.jpg"],
+  "Dumbbell Front Raise": ["Front_Dumbbell_Raise/0.jpg", "Front_Dumbbell_Raise/1.jpg"],
+  "Cable Front Raise": ["Front_Cable_Raise/0.jpg", "Front_Cable_Raise/1.jpg"],
+  "Dumbbell Arnold Press": ["Arnold_Dumbbell_Press/0.jpg", "Arnold_Dumbbell_Press/1.jpg"],
+  "Cable Rear Delt Fly": ["Cable_Rear_Delt_Fly/0.jpg", "Cable_Rear_Delt_Fly/1.jpg"],
+  "Cable Face Pull": ["Face_Pull/0.jpg", "Face_Pull/1.jpg"],
+  "Machine Shoulder Press": ["Machine_Shoulder_Military_Press/0.jpg", "Machine_Shoulder_Military_Press/1.jpg"],
+  "Machine Reverse Fly": ["Reverse_Machine_Flyes/0.jpg", "Reverse_Machine_Flyes/1.jpg"],
+  "Barbell Upright Row": ["Upright_Barbell_Row/0.jpg", "Upright_Barbell_Row/1.jpg"],
+  "Dumbbell Upright Row": ["Standing_Dumbbell_Upright_Row/0.jpg", "Standing_Dumbbell_Upright_Row/1.jpg"],
+  "Cable Upright Row": ["Upright_Cable_Row/0.jpg", "Upright_Cable_Row/1.jpg"],
+  "Barbell Preacher Curl": ["Preacher_Curl/0.jpg", "Preacher_Curl/1.jpg"],
+  "Machine Preacher Curl": ["Machine_Preacher_Curls/0.jpg", "Machine_Preacher_Curls/1.jpg"],
+  "Cable Preacher Curl": ["Cable_Preacher_Curl/0.jpg", "Cable_Preacher_Curl/1.jpg"],
+  "Dumbbell Concentration Curl": ["Concentration_Curls/0.jpg", "Concentration_Curls/1.jpg"],
+  "Dumbbell Incline Curl": ["Incline_Dumbbell_Curl/0.jpg", "Incline_Dumbbell_Curl/1.jpg"],
+  "Dumbbell Cross-Body Hammer Curl": ["Cross_Body_Hammer_Curl/0.jpg", "Cross_Body_Hammer_Curl/1.jpg"],
+  "Cable Hammer Curl": ["Cable_Hammer_Curls_-_Rope_Attachment/0.jpg", "Cable_Hammer_Curls_-_Rope_Attachment/1.jpg"],
+  "Barbell Reverse Curl": ["Reverse_Barbell_Curl/0.jpg", "Reverse_Barbell_Curl/1.jpg"],
+  "Dumbbell Reverse Curl": ["Standing_Dumbbell_Reverse_Curl/0.jpg", "Standing_Dumbbell_Reverse_Curl/1.jpg"],
+  "Dumbbell Zottman Curl": ["Zottman_Curl/0.jpg", "Zottman_Curl/1.jpg"],
+  "Barbell Close-Grip Bench Press": ["Close-Grip_Barbell_Bench_Press/0.jpg", "Close-Grip_Barbell_Bench_Press/1.jpg"],
+  "Dumbbell Triceps Kickback": ["Tricep_Dumbbell_Kickback/0.jpg", "Tricep_Dumbbell_Kickback/1.jpg"],
+  "Cable Overhead Triceps Extension": ["Cable_Rope_Overhead_Triceps_Extension/0.jpg", "Cable_Rope_Overhead_Triceps_Extension/1.jpg"],
+  "Cable Single-Arm Triceps Extension": ["Cable_One_Arm_Tricep_Extension/0.jpg", "Cable_One_Arm_Tricep_Extension/1.jpg"],
+  "Bodyweight Triceps Dip": ["Dips_-_Triceps_Version/0.jpg", "Dips_-_Triceps_Version/1.jpg"],
+  "Smith Machine Close-Grip Bench": ["Smith_Machine_Close-Grip_Bench_Press/0.jpg", "Smith_Machine_Close-Grip_Bench_Press/1.jpg"],
+  "Dumbbell Bulgarian Split Squat": ["Split_Squat_with_Dumbbells/0.jpg", "Split_Squat_with_Dumbbells/1.jpg"],
+  "Dumbbell Goblet Squat": ["Goblet_Squat/0.jpg", "Goblet_Squat/1.jpg"],
+  "Machine Hack Squat": ["Hack_Squat/0.jpg", "Hack_Squat/1.jpg"],
+  "Barbell Hack Squat": ["Barbell_Hack_Squat/0.jpg", "Barbell_Hack_Squat/1.jpg"],
+  "Dumbbell Step-Up": ["Dumbbell_Step_Ups/0.jpg", "Dumbbell_Step_Ups/1.jpg"],
+  "Barbell Step-Up": ["Barbell_Step_Ups/0.jpg", "Barbell_Step_Ups/1.jpg"],
+  "Barbell Box Squat": ["Box_Squat/0.jpg", "Box_Squat/1.jpg"],
+  "Smith Machine Squat": ["Smith_Machine_Squat/0.jpg", "Smith_Machine_Squat/1.jpg"],
+  "Bodyweight Squat": ["Bodyweight_Squat/0.jpg", "Bodyweight_Squat/1.jpg"],
+  "Machine Lying Leg Curl": ["Lying_Leg_Curls/0.jpg", "Lying_Leg_Curls/1.jpg"],
+  "Machine Standing Leg Curl": ["Standing_Leg_Curl/0.jpg", "Standing_Leg_Curl/1.jpg"],
+  "Dumbbell Romanian Deadlift": ["Stiff-Legged_Dumbbell_Deadlift/0.jpg", "Stiff-Legged_Dumbbell_Deadlift/1.jpg"],
+  "Barbell Good Morning": ["Good_Morning/0.jpg", "Good_Morning/1.jpg"],
+  "Barbell Glute Bridge": ["Barbell_Glute_Bridge/0.jpg", "Barbell_Glute_Bridge/1.jpg"],
+  "Cable Glute Kickback": ["One-Legged_Cable_Kickback/0.jpg", "One-Legged_Cable_Kickback/1.jpg"],
+  "Bodyweight Glute Kickback": ["Glute_Kickback/0.jpg", "Glute_Kickback/1.jpg"],
+  "Bodyweight Single-Leg Glute Bridge": ["Single_Leg_Glute_Bridge/0.jpg", "Single_Leg_Glute_Bridge/1.jpg"],
+  "Machine Standing Calf Raise": ["Standing_Calf_Raises/0.jpg", "Standing_Calf_Raises/1.jpg"],
+  "Machine Leg Press Calf Raise": ["Calf_Press_On_The_Leg_Press_Machine/0.jpg", "Calf_Press_On_The_Leg_Press_Machine/1.jpg"],
+  "Barbell Standing Calf Raise": ["Standing_Barbell_Calf_Raise/0.jpg", "Standing_Barbell_Calf_Raise/1.jpg"],
+  "Donkey Calf Raise": ["Donkey_Calf_Raises/0.jpg", "Donkey_Calf_Raises/1.jpg"],
+  "Bodyweight Sit-Up": ["Sit-Up/0.jpg", "Sit-Up/1.jpg"],
+  "Bodyweight Crunch": ["Crunches/0.jpg", "Crunches/1.jpg"],
+  "Bodyweight Russian Twist": ["Russian_Twist/0.jpg", "Russian_Twist/1.jpg"],
+  "Cable Woodchopper": ["Standing_Cable_Wood_Chop/0.jpg", "Standing_Cable_Wood_Chop/1.jpg"],
+  "Bodyweight Mountain Climbers": ["Mountain_Climbers/0.jpg", "Mountain_Climbers/1.jpg"],
+  "Bodyweight Reverse Crunch": ["Reverse_Crunch/0.jpg", "Reverse_Crunch/1.jpg"],
+  "Bodyweight Decline Crunch": ["Decline_Crunch/0.jpg", "Decline_Crunch/1.jpg"],
+  "Bodyweight Flutter Kicks": ["Flutter_Kicks/0.jpg", "Flutter_Kicks/1.jpg"],
+  "Ab Wheel Rollout": ["Ab_Roller/0.jpg", "Ab_Roller/1.jpg"],
+  "Bodyweight Side Plank": ["Side_Bridge/0.jpg", "Side_Bridge/1.jpg"],
+  "Barbell Wrist Curl": ["Palms-Up_Barbell_Wrist_Curl_Over_A_Bench/0.jpg", "Palms-Up_Barbell_Wrist_Curl_Over_A_Bench/1.jpg"],
+  "Dumbbell Reverse Wrist Curl": ["Palms-Down_Dumbbell_Wrist_Curl_Over_A_Bench/0.jpg", "Palms-Down_Dumbbell_Wrist_Curl_Over_A_Bench/1.jpg"],
+  "Cable Wrist Curl": ["Cable_Wrist_Curl/0.jpg", "Cable_Wrist_Curl/1.jpg"],
+  "Dumbbell Farmer's Walk": ["Farmers_Walk/0.jpg", "Farmers_Walk/1.jpg"],
+  "Wrist Roller": ["Wrist_Roller/0.jpg", "Wrist_Roller/1.jpg"],
+  // ----- landmine demo images (CC0, where available) -----
+  "Landmine Press": ["Landmine_Linear_Jammer/0.jpg", "Landmine_Linear_Jammer/1.jpg"],
+  "Landmine Rotation": ["Landmine_180s/0.jpg", "Landmine_180s/1.jpg"],
+};
+
+/* Muscle involvement per exercise: [displayName, coarseRegion], primary->tertiary. Powers the per-lift muscle list + routine breakdown. */
+const MUS = {
+  "Ab Wheel Rollout": [["Abdominals", "Core"], ["Front Delts", "Front Delts"]],
+  "Barbell Back Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Barbell Bent-Over Row": [["Middle Back", "Back"], ["Biceps", "Biceps"], ["Lats", "Back"]],
+  "Barbell Biceps Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Barbell Box Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Clean": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Quadriceps", "Quads"]],
+  "Barbell Clean Pull": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Clean and Jerk": [["Front Delts", "Front Delts"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Clean and Press": [["Front Delts", "Front Delts"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Close-Grip Bench Press": [["Triceps", "Triceps"], ["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Barbell Deadlift": [["Lower Back", "Back"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Decline Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Barbell Front Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Glute Bridge": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"], ["Calves", "Calves"]],
+  "Barbell Good Morning": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Abdominals", "Core"]],
+  "Barbell Hack Squat": [["Quadriceps", "Quads"], ["Hamstrings", "Hamstrings"], ["Calves", "Calves"]],
+  "Barbell Hang Clean": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Hang Snatch": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Quadriceps", "Quads"]],
+  "Barbell Hip Thrust": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"], ["Calves", "Calves"]],
+  "Barbell Incline Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Barbell Overhead Press": [["Front Delts", "Front Delts"], ["Chest", "Chest"], ["Triceps", "Triceps"]],
+  "Barbell Overhead Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Power Clean": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Middle Back", "Back"]],
+  "Barbell Power Snatch": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Quadriceps", "Quads"]],
+  "Barbell Preacher Curl": [["Biceps", "Biceps"]],
+  "Barbell Push Press": [["Front Delts", "Front Delts"], ["Quadriceps", "Quads"], ["Triceps", "Triceps"]],
+  "Barbell Rack Pull": [["Lower Back", "Back"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Reverse Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Barbell Romanian Deadlift": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Calves", "Calves"]],
+  "Barbell Shrug": [["Traps", "Back"]],
+  "Barbell Skullcrusher": [["Triceps", "Triceps"], ["Forearms", "Forearms"]],
+  "Barbell Snatch": [["Quadriceps", "Quads"], ["Biceps", "Biceps"], ["Glutes", "Glutes"]],
+  "Barbell Snatch Deadlift": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Quadriceps", "Quads"]],
+  "Barbell Split Jerk": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell Standing Calf Raise": [["Calves", "Calves"]],
+  "Barbell Step-Up": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Barbell T-Bar Row": [["Middle Back", "Back"], ["Biceps", "Biceps"], ["Lats", "Back"]],
+  "Barbell Upright Row": [["Side Delts", "Side Delts"], ["Traps", "Back"]],
+  "Barbell Wrist Curl": [["Forearms", "Forearms"]],
+  "Bodyweight Back Extension": [["Lower Back", "Back"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight Chin-Up": [["Lats", "Back"], ["Biceps", "Biceps"], ["Middle Back", "Back"]],
+  "Bodyweight Crunch": [["Abdominals", "Core"]],
+  "Bodyweight Decline Crunch": [["Abdominals", "Core"]],
+  "Bodyweight Decline Push-Up": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Bodyweight Dips": [["Triceps", "Triceps"], ["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Bodyweight Flutter Kicks": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight Glute Kickback": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight Hanging Leg Raise": [["Abdominals", "Core"]],
+  "Bodyweight Incline Push-Up": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Bodyweight Inverted Row": [["Middle Back", "Back"], ["Lats", "Back"]],
+  "Bodyweight Mountain Climbers": [["Quadriceps", "Quads"], ["Chest", "Chest"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight Plank": [["Abdominals", "Core"]],
+  "Bodyweight Pull-Up": [["Lats", "Back"], ["Biceps", "Biceps"], ["Middle Back", "Back"]],
+  "Bodyweight Push-Up": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Bodyweight Reverse Crunch": [["Abdominals", "Core"]],
+  "Bodyweight Russian Twist": [["Abdominals", "Core"], ["Lower Back", "Back"]],
+  "Bodyweight Side Plank": [["Abdominals", "Core"], ["Front Delts", "Front Delts"]],
+  "Bodyweight Single-Leg Glute Bridge": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight Sit-Up": [["Abdominals", "Core"]],
+  "Bodyweight Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight Superman": [["Lower Back", "Back"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight Triceps Dip": [["Triceps", "Triceps"], ["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Cable Biceps Curl": [["Biceps", "Biceps"]],
+  "Cable Chest Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Cable Crossover": [["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Cable Crunch": [["Abdominals", "Core"]],
+  "Cable Face Pull": [["Rear Delts", "Rear Delts"], ["Middle Back", "Back"]],
+  "Cable Front Raise": [["Front Delts", "Front Delts"]],
+  "Cable Glute Kickback": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Cable Hammer Curl": [["Biceps", "Biceps"]],
+  "Cable Incline Fly": [["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Cable Lat Pulldown": [["Lats", "Back"], ["Biceps", "Biceps"], ["Middle Back", "Back"]],
+  "Cable Lateral Raise": [["Side Delts", "Side Delts"], ["Middle Back", "Back"], ["Traps", "Back"]],
+  "Cable Low Fly": [["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Cable Overhead Triceps Extension": [["Triceps", "Triceps"]],
+  "Cable Preacher Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Cable Rear Delt Fly": [["Rear Delts", "Rear Delts"]],
+  "Cable Seated Row": [["Middle Back", "Back"], ["Biceps", "Biceps"], ["Lats", "Back"]],
+  "Cable Shrug": [["Traps", "Back"]],
+  "Cable Single-Arm Triceps Extension": [["Triceps", "Triceps"]],
+  "Cable Straight-Arm Pulldown": [["Lats", "Back"]],
+  "Cable Triceps Pushdown": [["Triceps", "Triceps"]],
+  "Cable Underhand Pulldown": [["Lats", "Back"], ["Biceps", "Biceps"], ["Middle Back", "Back"]],
+  "Cable Upright Row": [["Traps", "Back"], ["Side Delts", "Side Delts"]],
+  "Cable Woodchopper": [["Abdominals", "Core"], ["Front Delts", "Front Delts"]],
+  "Cable Wrist Curl": [["Forearms", "Forearms"]],
+  "Donkey Calf Raise": [["Calves", "Calves"]],
+  "Dumbbell Arnold Press": [["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Dumbbell Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Dumbbell Biceps Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Dumbbell Bulgarian Split Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Dumbbell Calf Raise": [["Calves", "Calves"]],
+  "Dumbbell Clean": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Quadriceps", "Quads"]],
+  "Dumbbell Concentration Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Dumbbell Cross-Body Hammer Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Dumbbell Farmer's Walk": [["Forearms", "Forearms"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Dumbbell Fly": [["Chest", "Chest"]],
+  "Dumbbell Front Raise": [["Front Delts", "Front Delts"]],
+  "Dumbbell Goblet Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Dumbbell Hammer Curl": [["Biceps", "Biceps"]],
+  "Dumbbell Incline Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Dumbbell Incline Curl": [["Biceps", "Biceps"]],
+  "Dumbbell Incline Fly": [["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Dumbbell Lateral Raise": [["Side Delts", "Side Delts"]],
+  "Dumbbell Lunge": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Dumbbell Overhead Triceps Extension": [["Triceps", "Triceps"]],
+  "Dumbbell Pullover": [["Chest", "Chest"], ["Lats", "Back"], ["Front Delts", "Front Delts"]],
+  "Dumbbell Rear Delt Fly": [["Rear Delts", "Rear Delts"]],
+  "Dumbbell Reverse Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Dumbbell Reverse Wrist Curl": [["Forearms", "Forearms"]],
+  "Dumbbell Romanian Deadlift": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Lower Back", "Back"]],
+  "Dumbbell Row": [["Middle Back", "Back"], ["Biceps", "Biceps"], ["Lats", "Back"]],
+  "Dumbbell Shoulder Press": [["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Dumbbell Shrug": [["Traps", "Back"]],
+  "Dumbbell Step-Up": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Dumbbell Triceps Kickback": [["Triceps", "Triceps"]],
+  "Dumbbell Upright Row": [["Traps", "Back"], ["Biceps", "Biceps"], ["Side Delts", "Side Delts"]],
+  "Dumbbell Wrist Curl": [["Forearms", "Forearms"]],
+  "Dumbbell Zottman Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Kettlebell Clean": [["Front Delts", "Front Delts"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Kettlebell Goblet Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Kettlebell Press": [["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Kettlebell Snatch": [["Front Delts", "Front Delts"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Kettlebell Swing": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Front Delts", "Front Delts"]],
+  "Kettlebell Thruster": [["Front Delts", "Front Delts"], ["Quadriceps", "Quads"], ["Triceps", "Triceps"]],
+  "Kettlebell Turkish Get-Up": [["Front Delts", "Front Delts"], ["Hamstrings", "Hamstrings"], ["Quadriceps", "Quads"]],
+  "Kettlebell Windmill": [["Abdominals", "Core"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Landmine Deadlift": [["Lower Back", "Back"], ["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"]],
+  "Landmine Press": [["Front Delts", "Front Delts"], ["Triceps", "Triceps"], ["Chest", "Chest"]],
+  "Landmine Reverse Lunge": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Landmine Romanian Deadlift": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Lower Back", "Back"]],
+  "Landmine Rotation": [["Abdominals", "Core"], ["Front Delts", "Front Delts"]],
+  "Landmine Row": [["Lats", "Back"], ["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Landmine Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Landmine Thruster": [["Quadriceps", "Quads"], ["Front Delts", "Front Delts"], ["Glutes", "Glutes"]],
+  "Machine Calf Raise": [["Calves", "Calves"]],
+  "Machine Chest Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Machine Hack Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Machine Leg Curl": [["Hamstrings", "Hamstrings"]],
+  "Machine Leg Extension": [["Quadriceps", "Quads"]],
+  "Machine Leg Press": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Machine Leg Press Calf Raise": [["Calves", "Calves"]],
+  "Machine Lying Leg Curl": [["Hamstrings", "Hamstrings"]],
+  "Machine Pec Deck Fly": [["Chest", "Chest"]],
+  "Machine Preacher Curl": [["Biceps", "Biceps"]],
+  "Machine Reverse Fly": [["Rear Delts", "Rear Delts"]],
+  "Machine Shoulder Press": [["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Machine Shrug": [["Traps", "Back"], ["Forearms", "Forearms"]],
+  "Machine Standing Calf Raise": [["Calves", "Calves"]],
+  "Machine Standing Leg Curl": [["Hamstrings", "Hamstrings"]],
+  "Machine T-Bar Row": [["Middle Back", "Back"], ["Biceps", "Biceps"], ["Lats", "Back"]],
+  "Smith Machine Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Smith Machine Close-Grip Bench": [["Triceps", "Triceps"], ["Chest", "Chest"], ["Front Delts", "Front Delts"]],
+  "Smith Machine Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Wrist Roller": [["Forearms", "Forearms"], ["Front Delts", "Front Delts"]],
 };
 // resolve a demo for any exercise: custom media wins, else CC0 frames, else none
 function demoFor(ex){
@@ -383,7 +667,7 @@ function demoFor(ex){
 /* ---- preloaded library ---- */
 const SEED = [
   {name:'Barbell Bench Press', eq:'Barbell', m:'Chest', sec:'Triceps', cue:'Retract shoulder blades, bar to mid-chest, drive feet into floor.'},
-  {name:'Barbell Incline Bench Press', eq:'Barbell', m:'Chest', sec:'Shoulders', cue:'15–30° incline. Bar to upper chest, elbows ~45°.'},
+  {name:'Barbell Incline Bench Press', eq:'Barbell', m:'Chest', sec:'Front Delts', cue:'15–30° incline. Bar to upper chest, elbows ~45°.'},
   {name:'Dumbbell Bench Press', eq:'Dumbbell', m:'Chest', sec:'Triceps', cue:'Deeper stretch than barbell. Press up and slightly in.'},
   {name:'Dumbbell Fly', eq:'Dumbbell', m:'Chest', cue:'Soft elbows, wide arc, feel the stretch — don\u2019t press.'},
   {name:'Cable Crossover', eq:'Cable', m:'Chest', cue:'Slight forward lean, squeeze hands together at bottom.'},
@@ -397,11 +681,11 @@ const SEED = [
   {name:'Cable Seated Row', eq:'Cable', m:'Back', sec:'Biceps', cue:'Tall posture, squeeze shoulder blades, no torso swing.'},
   {name:'Bodyweight Pull-Up', eq:'Bodyweight', m:'Back', sec:'Biceps', cue:'Full hang to chin over bar. Pull elbows to ribs.'},
   {name:'Bodyweight Chin-Up', eq:'Bodyweight', m:'Back', sec:'Biceps', cue:'Underhand grip — more biceps involvement.'},
-  {name:'Barbell Overhead Press', eq:'Barbell', m:'Shoulders', sec:'Triceps', cue:'Brace glutes & core, bar travels in a straight line up.'},
-  {name:'Dumbbell Shoulder Press', eq:'Dumbbell', m:'Shoulders', sec:'Triceps', cue:'Wrists stacked over elbows, press without flaring low.'},
-  {name:'Dumbbell Lateral Raise', eq:'Dumbbell', m:'Shoulders', cue:'Lead with elbows, raise to shoulder height, slow down.'},
-  {name:'Cable Lateral Raise', eq:'Cable', m:'Shoulders', cue:'Constant tension version — great for the side delt.'},
-  {name:'Dumbbell Rear Delt Fly', eq:'Dumbbell', m:'Shoulders', cue:'Hinge over, pull wide, thumbs slightly down.'},
+  {name:'Barbell Overhead Press', eq:'Barbell', m:'Front Delts', sec:'Triceps', cue:'Brace glutes & core, bar travels in a straight line up.'},
+  {name:'Dumbbell Shoulder Press', eq:'Dumbbell', m:'Front Delts', sec:'Triceps', cue:'Wrists stacked over elbows, press without flaring low.'},
+  {name:'Dumbbell Lateral Raise', eq:'Dumbbell', m:'Side Delts', cue:'Lead with elbows, raise to shoulder height, slow down.'},
+  {name:'Cable Lateral Raise', eq:'Cable', m:'Side Delts', cue:'Constant tension version — great for the side delt.'},
+  {name:'Dumbbell Rear Delt Fly', eq:'Dumbbell', m:'Rear Delts', cue:'Hinge over, pull wide, thumbs slightly down.'},
   {name:'Barbell Biceps Curl', eq:'Barbell', m:'Biceps', cue:'Elbows pinned to sides, no swinging the bar up.'},
   {name:'Dumbbell Biceps Curl', eq:'Dumbbell', m:'Biceps', cue:'Supinate (rotate pinky up) as you curl.'},
   {name:'Dumbbell Hammer Curl', eq:'Dumbbell', m:'Biceps', sec:'Forearms', cue:'Neutral grip — hits brachialis & forearm.'},
@@ -422,8 +706,124 @@ const SEED = [
   {name:'Bodyweight Plank', eq:'Bodyweight', m:'Core', cue:'Straight line head-to-heel, squeeze glutes, don\u2019t sag. Log seconds as reps.'},
   {name:'Cable Crunch', eq:'Cable', m:'Core', cue:'Round the spine down, hips stay fixed, exhale & crunch.'},
   {name:'Bodyweight Hanging Leg Raise', eq:'Bodyweight', m:'Core', cue:'No swing, curl pelvis up, control the way down.'},
-  {name:'Barbell Shrug', eq:'Barbell', m:'Forearms', sec:'Back', cue:'Straight up shrug, pause, no rolling the shoulders.'},
+  {name:'Barbell Shrug', eq:'Barbell', m:'Back', cue:'Straight up shrug, pause, no rolling the shoulders.'},
   {name:'Dumbbell Wrist Curl', eq:'Dumbbell', m:'Forearms', cue:'Forearms on thighs, full flex & extension at the wrist.'},
+  // ===== Expanded library: Olympic lifts, kettlebell, cable, machines & accessories =====
+  {name:"Barbell Snatch", eq:"Barbell", m:"Full Body", sec:"Front Delts", cue:"Explosive triple extension, pull under, catch overhead in a squat."},
+  {name:"Barbell Power Snatch", eq:"Barbell", m:"Full Body", sec:"Front Delts", cue:"Same as snatch but catch high, above parallel."},
+  {name:"Barbell Hang Snatch", eq:"Barbell", m:"Full Body", sec:"Hamstrings", cue:"Start from the hang (mid-thigh), explode up and under."},
+  {name:"Barbell Clean", eq:"Barbell", m:"Full Body", sec:"Quads", cue:"Triple-extend, pull under, catch on the front rack."},
+  {name:"Barbell Power Clean", eq:"Barbell", m:"Full Body", sec:"Hamstrings", cue:"Clean caught high in a quarter squat. Big hip drive."},
+  {name:"Barbell Hang Clean", eq:"Barbell", m:"Full Body", sec:"Quads", cue:"Clean from the hang position \u2014 removes the floor pull."},
+  {name:"Barbell Clean and Jerk", eq:"Barbell", m:"Full Body", sec:"Front Delts", cue:"Clean to the rack, then jerk overhead. The full lift."},
+  {name:"Barbell Clean and Press", eq:"Barbell", m:"Full Body", sec:"Front Delts", cue:"Clean, then strict press overhead. No leg drive on the press."},
+  {name:"Barbell Push Press", eq:"Barbell", m:"Front Delts", sec:"Quads", cue:"Dip, drive with the legs, press overhead. More weight than strict."},
+  {name:"Barbell Split Jerk", eq:"Barbell", m:"Full Body", sec:"Front Delts", cue:"Dip-drive, punch under into a split stance, lock out overhead."},
+  {name:"Barbell Overhead Squat", eq:"Barbell", m:"Quads", sec:"Front Delts", cue:"Bar locked overhead, squat deep. Brutal mobility + stability."},
+  {name:"Barbell Snatch Deadlift", eq:"Barbell", m:"Hamstrings", sec:"Back", cue:"Snatch-grip pull to the knee. Builds the first pull."},
+  {name:"Barbell Clean Pull", eq:"Barbell", m:"Hamstrings", sec:"Back", cue:"Clean-grip explosive pull, no catch. Hip power."},
+  {name:"Dumbbell Clean", eq:"Dumbbell", m:"Full Body", sec:"Hamstrings", cue:"Explosive pull, catch dumbbells on the shoulders."},
+  {name:"Kettlebell Swing", eq:"Kettlebell", m:"Full Body", sec:"Glutes", cue:"Hip hinge, snap the hips \u2014 the bell floats, arms are ropes."},
+  {name:"Kettlebell Goblet Squat", eq:"Kettlebell", m:"Quads", sec:"Glutes", cue:"Hold the bell at the chest, squat between the knees."},
+  {name:"Kettlebell Clean", eq:"Kettlebell", m:"Full Body", sec:"Hamstrings", cue:"Pull and tame the arc \u2014 bell lands soft on the forearm."},
+  {name:"Kettlebell Press", eq:"Kettlebell", m:"Front Delts", sec:"Triceps", cue:"Strict overhead press from the rack position."},
+  {name:"Kettlebell Snatch", eq:"Kettlebell", m:"Full Body", sec:"Front Delts", cue:"One smooth pull from swing to locked overhead."},
+  {name:"Kettlebell Turkish Get-Up", eq:"Kettlebell", m:"Full Body", sec:"Core", cue:"Floor to standing with the bell locked overhead. Slow + controlled."},
+  {name:"Kettlebell Thruster", eq:"Kettlebell", m:"Full Body", sec:"Front Delts", cue:"Front squat into an overhead press in one motion."},
+  {name:"Kettlebell Windmill", eq:"Kettlebell", m:"Core", sec:"Front Delts", cue:"Bell overhead, hinge sideways reaching for the floor."},
+  {name:"Barbell Decline Bench Press", eq:"Barbell", m:"Chest", sec:"Triceps", cue:"Decline targets lower chest. Bar to lower-chest line."},
+  {name:"Dumbbell Incline Bench Press", eq:"Dumbbell", m:"Chest", sec:"Front Delts", cue:"Incline dumbbell press \u2014 deeper stretch, upper chest."},
+  {name:"Dumbbell Incline Fly", eq:"Dumbbell", m:"Chest", sec:"Front Delts", cue:"Wide arc on an incline, soft elbows, stretch the upper chest."},
+  {name:"Machine Pec Deck Fly", eq:"Machine", m:"Chest", cue:"Arms wide, squeeze in. Pure chest isolation."},
+  {name:"Cable Chest Press", eq:"Cable", m:"Chest", sec:"Triceps", cue:"Press the handles forward and together, constant tension."},
+  {name:"Cable Low Fly", eq:"Cable", m:"Chest", cue:"Low pulleys up and together \u2014 hits the upper chest."},
+  {name:"Cable Incline Fly", eq:"Cable", m:"Chest", cue:"Fly on an incline bench with cables for constant tension."},
+  {name:"Dumbbell Pullover", eq:"Dumbbell", m:"Chest", sec:"Back", cue:"One dumbbell, arc behind the head, big rib-cage stretch."},
+  {name:"Smith Machine Bench Press", eq:"Machine", m:"Chest", sec:"Triceps", cue:"Fixed bar path \u2014 good for pressing without a spotter."},
+  {name:"Bodyweight Incline Push-Up", eq:"Bodyweight", m:"Chest", sec:"Triceps", cue:"Hands elevated \u2014 easier push-up, hits lower chest."},
+  {name:"Bodyweight Decline Push-Up", eq:"Bodyweight", m:"Chest", sec:"Front Delts", cue:"Feet elevated \u2014 harder, shifts load to upper chest."},
+  {name:"Barbell T-Bar Row", eq:"Barbell", m:"Back", sec:"Biceps", cue:"Chest-up hinge, row the bar to your stomach."},
+  {name:"Machine T-Bar Row", eq:"Machine", m:"Back", sec:"Biceps", cue:"Chest-supported T-bar \u2014 strict, no lower-back strain."},
+  {name:"Barbell Rack Pull", eq:"Barbell", m:"Back", sec:"Hamstrings", cue:"Partial deadlift from pins \u2014 overload the top end."},
+  {name:"Cable Straight-Arm Pulldown", eq:"Cable", m:"Back", cue:"Arms straight, drive the bar down \u2014 lat isolation."},
+  {name:"Cable Underhand Pulldown", eq:"Cable", m:"Back", sec:"Biceps", cue:"Supinated grip pulldown \u2014 more lower-lat + biceps."},
+  {name:"Bodyweight Inverted Row", eq:"Bodyweight", m:"Back", sec:"Biceps", cue:"Body under a fixed bar, pull chest to bar. Scalable."},
+  {name:"Bodyweight Back Extension", eq:"Bodyweight", m:"Back", sec:"Glutes", cue:"Hinge over the pad, extend to a straight line. Don't hyperextend."},
+  {name:"Bodyweight Superman", eq:"Bodyweight", m:"Back", cue:"Lie face down, lift arms + legs, squeeze the lower back."},
+  {name:"Dumbbell Shrug", eq:"Dumbbell", m:"Back", cue:"Straight up shrug, pause at the top, no rolling."},
+  {name:"Cable Shrug", eq:"Cable", m:"Back", cue:"Constant-tension shrug from a low pulley."},
+  {name:"Machine Shrug", eq:"Machine", m:"Back", cue:"Leverage shrug \u2014 heavy trap loading, easy setup."},
+  {name:"Dumbbell Front Raise", eq:"Dumbbell", m:"Front Delts", cue:"Raise to shoulder height, slight bend, control down."},
+  {name:"Cable Front Raise", eq:"Cable", m:"Front Delts", cue:"Low pulley to the front \u2014 constant tension on front delt."},
+  {name:"Dumbbell Arnold Press", eq:"Dumbbell", m:"Front Delts", sec:"Triceps", cue:"Rotate palms out as you press \u2014 hits all three delt heads."},
+  {name:"Cable Rear Delt Fly", eq:"Cable", m:"Rear Delts", cue:"High pulleys, pull wide and back \u2014 rear-delt isolation."},
+  {name:"Cable Face Pull", eq:"Cable", m:"Rear Delts", sec:"Back", cue:"Rope to the face, elbows high \u2014 rear delts + healthy shoulders."},
+  {name:"Machine Shoulder Press", eq:"Machine", m:"Front Delts", sec:"Triceps", cue:"Seat set so handles are at shoulder height, press up."},
+  {name:"Machine Reverse Fly", eq:"Machine", m:"Rear Delts", cue:"Reverse pec-deck \u2014 strict rear-delt isolation."},
+  {name:"Barbell Upright Row", eq:"Barbell", m:"Side Delts", sec:"Forearms", cue:"Pull the bar up the body, elbows lead. Stop at chest height."},
+  {name:"Dumbbell Upright Row", eq:"Dumbbell", m:"Side Delts", sec:"Forearms", cue:"Elbows high and wide \u2014 side delts + traps."},
+  {name:"Cable Upright Row", eq:"Cable", m:"Side Delts", sec:"Forearms", cue:"Constant-tension upright row from a low pulley."},
+  {name:"Barbell Preacher Curl", eq:"Barbell", m:"Biceps", cue:"Arms locked on the pad, full stretch at the bottom."},
+  {name:"Machine Preacher Curl", eq:"Machine", m:"Biceps", cue:"Preacher curl on a machine \u2014 constant tension, strict."},
+  {name:"Cable Preacher Curl", eq:"Cable", m:"Biceps", cue:"Cable + preacher pad \u2014 tension through the whole range."},
+  {name:"Dumbbell Concentration Curl", eq:"Dumbbell", m:"Biceps", cue:"Elbow braced on the thigh, squeeze hard at the top."},
+  {name:"Dumbbell Incline Curl", eq:"Dumbbell", m:"Biceps", cue:"Lie back on an incline \u2014 big stretch on the biceps."},
+  {name:"Dumbbell Cross-Body Hammer Curl", eq:"Dumbbell", m:"Biceps", sec:"Forearms", cue:"Curl across the body toward the opposite shoulder."},
+  {name:"Cable Hammer Curl", eq:"Cable", m:"Biceps", sec:"Forearms", cue:"Rope neutral-grip curl \u2014 biceps + brachialis."},
+  {name:"Barbell Reverse Curl", eq:"Barbell", m:"Forearms", sec:"Biceps", cue:"Overhand grip curl \u2014 hammers the forearms/brachialis."},
+  {name:"Dumbbell Reverse Curl", eq:"Dumbbell", m:"Forearms", sec:"Biceps", cue:"Overhand dumbbell curl for forearm + brachialis."},
+  {name:"Dumbbell Zottman Curl", eq:"Dumbbell", m:"Biceps", sec:"Forearms", cue:"Curl up supinated, rotate, lower pronated. Forearm killer."},
+  {name:"Barbell Close-Grip Bench Press", eq:"Barbell", m:"Triceps", sec:"Chest", cue:"Hands shoulder-width, elbows tucked \u2014 triceps pressing."},
+  {name:"Dumbbell Triceps Kickback", eq:"Dumbbell", m:"Triceps", cue:"Hinge over, upper arm fixed, extend straight back."},
+  {name:"Cable Overhead Triceps Extension", eq:"Cable", m:"Triceps", cue:"Rope overhead, extend up \u2014 long-head stretch."},
+  {name:"Cable Single-Arm Triceps Extension", eq:"Cable", m:"Triceps", cue:"One-arm pushdown \u2014 fix imbalances, full lockout."},
+  {name:"Bodyweight Triceps Dip", eq:"Bodyweight", m:"Triceps", sec:"Chest", cue:"Stay upright, elbows back \u2014 triceps emphasis."},
+  {name:"Smith Machine Close-Grip Bench", eq:"Machine", m:"Triceps", sec:"Chest", cue:"Fixed-bar close-grip press \u2014 triceps without a spotter."},
+  {name:"Dumbbell Bulgarian Split Squat", eq:"Dumbbell", m:"Quads", sec:"Glutes", cue:"Rear foot elevated, drop straight down, drive the front heel."},
+  {name:"Dumbbell Goblet Squat", eq:"Dumbbell", m:"Quads", sec:"Glutes", cue:"Hold a dumbbell at the chest, squat deep and upright."},
+  {name:"Machine Hack Squat", eq:"Machine", m:"Quads", sec:"Glutes", cue:"Back on the pad, feet forward, drive through the whole foot."},
+  {name:"Barbell Hack Squat", eq:"Barbell", m:"Quads", sec:"Glutes", cue:"Bar behind the legs, stand up \u2014 old-school quad builder."},
+  {name:"Dumbbell Step-Up", eq:"Dumbbell", m:"Quads", sec:"Glutes", cue:"Drive through the top foot, control the way down."},
+  {name:"Barbell Step-Up", eq:"Barbell", m:"Quads", sec:"Glutes", cue:"Bar on the back, step up tall, minimal push from the back leg."},
+  {name:"Barbell Box Squat", eq:"Barbell", m:"Quads", sec:"Glutes", cue:"Sit back to a box, pause, drive up. Teaches depth + power."},
+  {name:"Smith Machine Squat", eq:"Machine", m:"Quads", sec:"Glutes", cue:"Fixed-bar squat \u2014 lets you sit back without balance demands."},
+  {name:"Bodyweight Squat", eq:"Bodyweight", m:"Quads", sec:"Glutes", cue:"Sit between the hips to depth, chest tall. Warm-up staple."},
+  {name:"Machine Lying Leg Curl", eq:"Machine", m:"Hamstrings", cue:"Face down, curl heels to glutes, no hip lift."},
+  {name:"Machine Standing Leg Curl", eq:"Machine", m:"Hamstrings", cue:"One leg at a time, strict curl, full squeeze."},
+  {name:"Dumbbell Romanian Deadlift", eq:"Dumbbell", m:"Hamstrings", sec:"Glutes", cue:"Push hips back, dumbbells graze the legs, feel the stretch."},
+  {name:"Barbell Good Morning", eq:"Barbell", m:"Hamstrings", sec:"Back", cue:"Bar on back, hinge forward with soft knees, flat back."},
+  {name:"Barbell Glute Bridge", eq:"Barbell", m:"Glutes", sec:"Hamstrings", cue:"On the floor, bar over hips, full lockout squeeze."},
+  {name:"Cable Glute Kickback", eq:"Cable", m:"Glutes", cue:"Ankle strap, drive the leg straight back, squeeze."},
+  {name:"Bodyweight Glute Kickback", eq:"Bodyweight", m:"Glutes", cue:"On all fours, drive heel to ceiling, controlled."},
+  {name:"Bodyweight Single-Leg Glute Bridge", eq:"Bodyweight", m:"Glutes", sec:"Hamstrings", cue:"One leg extended, bridge with the other \u2014 unilateral glutes."},
+  {name:"Machine Standing Calf Raise", eq:"Machine", m:"Calves", cue:"Full stretch at the bottom, big squeeze at the top."},
+  {name:"Machine Leg Press Calf Raise", eq:"Machine", m:"Calves", cue:"Balls of feet on the platform, press through with the calves."},
+  {name:"Barbell Standing Calf Raise", eq:"Barbell", m:"Calves", cue:"Bar on back, rise onto the toes, pause at the top."},
+  {name:"Donkey Calf Raise", eq:"Machine", m:"Calves", cue:"Hinged at the hips \u2014 huge calf stretch and contraction."},
+  {name:"Bodyweight Sit-Up", eq:"Bodyweight", m:"Core", cue:"Full sit-up, controlled both ways. Log reps."},
+  {name:"Bodyweight Crunch", eq:"Bodyweight", m:"Core", cue:"Curl the shoulders up, exhale, squeeze the abs."},
+  {name:"Bodyweight Russian Twist", eq:"Bodyweight", m:"Core", cue:"Lean back, rotate side to side. Add weight to scale."},
+  {name:"Cable Woodchopper", eq:"Cable", m:"Core", cue:"High-to-low diagonal chop, rotate through the trunk."},
+  {name:"Bodyweight Mountain Climbers", eq:"Bodyweight", m:"Core", sec:"Quads", cue:"Plank position, drive knees in fast. Core + conditioning."},
+  {name:"Bodyweight Reverse Crunch", eq:"Bodyweight", m:"Core", cue:"Curl the hips up off the floor \u2014 lower-ab focus."},
+  {name:"Bodyweight Decline Crunch", eq:"Bodyweight", m:"Core", cue:"Crunch on a decline bench for more range + load."},
+  {name:"Bodyweight Flutter Kicks", eq:"Bodyweight", m:"Core", cue:"Legs straight, small fast kicks, low back pressed down."},
+  {name:"Ab Wheel Rollout", eq:"Other", m:"Core", cue:"Roll out under control, brace hard, don't let the hips sag."},
+  {name:"Bodyweight Side Plank", eq:"Bodyweight", m:"Core", cue:"Stack the hips, hold a straight line. Log seconds as reps."},
+  {name:"Barbell Wrist Curl", eq:"Barbell", m:"Forearms", cue:"Forearms on thighs, full flex + extension at the wrist."},
+  {name:"Dumbbell Reverse Wrist Curl", eq:"Dumbbell", m:"Forearms", cue:"Palms down, curl the wrists up \u2014 extensor work."},
+  {name:"Cable Wrist Curl", eq:"Cable", m:"Forearms", cue:"Constant-tension wrist curl from a low pulley."},
+  {name:"Dumbbell Farmer's Walk", eq:"Dumbbell", m:"Forearms", sec:"Full Body", cue:"Heavy dumbbells, walk tall \u2014 grip + total-body."},
+  {name:"Wrist Roller", eq:"Other", m:"Forearms", cue:"Roll the weight up and down on a cord. Forearm burn."},
+  // ===== Landmine =====
+  {name:"Landmine Press", eq:"Landmine", m:"Front Delts", sec:"Triceps", cue:"Press the bar up and slightly forward from the shoulder. Great shoulder-saver."},
+  {name:"Landmine Squat", eq:"Landmine", m:"Quads", sec:"Glutes", cue:"Hold the bar at the chest, squat tall and upright. Easy on the back."},
+  {name:"Landmine Row", eq:"Landmine", m:"Back", sec:"Biceps", cue:"Straddle the bar, row to the hip \u2014 thick-back builder (Meadows-style)."},
+  {name:"Landmine Romanian Deadlift", eq:"Landmine", m:"Hamstrings", sec:"Glutes", cue:"Hinge with the bar in front, hamstrings loaded, flat back."},
+  {name:"Landmine Reverse Lunge", eq:"Landmine", m:"Quads", sec:"Glutes", cue:"Bar at the chest, step back and down, drive through the front heel."},
+  {name:"Landmine Rotation", eq:"Landmine", m:"Core", sec:"Front Delts", cue:"Swing the bar side to side in an arc \u2014 rotational core power."},
+  {name:"Landmine Deadlift", eq:"Landmine", m:"Back", sec:"Hamstrings", cue:"Pull the bar from the floor at the landmine \u2014 posterior chain."},
+  {name:"Landmine Thruster", eq:"Landmine", m:"Full Body", sec:"Front Delts", cue:"Squat then drive the bar overhead in one explosive motion."},
 ].map(e => ({ id:uid(), media:'', custom:false, ...e }));
 
 /* ---- icons ---- */
@@ -488,18 +888,20 @@ function AnimatedDemo({demo}){
 }
 
 /* ---- body map fallback ---- */
-const BACK_MUSCLES = {Back:1, Triceps:1, Glutes:1, Hamstrings:1, Calves:1};
+const BACK_MUSCLES = {Back:1, Triceps:1, Glutes:1, Hamstrings:1, Calves:1, 'Rear Delts':1};
 function BodyMap({muscle, color}){
   const back = !!BACK_MUSCLES[muscle];
   const full = muscle === 'Full Body';
   const hl = m => (full || muscle===m) ? color : '#363c49';
+  const deltF = (full || muscle==='Front Delts' || muscle==='Side Delts') ? color : '#363c49';
+  const deltB = (full || muscle==='Rear Delts' || muscle==='Side Delts') ? color : '#363c49';
   const base = '#2a2f3a';
   return (
     <svg className="bodymap" viewBox="0 0 120 210">
       {!back ? (
         <g>
           <circle cx="60" cy="20" r="11" fill={base}/><rect x="55" y="29" width="10" height="8" rx="3" fill={base}/>
-          <ellipse cx="40" cy="44" rx="11" ry="9" fill={hl('Shoulders')}/><ellipse cx="80" cy="44" rx="11" ry="9" fill={hl('Shoulders')}/>
+          <ellipse cx="40" cy="44" rx="11" ry="9" fill={deltF}/><ellipse cx="80" cy="44" rx="11" ry="9" fill={deltF}/>
           <path d="M44 42 H76 a6 6 0 0 1 6 6 v12 a8 8 0 0 1-8 8 H46 a8 8 0 0 1-8-8 V48 a6 6 0 0 1 6-6 Z" fill={hl('Chest')}/>
           <rect x="46" y="76" width="28" height="30" rx="6" fill={hl('Core')}/>
           <rect x="29" y="50" width="11" height="30" rx="5" fill={hl('Biceps')}/><rect x="80" y="50" width="11" height="30" rx="5" fill={hl('Biceps')}/>
@@ -510,7 +912,7 @@ function BodyMap({muscle, color}){
       ) : (
         <g>
           <circle cx="60" cy="20" r="11" fill={base}/><rect x="55" y="29" width="10" height="8" rx="3" fill={base}/>
-          <ellipse cx="40" cy="44" rx="11" ry="9" fill={base}/><ellipse cx="80" cy="44" rx="11" ry="9" fill={base}/>
+          <ellipse cx="40" cy="44" rx="11" ry="9" fill={deltB}/><ellipse cx="80" cy="44" rx="11" ry="9" fill={deltB}/>
           <path d="M44 42 H76 a6 6 0 0 1 6 6 l-3 26 a6 6 0 0 1-6 5 H47 a6 6 0 0 1-6-5 l-3-26 a6 6 0 0 1 6-6 Z" fill={hl('Back')}/>
           <rect x="29" y="50" width="11" height="30" rx="5" fill={hl('Triceps')}/><rect x="80" y="50" width="11" height="30" rx="5" fill={hl('Triceps')}/>
           <rect x="27" y="80" width="10" height="26" rx="5" fill={base}/><rect x="83" y="80" width="10" height="26" rx="5" fill={base}/>
@@ -520,6 +922,99 @@ function BodyMap({muscle, color}){
         </g>
       )}
     </svg>
+  );
+}
+
+/* ---- per-lift muscle tiers (primary / secondary / tertiary) ---- */
+function MuscleTiers({ex}){
+  let tiers = MUS[ex.name];
+  if(!tiers){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
+  if(!tiers.length) return null;
+  const labels=['Primary','Secondary','Tertiary'];
+  return (
+    <div className="mtiers">
+      {tiers.slice(0,3).map((t,i)=>(
+        <div key={i} className="mtier">
+          <span className="mt-dot" style={{background:MUSCLE[t[1]]||'#888'}}></span>
+          <span className="mt-label">{labels[i]}</span>
+          <span className="mt-mus">{t[0]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---- shade a muscle region by how hard it's worked (0..1) ---- */
+function shade(t){
+  if(!t || t<=0) return '#262a3d';
+  const a = (0.30 + 0.70*Math.min(1,t));
+  return 'rgba(129,140,248,'+a.toFixed(3)+')';
+}
+
+/* ---- front + back body, each region shaded by intensity map ---- */
+function BodyHeatmap({intensity}){
+  const i = intensity||{};
+  const f = m => shade(i[m]);
+  const fm = arr => shade(Math.max.apply(null, arr.map(m=>i[m]||0)));
+  const base='#23263a';
+  return (
+    <svg className="bodyheat" viewBox="0 0 280 226">
+      {/* ---------- FRONT ---------- */}
+      <g transform="translate(8,6)">
+        <circle cx="60" cy="18" r="11" fill={base}/><rect x="55" y="27" width="10" height="8" rx="3" fill={base}/>
+        <ellipse cx="40" cy="42" rx="11" ry="9" fill={fm(['Front Delts','Side Delts'])}/><ellipse cx="80" cy="42" rx="11" ry="9" fill={fm(['Front Delts','Side Delts'])}/>
+        <path d="M44 40 H76 a6 6 0 0 1 6 6 v12 a8 8 0 0 1-8 8 H46 a8 8 0 0 1-8-8 V46 a6 6 0 0 1 6-6 Z" fill={f('Chest')}/>
+        <rect x="46" y="74" width="28" height="30" rx="6" fill={f('Core')}/>
+        <rect x="29" y="48" width="11" height="30" rx="5" fill={f('Biceps')}/><rect x="80" y="48" width="11" height="30" rx="5" fill={f('Biceps')}/>
+        <rect x="27" y="78" width="10" height="26" rx="5" fill={f('Forearms')}/><rect x="83" y="78" width="10" height="26" rx="5" fill={f('Forearms')}/>
+        <rect x="45" y="108" width="13" height="42" rx="6" fill={f('Quads')}/><rect x="62" y="108" width="13" height="42" rx="6" fill={f('Quads')}/>
+        <rect x="46" y="154" width="11" height="36" rx="5" fill={f('Calves')}/><rect x="63" y="154" width="11" height="36" rx="5" fill={f('Calves')}/>
+        <text x="60" y="208" textAnchor="middle">FRONT</text>
+      </g>
+      {/* ---------- BACK ---------- */}
+      <g transform="translate(150,6)">
+        <circle cx="60" cy="18" r="11" fill={base}/><rect x="55" y="27" width="10" height="8" rx="3" fill={base}/>
+        <ellipse cx="40" cy="42" rx="11" ry="9" fill={fm(['Rear Delts','Side Delts'])}/><ellipse cx="80" cy="42" rx="11" ry="9" fill={fm(['Rear Delts','Side Delts'])}/>
+        <path d="M44 40 H76 a6 6 0 0 1 6 6 l-3 26 a6 6 0 0 1-6 5 H47 a6 6 0 0 1-6-5 l-3-26 a6 6 0 0 1 6-6 Z" fill={f('Back')}/>
+        <rect x="29" y="48" width="11" height="30" rx="5" fill={f('Triceps')}/><rect x="80" y="48" width="11" height="30" rx="5" fill={f('Triceps')}/>
+        <rect x="27" y="78" width="10" height="26" rx="5" fill={f('Forearms')}/><rect x="83" y="78" width="10" height="26" rx="5" fill={f('Forearms')}/>
+        <path d="M46 102 h28 a6 6 0 0 1 6 6 v6 a8 8 0 0 1-8 8 H48 a8 8 0 0 1-8-8 v-6 a6 6 0 0 1 6-6 Z" fill={f('Glutes')}/>
+        <rect x="45" y="128" width="13" height="40" rx="6" fill={f('Hamstrings')}/><rect x="62" y="128" width="13" height="40" rx="6" fill={f('Hamstrings')}/>
+        <rect x="46" y="170" width="11" height="34" rx="5" fill={f('Calves')}/><rect x="63" y="170" width="11" height="34" rx="5" fill={f('Calves')}/>
+        <text x="60" y="208" textAnchor="middle">BACK</text>
+      </g>
+    </svg>
+  );
+}
+
+/* ---- routine muscle breakdown: aggregate MUS across exercises -> heatmap + % ---- */
+function MuscleBreakdown({exerciseIds, exById}){
+  const sums={};
+  (exerciseIds||[]).forEach(id=>{
+    const ex=exById[id]; if(!ex) return;
+    let tiers = MUS[ex.name];
+    if(!tiers){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
+    tiers.slice(0,3).forEach((t,idx)=>{ const region=t[1]; const w=[3,2,1][idx]||1; sums[region]=(sums[region]||0)+w; });
+  });
+  const entries=Object.entries(sums);
+  const total=entries.reduce((a,b)=>a+b[1],0);
+  if(!total) return <div style={{color:'var(--muted)',fontSize:13,padding:'4px 2px'}}>Add exercises to see the muscle breakdown.</div>;
+  const max=Math.max.apply(null, entries.map(e=>e[1]));
+  const intensity={}; entries.forEach(e=>{ intensity[e[0]]=e[1]/max; });
+  const list=entries.map(e=>({m:e[0], pct:Math.round(e[1]/total*100)})).sort((a,b)=>b.pct-a.pct);
+  return (
+    <div>
+      <BodyHeatmap intensity={intensity} />
+      <div className="mb-list">
+        {list.map(r=>(
+          <div key={r.m} className="mb-row">
+            <span className="mb-name" style={{color:MUSCLE[r.m]||'#fff'}}>{r.m}</span>
+            <div className="mb-bar"><div style={{width:r.pct+'%', background:MUSCLE[r.m]||'var(--accent)'}}></div></div>
+            <span className="mb-pct">{r.pct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1031,8 +1526,6 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
               <div className="dm-name">{ex.name}</div>
               <div className="detail-tags">
                 <Pill color={EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}>{ex.eq}</Pill>
-                <Pill color={color}>{ex.m}</Pill>
-                {ex.sec && <Pill color={MUSCLE[ex.sec]||'#888'}>{ex.sec}</Pill>}
                 {ex.custom && <Pill color="#9095ad">Custom</Pill>}
               </div>
               {rec &&
@@ -1042,6 +1535,7 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
                 </div>}
             </div>
           </div>
+          <MuscleTiers ex={ex} />
           {ex.cue && <div className="cue"><b>Form cue:</b> {ex.cue}</div>}
           <a className="demo-btn" href={ytUrl} target="_blank" rel="noopener noreferrer">{I.yt}<span>Watch full demo on YouTube</span></a>
           {sparkData.length>=2 && <div><div className="section-h" style={{margin:'0 0 6px'}}>Est. 1RM Progress</div><Spark data={sparkData} color={color} /></div>}
@@ -1132,6 +1626,11 @@ function RoutineEditor({routine, exById, exercises, onClose, onSave, onDelete}){
                   <button className="delset" onClick={()=>remove(id)}>{I.trash}</button>
                 </div>
               ); })}
+          {ids.length>0 &&
+            <div>
+              <div className="section-h" style={{margin:'20px 0 10px'}}>Muscles Worked</div>
+              <MuscleBreakdown exerciseIds={ids} exById={exById} />
+            </div>}
           <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45,marginTop:14}}
             onClick={()=>valid&&onSave({id:routine?routine.id:uid(),name:name.trim(),note:note.trim(),exerciseIds:ids})}>{I.check}{editing?'Save changes':'Create routine'}</button>
           {editing && <button className="btn btn-danger btn-sm" style={{marginTop:10}} onClick={()=>onDelete(routine.id)}>{I.trash}Delete routine</button>}
