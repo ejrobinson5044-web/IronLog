@@ -826,6 +826,22 @@ const SEED = [
   {name:"Landmine Thruster", eq:"Landmine", m:"Full Body", sec:"Front Delts", cue:"Squat then drive the bar overhead in one explosive motion."},
 ].map(e => ({ id:uid(), media:'', custom:false, ...e }));
 
+/* Merge library updates (new exercises, re-tagged muscles) into a user's saved data.
+   Preserves existing ids (so routines/logs still resolve) and keeps custom exercises. */
+function migrateExercises(saved){
+  if(!Array.isArray(saved) || saved.length===0) return SEED;
+  const savedByName = new Map(saved.map(e=>[e.name, e]));
+  // current SEED, reusing the prior id when this exercise already existed
+  const merged = SEED.map(s=>{
+    const prev = savedByName.get(s.name);
+    return prev ? { ...s, id: prev.id, media: prev.media || s.media || '' } : s;
+  });
+  // keep any user-created customs (saved names that aren't part of SEED)
+  const seedNames = new Set(SEED.map(s=>s.name));
+  saved.forEach(e=>{ if(!seedNames.has(e.name)) merged.push(e); });
+  return merged;
+}
+
 /* ---- icons ---- */
 const I = {
   dumbbell:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5 17.5 17.5M4 7v10M7 4v16M17 4v16M20 7v10"/></svg>,
@@ -1102,7 +1118,7 @@ function App(){
   const [tab, setTab] = useState('routines');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
   const [restDefault, setRestDefault] = useState(()=>store.get('restDefault',90));
-  const [exercises, setExercises] = useState(()=>store.get('exercises', SEED));
+  const [exercises, setExercises] = useState(()=>migrateExercises(store.get('exercises', null)));
   const [routines, setRoutines] = useState(()=>store.get('routines', []));
   const [logs, setLogs] = useState(()=>store.get('logs', []));
   const [active, setActive] = useState(()=>store.get('active', null));
@@ -1177,7 +1193,7 @@ function App(){
           const row = await doPull();
           if(row && row.data && (row.data.logs||row.data.routines)){
             applyingRemote.current=true;
-            setExercises(row.data.exercises||SEED);
+            setExercises(migrateExercises(row.data.exercises));
             setRoutines(row.data.routines||[]);
             setLogs(row.data.logs||[]);
             if(row.data.unit) setUnit(row.data.unit);
