@@ -878,8 +878,8 @@ function migrateExercises(saved){
 function migrateRoutines(saved){
   if(!Array.isArray(saved)) return [];
   return saved.map(r=>{
-    if(Array.isArray(r.days)) return r;
-    return { id:r.id||uid(), name:r.name||'Routine', note:r.note||'',
+    if(Array.isArray(r.days)) return { labelMode:'num', ...r };
+    return { id:r.id||uid(), name:r.name||'Routine', note:r.note||'', labelMode:'num',
       days:[{id:uid(), name:'Day 1', exerciseIds:Array.isArray(r.exerciseIds)?r.exerciseIds:[]}] };
   });
 }
@@ -1705,14 +1705,20 @@ function NewExerciseSheet({onClose, onSave}){
 /* ============================================================
    ROUTINE EDITOR
    ============================================================ */
+const WEEKDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, onSave, onDelete}){
   const editing=!!routine;
   const [name,setName]=useState(routine?routine.name:'');
   const [note,setNote]=useState(routine?routine.note||'':'');
+  const [labelMode,setLabelMode]=useState(routine?(routine.labelMode||'num'):'num');
   const [days,setDays]=useState(routine? clone(routine.days||[]) : [{id:uid(),name:'Day 1',exerciseIds:[]}]);
   const [dayIdx,setDayIdx]=useState(null);
   const valid = name.trim() && days.length>0 && days.some(d=>d.exerciseIds.length>0);
-  const addDay=()=> setDays([...days, {id:uid(), name:'Day '+(days.length+1), exerciseIds:[]}]);
+  const schemeName=(i,mode)=> mode==='week' ? WEEKDAYS[i%7] : ('Day '+(i+1));
+  const isAuto=(nm)=> /^Day \d+$/i.test(nm||'') || WEEKDAYS.includes(nm);
+  // switching label style relabels only auto-named days; custom names you typed are kept
+  const switchMode=(mode)=>{ setLabelMode(mode); setDays(days.map((d,i)=> isAuto(d.name) ? {...d, name:schemeName(i,mode)} : d)); };
+  const addDay=()=> setDays([...days, {id:uid(), name:schemeName(days.length,labelMode), exerciseIds:[]}]);
   const renameDay=(i,v)=>{ const a=clone(days); a[i].name=v; setDays(a); };
   const delDay=(i)=> setDays(days.filter((_,j)=>j!==i));
   const moveDay=(i,dir)=>{ const j=i+dir; if(j<0||j>=days.length) return; const a=clone(days); [a[i],a[j]]=[a[j],a[i]]; setDays(a); };
@@ -1725,6 +1731,15 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, 
         <div className="sheet-body">
           <div className="field"><label>Routine name</label><input placeholder="e.g. Injury Recovery Program" value={name} onChange={e=>setName(e.target.value)} autoFocus={!editing} /></div>
           <div className="field"><label>Note (optional)</label><input placeholder="e.g. 7-day split — rebuilding after the knee" value={note} onChange={e=>setNote(e.target.value)} /></div>
+          <div className="field"><label>Day labels</label>
+            <div className="unit-toggle" style={{display:'inline-flex'}}>
+              <button className={labelMode==='num'?'on':''} onClick={()=>switchMode('num')}>Numbered</button>
+              <button className={labelMode==='week'?'on':''} onClick={()=>switchMode('week')}>Weekday</button>
+            </div>
+            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:7,lineHeight:1.45}}>
+              {labelMode==='week'?'Days are named Monday, Tuesday, … ':'Days are named Day 1, Day 2, … '}Names you type yourself are kept either way.
+            </div>
+          </div>
           <div className="section-h" style={{margin:'4px 0 10px'}}><span>Days ({days.length})</span>
             <button onClick={addDay} style={{color:'var(--accent)',fontSize:12,fontFamily:'var(--display)',fontWeight:700}}>+ Add day</button></div>
           {days.map((d,i)=>(
@@ -1734,7 +1749,7 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, 
                   <button onClick={()=>moveDay(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▲</button>
                   <button onClick={()=>moveDay(i,1)} style={{color:i===days.length-1?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▼</button>
                 </div>
-                <input className="day-name-input" placeholder={'Day '+(i+1)} value={d.name} onChange={e=>renameDay(i,e.target.value)} />
+                <input className="day-name-input" placeholder={schemeName(i,labelMode)} value={d.name} onChange={e=>renameDay(i,e.target.value)} />
                 <button className="delset" onClick={()=>delDay(i)}>{I.trash}</button>
               </div>
               <div className="day-edit-meta">{d.exerciseIds.length} exercise{d.exerciseIds.length!==1?'s':''} · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
@@ -1743,7 +1758,7 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, 
           ))}
           <button className="btn btn-ghost btn-sm" onClick={addDay} style={{marginTop:4}}>{I.plus}Add a day</button>
           <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45,marginTop:16}}
-            onClick={()=>valid&&onSave({id:routine?routine.id:uid(),name:name.trim(),note:note.trim(),days})}>{I.check}{editing?'Save changes':'Create routine'}</button>
+            onClick={()=>valid&&onSave({id:routine?routine.id:uid(),name:name.trim(),note:note.trim(),labelMode,days})}>{I.check}{editing?'Save changes':'Create routine'}</button>
           {!valid && name.trim() && <div style={{fontSize:11.5,color:'var(--muted2)',textAlign:'center',marginTop:8}}>Add at least one exercise to a day to save.</div>}
           {editing && <button className="btn btn-danger btn-sm" style={{marginTop:10}} onClick={()=>onDelete(routine.id)}>{I.trash}Delete routine</button>}
         </div>
