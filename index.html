@@ -346,6 +346,40 @@
   .mb-bar{flex:1;height:9px;background:var(--surface3);border-radius:999px;overflow:hidden}
   .mb-bar>div{height:100%;border-radius:999px;transition:width .35s ease}
   .mb-pct{flex:0 0 36px;text-align:right;font-family:var(--display);font-weight:800;font-size:13.5px}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin:10px 0 12px}
+  .cal-title{font-family:var(--display);font-weight:800;font-size:18px}
+  .cal-nav{width:38px;height:38px;border-radius:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:22px;line-height:1;display:grid;place-items:center}
+  .cal-nav:active{background:var(--surface3)}
+  .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+  .cal-dow div{text-align:center;font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cal-cell{aspect-ratio:1;border-radius:10px;background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0}
+  .cal-cell.empty{background:transparent;border:none}
+  .cal-cell.today{border-color:var(--accent-dim)}
+  .cal-cell.sel{background:var(--accent);border-color:var(--accent)}
+  .cal-cell.sel .cal-num{color:var(--accent-ink)}
+  .cal-num{font-size:13px;font-weight:700;color:var(--text)}
+  .cal-dots{display:flex;gap:3px;height:6px;align-items:center}
+  .cal-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+  .cal-dot.w{background:var(--accent)}
+  .cal-cell.sel .cal-dot.w{background:#fff}
+  .cal-dot.m{background:#5ddca5}
+  .cal-legend{display:flex;gap:18px;justify-content:center;margin:12px 0;font-size:11.5px;color:var(--muted)}
+  .cal-legend span{display:flex;align-items:center;gap:6px}
+  .cal-log{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px}
+  .cal-log-h{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:8px}
+  .cal-log-h svg{width:18px;height:18px;color:var(--accent)}
+  .cal-ex{font-size:13px;color:var(--muted);padding:3px 0}
+  .cal-ex span{color:var(--muted2)}
+  .cal-note{font-size:12px;color:var(--muted2);font-style:italic;margin-top:6px}
+  .meas-readout{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
+  .meas-readout>div{display:flex;justify-content:space-between;font-size:13px;border-bottom:1px solid var(--border);padding:5px 0}
+  .meas-readout span{color:var(--muted)}
+  .meas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .meas-field label{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
+  .meas-in{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:0 10px}
+  .meas-in input{flex:1;min-width:0;background:transparent;border:none;padding:9px 0;color:var(--text);font-size:14px;outline:none;font-family:var(--display);font-weight:700}
+  .meas-in span{font-size:10.5px;color:var(--muted2);margin-left:4px}
 </style>
 </head>
 <body>
@@ -379,6 +413,46 @@ const store = (() => {
 })();
 
 const epley = (w, r) => { w=+w; r=+r; if(!w||!r||r<1) return 0; return r===1 ? Math.round(w) : Math.round(w*(1+r/30)); };
+
+/* ---- how an exercise is tracked (what fields you log) ---- */
+const TRACK = {
+  ws: {label:'Weight & reps', fields:['weight','reps']},
+  r:  {label:'Reps only',     fields:['reps']},
+  t:  {label:'Time',          fields:['time']},
+  dt: {label:'Distance & time',fields:['dist','time']},
+  d:  {label:'Distance',      fields:['dist']},
+  wt: {label:'Weight & time', fields:['weight','time']},
+};
+const trackOf = (ex)=> (ex && TRACK[ex.track]) ? ex.track : 'ws';
+const distUnit = (unit)=> unit==='lb' ? 'mi' : 'km';
+const fieldLabel = (f, unit)=> f==='weight' ? ('Weight ('+unit+')') : f==='reps' ? 'Reps' : f==='time' ? 'Time (min)' : ('Dist ('+distUnit(unit)+')');
+const fieldMode = (f)=> f==='reps' ? 'numeric' : 'decimal';
+function setHasData(track, s){
+  const w=+s.weight>0, r=+s.reps>0, t=+s.time>0, d=+s.dist>0;
+  switch(track){ case 'r':return r; case 't':return t; case 'd':return d; case 'dt':return d; case 'wt':return w&&t; default:return w&&r; }
+}
+function metricInfo(track, unit){
+  const du=distUnit(unit);
+  switch(track){
+    case 'r':  return {label:'Max reps', suffix:'', volLabel:'total reps', volSuffix:''};
+    case 't':  return {label:'Best time', suffix:' min', volLabel:'total', volSuffix:' min'};
+    case 'd':  return {label:'Best distance', suffix:' '+du, volLabel:'total', volSuffix:' '+du};
+    case 'dt': return {label:'Best distance', suffix:' '+du, volLabel:'total', volSuffix:' '+du};
+    case 'wt': return {label:'Top weight', suffix:' '+unit, volLabel:'volume', volSuffix:' '+unit};
+    default:   return {label:'Est. 1RM', suffix:' '+unit, volLabel:'volume', volSuffix:' '+unit};
+  }
+}
+const measUnit = (unit)=> unit==='lb' ? 'in' : 'cm';
+const MEAS_FIELDS = [
+  {k:'weight',label:'Bodyweight',u:'w'},{k:'bodyfat',label:'Body fat',u:'%'},
+  {k:'neck',label:'Neck',u:'c'},{k:'shoulders',label:'Shoulders',u:'c'},{k:'chest',label:'Chest',u:'c'},
+  {k:'waist',label:'Waist',u:'c'},{k:'hips',label:'Hips',u:'c'},
+  {k:'armL',label:'Left arm',u:'c'},{k:'armR',label:'Right arm',u:'c'},
+  {k:'forearmL',label:'Left forearm',u:'c'},{k:'forearmR',label:'Right forearm',u:'c'},
+  {k:'thighL',label:'Left thigh',u:'c'},{k:'thighR',label:'Right thigh',u:'c'},
+  {k:'calfL',label:'Left calf',u:'c'},{k:'calfR',label:'Right calf',u:'c'},
+];
+const measUnitFor = (f, unit)=> f.u==='w' ? unit : f.u==='%' ? '%' : measUnit(unit);
 const uid = () => Math.random().toString(36).slice(2,9);
 const todayISO = () => new Date().toISOString().slice(0,10);
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -942,7 +1016,26 @@ const SEED = [
   {name:"Pit Shark Bent-Over Row", eq:"Pit Shark", m:"Back", sec:"Biceps", cue:"Belt-anchored row \u2014 hinge and pull to the waist."},
   {name:"Pit Shark Shrug", eq:"Pit Shark", m:"Back", sec:"Forearms", cue:"Load the belt, shrug tall, pause at the top."},
   {name:"Pit Shark Pull-Through", eq:"Pit Shark", m:"Glutes", sec:"Hamstrings", cue:"Hinge then snap the hips forward to lockout."},
-].map(e => ({ id:uid(), media:'', custom:false, ...e }));
+  // ---- Cardio & conditioning ----
+  {name:"Running", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Outdoor run \u2014 log distance and time."},
+  {name:"Treadmill Run", eq:"Machine", m:"Full Body", track:"dt", cue:"Set pace and incline; log distance and time."},
+  {name:"Walking", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Steady walk \u2014 distance and time."},
+  {name:"Incline Treadmill Walk", eq:"Machine", m:"Full Body", track:"dt", cue:"High incline, brisk pace."},
+  {name:"Hiking", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Trail hike \u2014 distance and time."},
+  {name:"Sprints", eq:"Bodyweight", m:"Hamstrings", track:"dt", cue:"Max-effort intervals \u2014 log total distance and time."},
+  {name:"Cycling", eq:"Bodyweight", m:"Quads", track:"dt", cue:"Road or trail ride."},
+  {name:"Stationary Bike", eq:"Machine", m:"Quads", track:"dt", cue:"Log distance and time; adjust resistance."},
+  {name:"Swimming", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Laps \u2014 distance and time."},
+  {name:"Rowing Machine", eq:"Machine", m:"Back", track:"dt", cue:"Drive with the legs, finish with back and arms."},
+  {name:"Elliptical", eq:"Machine", m:"Full Body", track:"dt", cue:"Smooth stride; log distance and time."},
+  {name:"Stair Climber", eq:"Machine", m:"Quads", track:"t", cue:"Steady climb for time."},
+  {name:"Jump Rope", eq:"Bodyweight", m:"Calves", track:"t", cue:"Light on the feet; log total time."},
+  {name:"Boxing", eq:"Bodyweight", m:"Full Body", track:"t", cue:"Rounds on the bag or pads; log total time."},
+  {name:"Kickboxing", eq:"Bodyweight", m:"Full Body", track:"t", cue:"Strikes and kicks; log total time."},
+  {name:"Plank", eq:"Bodyweight", m:"Core", track:"t", cue:"Hold a straight line; log total time."},
+  {name:"Dead Hang", eq:"Bodyweight", m:"Forearms", track:"t", cue:"Hang for time \u2014 grip and shoulders."},
+  {name:"Farmer's Carry", eq:"Dumbbell", m:"Forearms", sec:"Core", track:"wt", cue:"Heavy carry \u2014 log load and time."},
+].map(e => ({ id:uid(), media:'', custom:false, track: e.track||'ws', ...e }));
 
 /* Merge library updates (new exercises, re-tagged muscles) into a user's saved data.
    Preserves existing ids (so routines/logs still resolve) and keeps custom exercises. */
@@ -952,6 +1045,7 @@ function migrateExercises(saved){
   // current SEED, reusing the prior id when this exercise already existed
   const merged = SEED.map(s=>{
     const prev = savedByName.get(s.name);
+    if(prev && prev.edited) return prev; // keep the user's edited version verbatim
     return prev ? { ...s, id: prev.id, media: prev.media || s.media || '' } : s;
   });
   // keep any user-created customs (saved names that aren't part of SEED)
@@ -973,6 +1067,8 @@ function migrateRoutines(saved){
 
 /* ---- icons ---- */
 const I = {
+  calendar:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+  ruler:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l13 13 5-5L8 3z"/><path d="M9 6l2 2M12 9l1.5 1.5M6 9l2 2M15 12l1.5 1.5"/></svg>,
   dumbbell:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5 17.5 17.5M4 7v10M7 4v16M17 4v16M20 7v10"/></svg>,
   list:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>,
   flame:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
@@ -1250,6 +1346,7 @@ function App(){
   const [exercises, setExercises] = useState(()=>migrateExercises(store.get('exercises', null)));
   const [routines, setRoutines] = useState(()=>migrateRoutines(store.get('routines', [])));
   const [logs, setLogs] = useState(()=>store.get('logs', []));
+  const [measurements, setMeasurements] = useState(()=>store.get('measurements', []));
   const [active, setActive] = useState(()=>store.get('active', null));
   const [rest, setRest] = useState(null); // {endsAt,total,label,startedAt}
   const [toast, setToast] = useState(null);
@@ -1257,6 +1354,8 @@ function App(){
   // modals
   const [detailEx, setDetailEx] = useState(null);
   const [newExOpen, setNewExOpen] = useState(false);
+  const [editEx, setEditEx] = useState(null);
+  const [measSheet, setMeasSheet] = useState(null);
   const [editRoutine, setEditRoutine] = useState(undefined);
   const [pickerFor, setPickerFor] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1276,6 +1375,7 @@ function App(){
   useEffect(()=>store.set('exercises',exercises),[exercises]);
   useEffect(()=>store.set('routines',routines),[routines]);
   useEffect(()=>store.set('logs',logs),[logs]);
+  useEffect(()=>store.set('measurements',measurements),[measurements]);
   useEffect(()=>store.set('active',active),[active]);
 
   const exById = useMemo(()=>Object.fromEntries(exercises.map(e=>[e.id,e])),[exercises]);
@@ -1296,7 +1396,7 @@ function App(){
     }
   },[sbUrl,sbKey]);
 
-  const payload = ()=>({v:2, exercises, routines, logs, unit, restDefault});
+  const payload = ()=>({v:2, exercises, routines, logs, measurements, unit, restDefault});
 
   const doPull = async ()=>{
     const c=clientRef.current; if(!c) return null;
@@ -1325,6 +1425,7 @@ function App(){
             setExercises(migrateExercises(row.data.exercises));
             setRoutines(migrateRoutines(row.data.routines||[]));
             setLogs(row.data.logs||[]);
+            setMeasurements(row.data.measurements||[]);
             if(row.data.unit) setUnit(row.data.unit);
             if(row.data.restDefault) setRestDefault(row.data.restDefault);
             setTimeout(()=>{ applyingRemote.current=false; },150);
@@ -1345,7 +1446,7 @@ function App(){
     if(!session || !clientRef.current || applyingRemote.current) return;
     const t=setTimeout(()=>{ doPush().catch(e=>setSyncStatus('Sync error: '+(e.message||e))); }, 1600);
     return ()=>clearTimeout(t);
-  },[exercises, routines, logs, unit, restDefault, session]);
+  },[exercises, routines, logs, measurements, unit, restDefault, session]);
 
   /* ----- rest timer controls ----- */
   const startRest = (label)=>{
@@ -1357,14 +1458,14 @@ function App(){
   /* ----- workout ----- */
   // pull the most recent logged sets / note for an exercise (newest log first)
   const lastSetsFor = (exId)=>{
-    for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.sets&&en.sets.length) return en.sets.map(st=>({weight:st.weight, reps:st.reps, done:false})); }
+    for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.sets&&en.sets.length) return en.sets.map(st=>({weight:st.weight, reps:st.reps, time:st.time, dist:st.dist, done:false})); }
     return null;
   };
   const lastNoteFor = (exId)=>{
     for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.note) return en.note; }
     return '';
   };
-  const newEntry = (id)=>({ exerciseId:id, sets: lastSetsFor(id) || [{weight:'',reps:'',done:false}], note: lastNoteFor(id) });
+  const newEntry = (id)=>({ exerciseId:id, sets: lastSetsFor(id) || [{done:false}], note: lastNoteFor(id) });
 
   const startDay = (day, program, label)=>{
     setActive({ id:uid(), date:todayISO(), startedAt:Date.now(), note:'',
@@ -1377,8 +1478,11 @@ function App(){
     // with pre-filled presets, the checkmark means "I actually did this set".
     // If any set is checked, save only checked sets; otherwise fall back to whatever was typed.
     const anyDone = active.entries.some(en=>en.sets.some(s=>s.done));
-    const keep = anyDone ? (s=>s.done && +s.weight>0 && +s.reps>0) : (s=>+s.weight>0 && +s.reps>0);
-    const c = {...active, entries: active.entries.map(en=>({...en, sets: en.sets.filter(keep)})).filter(en=>en.sets.length>0)};
+    const c = {...active, entries: active.entries.map(en=>{
+      const tk = trackOf(exById[en.exerciseId]);
+      const keep = anyDone ? (s=>s.done && setHasData(tk,s)) : (s=>setHasData(tk,s));
+      return {...en, sets: en.sets.filter(keep)};
+    }).filter(en=>en.sets.length>0)};
     if(c.entries.length){ setLogs([c, ...logs]); flash('Workout saved 🔥'); }
     else flash('Nothing logged — discarded');
     setActive(null); setRest(null); setTab('records');
@@ -1393,22 +1497,36 @@ function App(){
   const deleteRoutine = (id)=>{ setRoutines(routines.filter(r=>r.id!==id)); setEditRoutine(undefined); flash('Routine deleted'); };
 
   const addCustomExercise = (e)=>{ const ex={id:uid(), custom:true, media:'', ...e}; setExercises([ex, ...exercises]); setNewExOpen(false); flash('Exercise added'); return ex; };
+  const updateExercise = (id, p)=>{ const upd={...exById[id], ...p, edited:true}; setExercises(exercises.map(e=>e.id===id?upd:e)); if(detailEx&&detailEx.id===id) setDetailEx(upd); setEditEx(null); flash('Exercise updated'); };
+  const saveMeasurement = (m)=>{ setMeasurements(prev=>{ const has=prev.some(x=>x.id===m.id); return has ? prev.map(x=>x.id===m.id?m:x) : [...prev, m]; }); setMeasSheet(null); flash('Measurements saved'); };
   const deleteExercise = (id)=>{ setExercises(exercises.filter(e=>e.id!==id)); setRoutines(routines.map(r=>({...r, days:(r.days||[]).map(d=>({...d, exerciseIds:d.exerciseIds.filter(x=>x!==id)}))}))); setDetailEx(null); flash('Exercise deleted'); };
 
   const records = useMemo(()=>{
     const r = {};
     logs.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(session=>{
       session.entries.forEach(en=>{
-        const valid = en.sets.filter(s=>+s.weight>0 && +s.reps>0); if(!valid.length) return;
-        if(!r[en.exerciseId]) r[en.exerciseId]={best1rm:0,maxW:0,bestVol:0,sessions:[],count:0};
-        const rec=r[en.exerciseId]; let se=0,mw=0,vol=0,top='',tw=0,tr=0;
-        valid.forEach(s=>{ const e=epley(s.weight,s.reps), v=+s.weight*+s.reps; if(e>se){se=e;top=`${+s.weight}×${+s.reps}`;tw=+s.weight;tr=+s.reps;} if(+s.weight>mw)mw=+s.weight; vol+=v; });
-        rec.best1rm=Math.max(rec.best1rm,se); rec.maxW=Math.max(rec.maxW,mw); rec.bestVol=Math.max(rec.bestVol,vol);
-        rec.count++; rec.sessions.push({date:session.date, top, topW:tw, topR:tr, e1rm:se, vol, note:en.note||'', snote:session.note||''});
+        const tk = trackOf(exById[en.exerciseId]);
+        const valid = en.sets.filter(s=>setHasData(tk,s)); if(!valid.length) return;
+        if(!r[en.exerciseId]) r[en.exerciseId]={track:tk,best:0,maxW:0,bestVol:0,sessions:[],count:0};
+        const rec=r[en.exerciseId]; rec.track=tk;
+        let val=0,vol=0,top='',tw=0,tr=0,mw=0;
+        if(tk==='ws'||tk==='wt'){
+          valid.forEach(s=>{ const w=+s.weight, sec= tk==='ws'?+s.reps:+s.time; const e= tk==='ws'?epley(w,sec):w;
+            if(e>val){val=e; top= tk==='ws'?`${w}×${sec}`:`${w}×${sec}min`; tw=w; tr=sec;} if(w>mw)mw=w; vol+= tk==='ws'? w*sec : w; });
+        } else if(tk==='r'){
+          valid.forEach(s=>{ const rr=+s.reps; if(rr>val){val=rr;top=`${rr} reps`;tr=rr;} vol+=rr; });
+        } else if(tk==='t'){
+          valid.forEach(s=>{ const t=+s.time; if(t>val){val=t;top=`${t} min`;} vol+=t; });
+        } else {
+          valid.forEach(s=>{ const d=+s.dist; if(d>val){val=d; top= tk==='dt'?`${d} · ${+s.time||0}m`:`${d}`;} vol+=d; });
+        }
+        rec.best=Math.max(rec.best,val); rec.maxW=Math.max(rec.maxW,mw); rec.bestVol=Math.max(rec.bestVol,vol); rec.count++;
+        rec.sessions.push({date:session.date, top, val, vol, topW:tw, topR:tr, note:en.note||'', snote:session.note||'',
+          sets:valid.map(s=>({w:+s.weight||0,r:+s.reps||0,t:+s.time||0,d:+s.dist||0}))});
       });
     });
     return r;
-  },[logs]);
+  },[logs, exById, unit]);
 
   const syncColor = !sbUrl||!sbKey ? 'var(--muted2)' : (session ? 'var(--good)' : 'var(--warn)');
 
@@ -1439,10 +1557,14 @@ function App(){
             onStartQuick={()=>startDay(null,null)} onAddExercise={()=>setPickerFor('active')} startRest={startRest} />}
         {tab==='records' &&
           <RecordsView records={records} exById={exById} logs={logs} unit={unit} onOpen={setDetailEx} />}
+        {tab==='calendar' &&
+          <CalendarView logs={logs} measurements={measurements} exById={exById} unit={unit}
+            onOpenMeasure={(date,entry)=>setMeasSheet({date:date||todayISO(), entry:entry||null})} />}
       </div>
 
       {tab==='routines' && <button className="fab" onClick={()=>setEditRoutine(null)}>{I.plus}</button>}
       {tab==='library' && <button className="fab" onClick={()=>setNewExOpen(true)}>{I.plus}</button>}
+      {tab==='calendar' && <button className="fab" onClick={()=>setMeasSheet({date:todayISO(), entry:null})}>{I.ruler}</button>}
 
       {rest &&
         <RestBar rest={rest} onAdjust={adjustRest} onSkip={()=>setRest(null)} onDone={()=>setRest(null)} />}
@@ -1452,10 +1574,15 @@ function App(){
         <button className={tab==='library'?'on':''} onClick={()=>setTab('library')}>{I.dumbbell}<span>Exercises</span></button>
         <button className={tab==='train'?'on':''} onClick={()=>setTab('train')}>{I.flame}<span>Train</span></button>
         <button className={tab==='records'?'on':''} onClick={()=>setTab('records')}>{I.trophy}<span>Records</span></button>
+        <button className={tab==='calendar'?'on':''} onClick={()=>setTab('calendar')}>{I.calendar}<span>Calendar</span></button>
       </nav>
 
-      {detailEx && <ExerciseDetail ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} />}
+      {detailEx && <ExerciseDetail ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} onEdit={setEditEx} />}
+      {measSheet && <MeasurementsSheet date={measSheet.date} entry={measSheet.entry}
+        last={measurements.length?measurements.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]:null}
+        unit={unit} onClose={()=>setMeasSheet(null)} onSave={saveMeasurement} />}
       {newExOpen && <NewExerciseSheet onClose={()=>setNewExOpen(false)} onSave={addCustomExercise} />}
+      {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {pickerFor==='active' &&
         <ExercisePicker exercises={exercises} preselected={active?active.entries.map(e=>e.exerciseId):[]}
@@ -1471,7 +1598,7 @@ function App(){
           onConnect={(u,k)=>{ store.set('sb_url',u); store.set('sb_key',k); setSbUrl(u); setSbKey(k); setSyncStatus('Connected. Now sign in or create an account.'); }}
           onDisconnect={()=>{ store.set('sb_url',''); store.set('sb_key',''); setSbUrl(''); setSbKey(''); setSession(null); }}
           onSyncNow={async()=>{ try{ setSyncStatus('Syncing…'); await doPush(); setSyncStatus('Synced ✓'); flash('Synced ☁'); }catch(e){ setSyncStatus('Sync error: '+(e.message||e)); } }}
-          onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setActive(null); flash('Local data reset'); }} />}
+          onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} />}
 
       {toast && <div className="toast">{I.check}{toast}</div>}
     </div>
@@ -1608,8 +1735,8 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const upd=(ei,si,f,v)=>{ const e=clone(active); e.entries[ei].sets[si][f]=v; setActive(e); };
   const toggleDone=(ei,si)=>{ const e=clone(active); const was=e.entries[ei].sets[si].done; e.entries[ei].sets[si].done=!was; setActive(e);
     if(!was) startRest(exById[e.entries[ei].exerciseId] ? exById[e.entries[ei].exerciseId].name : 'Rest'); };
-  const addSet=(ei)=>{ const e=clone(active); const last=e.entries[ei].sets[e.entries[ei].sets.length-1]; e.entries[ei].sets.push({weight:last?last.weight:'',reps:last?last.reps:'',done:false}); setActive(e); };
-  const delSet=(ei,si)=>{ const e=clone(active); e.entries[ei].sets.splice(si,1); if(!e.entries[ei].sets.length) e.entries[ei].sets.push({weight:'',reps:'',done:false}); setActive(e); };
+  const addSet=(ei)=>{ const e=clone(active); const last=e.entries[ei].sets[e.entries[ei].sets.length-1]; e.entries[ei].sets.push(last?{...last,done:false}:{done:false}); setActive(e); };
+  const delSet=(ei,si)=>{ const e=clone(active); e.entries[ei].sets.splice(si,1); if(!e.entries[ei].sets.length) e.entries[ei].sets.push({done:false}); setActive(e); };
   const removeEx=(ei)=>{ const e=clone(active); e.entries.splice(ei,1); setActive(e); };
   const updNote=(ei,v)=>{ const e=clone(active); e.entries[ei].note=v; setActive(e); };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
@@ -1626,24 +1753,31 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       {active.entries.map((en,ei)=>{
         const ex=exById[en.exerciseId]; if(!ex) return null;
         const rec=records[en.exerciseId];
+        const tk=trackOf(ex); const fields=TRACK[tk].fields;
+        const cols='34px '+fields.map(()=>'1fr').join(' ')+' 46px';
         return (
           <div key={ei} className="log-ex">
             <div className="log-ex-head">
               <Thumb ex={ex} />
               <div style={{flex:1,minWidth:0}}><div className="log-ex-name">{ex.name}</div>
-                <div className="log-prev">{rec?`Best 1RM ${rec.best1rm} ${unit} · heaviest ${rec.maxW} ${unit}`:'No history yet — set the baseline'}</div></div>
+                <div className="log-prev">{rec?`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`:'No history yet — set the baseline'}</div></div>
               <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
             </div>
-            {(()=>{ const last=rec&&rec.sessions&&rec.sessions.length?rec.sessions[rec.sessions.length-1]:null;
-              if(!last||!last.topW) return null; const inc=unit==='kg'?2.5:5;
-              return <div className="po-hint">🎯 Beat <b>{last.topW}×{last.topR}</b> — try <b>{last.topW}×{last.topR+1}</b> or <b>{last.topW+inc}×{last.topR}</b></div>; })()}
+            {(tk==='ws'||tk==='r') && (()=>{ const last=rec&&rec.sessions&&rec.sessions.length?rec.sessions[rec.sessions.length-1]:null;
+              if(!last||!last.sets||!last.sets.length) return null; const inc=unit==='kg'?2.5:5;
+              const work=last.sets; const allHit=work.every(s=>s.r>=8);
+              if(tk==='r'){ const mx=Math.max(...work.map(s=>s.r));
+                return <div className="po-hint">🎯 Last best <b>{mx} reps</b> — {allHit?'all sets hit 8+, add resistance or progress the movement':'push every set to 8+ reps'}</div>; }
+              const w=last.topW;
+              return <div className="po-hint">🎯 {allHit
+                ? <span>All sets hit 8+ — <b>add weight: {w+inc}×8</b></span>
+                : <span>Build every set to <b>8 reps</b> at <b>{w} {unit}</b>, then add weight</span>}</div>; })()}
             <div className="set-table">
-              <div className="set-hdr"><div>Set</div><div>{unit==='lb'?'Weight (lb)':'Weight (kg)'}</div><div>Reps</div><div>✓</div></div>
+              <div className="set-hdr" style={{gridTemplateColumns:cols}}><div>Set</div>{fields.map(f=><div key={f}>{fieldLabel(f,unit)}</div>)}<div>✓</div></div>
               {en.sets.map((s,si)=>
-                <div key={si} className={'set-row'+(s.done?' done':'')}>
+                <div key={si} className={'set-row'+(s.done?' done':'')} style={{gridTemplateColumns:cols}}>
                   <div className="setno">{si+1}</div>
-                  <input type="number" inputMode="decimal" placeholder="—" value={s.weight} onChange={e=>upd(ei,si,'weight',e.target.value)} />
-                  <input type="number" inputMode="numeric" placeholder="—" value={s.reps} onChange={e=>upd(ei,si,'reps',e.target.value)} />
+                  {fields.map(f=><input key={f} type="number" inputMode={fieldMode(f)} placeholder="—" value={s[f]||''} onChange={e=>upd(ei,si,f,e.target.value)} />)}
                   <button className={'check'+(s.done?' on':'')} onClick={()=>toggleDone(ei,si)}>
                     {s.done ? I.check : (en.sets.length>1 ? <span onClick={(ev)=>{ev.stopPropagation();delSet(ei,si);}} style={{fontSize:18,lineHeight:1}}>×</span> : '')}
                   </button>
@@ -1652,7 +1786,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
                 <button className="addset" onClick={()=>addSet(ei)}>{I.plus}<span>Add set</span></button>
                 <button className="restbtn" onClick={()=>startRest(ex.name)}>{I.timer}Rest</button>
               </div>
-              {en.sets.some(s=>+s.weight>0&&+s.reps>0) &&
+              {tk==='ws' && en.sets.some(s=>+s.weight>0&&+s.reps>0) &&
                 <div style={{textAlign:'center',fontSize:11.5,color:'var(--muted2)',marginTop:8}}>
                   Top est. 1RM this session: <b style={{color:'var(--accent)'}}>{Math.max(...en.sets.map(s=>epley(s.weight,s.reps)))} {unit}</b></div>}
               <input className="ex-note" placeholder="Notes — seat height, pin, grip, how it felt…" value={en.note||''} onChange={e=>updNote(ei,e.target.value)} />
@@ -1669,6 +1803,100 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
 /* ============================================================
    RECORDS
    ============================================================ */
+function CalendarView({logs, measurements, exById, unit, onOpenMeasure}){
+  const today=todayISO();
+  const [view,setView]=useState(()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; });
+  const [sel,setSel]=useState(today);
+  const workoutDates=useMemo(()=>{ const s={}; logs.forEach(l=>{ s[l.date]=(s[l.date]||0)+1; }); return s; },[logs]);
+  const measByDate=useMemo(()=>{ const s={}; measurements.forEach(m=>{ s[m.date]=m; }); return s; },[measurements]);
+  const first=new Date(view.y, view.m, 1);
+  const startDow=first.getDay();
+  const daysIn=new Date(view.y, view.m+1, 0).getDate();
+  const cells=[]; for(let i=0;i<startDow;i++) cells.push(null); for(let d=1;d<=daysIn;d++) cells.push(d);
+  const pad=n=>String(n).padStart(2,'0');
+  const dstr=d=>`${view.y}-${pad(view.m+1)}-${pad(d)}`;
+  const monthLabel=first.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  const prev=()=>setView(v=>{ const m=v.m-1; return m<0?{y:v.y-1,m:11}:{y:v.y,m}; });
+  const next=()=>setView(v=>{ const m=v.m+1; return m>11?{y:v.y+1,m:0}:{y:v.y,m}; });
+  const selWorkouts=logs.filter(l=>l.date===sel);
+  const selMeas=measByDate[sel];
+  return (
+    <div>
+      <div className="cal-head">
+        <button onClick={prev} className="cal-nav">‹</button>
+        <div className="cal-title">{monthLabel}</div>
+        <button onClick={next} className="cal-nav">›</button>
+      </div>
+      <div className="cal-dow">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=><div key={d}>{d}</div>)}</div>
+      <div className="cal-grid">
+        {cells.map((d,i)=>{ if(d===null) return <div key={'b'+i} className="cal-cell empty"></div>;
+          const ds=dstr(d); const hasW=workoutDates[ds]; const hasM=measByDate[ds];
+          return (
+            <button key={ds} className={'cal-cell'+(ds===sel?' sel':'')+(ds===today?' today':'')} onClick={()=>setSel(ds)}>
+              <span className="cal-num">{d}</span>
+              <span className="cal-dots">{hasW?<span className="cal-dot w"></span>:null}{hasM?<span className="cal-dot m"></span>:null}</span>
+            </button>
+          ); })}
+      </div>
+      <div className="cal-legend"><span><span className="cal-dot w"></span> Workout</span><span><span className="cal-dot m"></span> Measurements</span></div>
+      <div className="section-h" style={{marginTop:6}}>{new Date(sel+'T00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div>
+      {selWorkouts.length===0 && !selMeas &&
+        <p style={{color:'var(--muted)',fontSize:13.5,padding:'4px 2px 12px'}}>Nothing logged this day.</p>}
+      {selWorkouts.map((w,wi)=>(
+        <div key={wi} className="cal-log">
+          <div className="cal-log-h">{I.flame}<b>{w.name||'Workout'}</b></div>
+          {w.entries.map((en,ei)=>{ const ex=exById[en.exerciseId]; const tk=trackOf(ex);
+            const done=en.sets.filter(s=>setHasData(tk,s)); const n=done.length||en.sets.length;
+            return <div key={ei} className="cal-ex">{ex?ex.name:'Exercise'} <span>· {n} set{n!==1?'s':''}</span></div>; })}
+          {w.note && <div className="cal-note">🗒 {w.note}</div>}
+        </div>
+      ))}
+      {selMeas ?
+        <div className="cal-log">
+          <div className="cal-log-h">{I.ruler}<b>Measurements</b><button className="rc-edit" style={{marginLeft:'auto'}} onClick={()=>onOpenMeasure(sel, selMeas)}>Edit</button></div>
+          <div className="meas-readout">{MEAS_FIELDS.filter(f=>selMeas[f.k]!=null).map(f=>
+            <div key={f.k}><span>{f.label}</span><b>{selMeas[f.k]}{f.u==='%'?'%':(' '+measUnitFor(f,unit))}</b></div>)}</div>
+          {selMeas.note && <div className="cal-note">🗒 {selMeas.note}</div>}
+        </div>
+        :
+        <button className="btn btn-ghost btn-sm" style={{marginBottom:14}} onClick={()=>onOpenMeasure(sel, null)}>{I.ruler}Log measurements for this day</button>}
+    </div>
+  );
+}
+
+function MeasurementsSheet({date, entry, last, unit, onClose, onSave}){
+  const src = entry || last || {};
+  const [vals,setVals]=useState(()=>{ const o={}; MEAS_FIELDS.forEach(f=>o[f.k]=src[f.k]!=null?String(src[f.k]):''); return o; });
+  const [note,setNote]=useState(entry?entry.note||'':'');
+  const set=(k,v)=>setVals(o=>({...o,[k]:v}));
+  const anyVal = MEAS_FIELDS.some(f=>vals[f.k]!=='' && !isNaN(parseFloat(vals[f.k])));
+  const save=()=>{ const m={ id: entry?entry.id:uid(), date };
+    MEAS_FIELDS.forEach(f=>{ const v=parseFloat(vals[f.k]); if(!isNaN(v)) m[f.k]=v; });
+    if(note.trim()) m.note=note.trim(); onSave(m); };
+  const dlabel=new Date(date+'T00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>{entry?'Edit Measurements':'Log Measurements'}</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>{dlabel}{(!entry&&last)?' · pre-filled from your last entry':''}</div>
+          <div className="meas-grid">
+            {MEAS_FIELDS.map(f=>(
+              <div key={f.k} className="meas-field">
+                <label>{f.label}</label>
+                <div className="meas-in"><input type="number" inputMode="decimal" placeholder="—" value={vals[f.k]} onChange={e=>set(f.k,e.target.value)} /><span>{measUnitFor(f,unit)}</span></div>
+              </div>
+            ))}
+          </div>
+          <div className="field" style={{marginTop:14}}><label>Note (optional)</label><input placeholder="e.g. morning, fasted" value={note} onChange={e=>setNote(e.target.value)} /></div>
+          <button className="btn btn-accent" disabled={!anyVal} style={{opacity:anyVal?1:.45,marginTop:8}} onClick={save}>{I.check}{entry?'Save changes':'Save measurements'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RecordsView({records, exById, logs, unit, onOpen}){
   const ids=Object.keys(records);
   const totalWorkouts=logs.length;
@@ -1690,13 +1918,13 @@ function RecordsView({records, exById, logs, unit, onOpen}){
         <div className="empty"><div className="ic">{I.trophy}</div><h3>No records yet</h3>
           <p>Log a workout and your estimated 1RMs, heaviest sets, and volume PRs show up here automatically.</p></div>
         :
-        sorted.map(id=>{ const ex=exById[id]; if(!ex) return null; const rec=records[id];
+        sorted.map(id=>{ const ex=exById[id]; if(!ex) return null; const rec=records[id]; const mi=metricInfo(rec.track,unit);
           return (
             <div key={id} className="rec-row tap" onClick={()=>onOpen(ex)}>
               <Thumb ex={ex} />
               <div style={{flex:1,minWidth:0}}><div className="ex-name">{ex.name}</div>
-                <div className="ex-sub">Heaviest <b>{rec.maxW}{unit}</b> · {rec.count} session{rec.count!==1?'s':''}</div></div>
-              <div className="rec-1rm"><div className="n">{rec.best1rm}</div><div className="u">est 1RM ({unit})</div></div>
+                <div className="ex-sub">{rec.count} session{rec.count!==1?'s':''}{(rec.track==='ws'||rec.track==='wt')?<span> · heaviest <b>{rec.maxW}{unit}</b></span>:''}</div></div>
+              <div className="rec-1rm"><div className="n">{rec.best}</div><div className="u">{mi.label}{mi.suffix?' ('+mi.suffix.trim()+')':''}</div></div>
             </div>
           ); })}
     </div>
@@ -1706,8 +1934,8 @@ function RecordsView({records, exById, logs, unit, onOpen}){
 /* ============================================================
    EXERCISE DETAIL
    ============================================================ */
-function ProgressionTool({rec, unit}){
-  const base = rec && rec.best1rm ? rec.best1rm : 0;
+function ProgressionTool({rec, unit, track}){
+  const base = rec && rec.best ? rec.best : 0;
   const [orm,setOrm]=useState(base?String(base):'');
   const [repsIn,setRepsIn]=useState('5');
   const [wIn,setWIn]=useState(base?String(Math.round(base*0.8/5)*5):'');
@@ -1718,8 +1946,12 @@ function ProgressionTool({rec, unit}){
   const last = rec && rec.sessions && rec.sessions.length ? rec.sessions[rec.sessions.length-1] : null;
   const inc = unit==='kg'?2.5:5;
   const tblReps=[1,2,3,5,8,10,12];
+  const work = last && last.sets ? last.sets : [];
+  const allHit = work.length>0 && work.every(s=>s.r>=8);
+  const below = work.filter(s=>s.r<8).length;
   return (
     <div>
+      {track==='ws' && <div>
       <div className="section-h" style={{margin:'10px 0 8px'}}>Strength Calculator</div>
       <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:14}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -1741,30 +1973,45 @@ function ProgressionTool({rec, unit}){
         <div className="calc-row"><span>At</span>
           <input type="number" inputMode="decimal" value={wIn} onChange={e=>setWIn(e.target.value)} className="calc-in" />
           <span>{unit} →</span><b style={{color:'var(--accent)'}}>{rForWeight(+wIn)}{rForWeight(+wIn)!=='–'?' reps':''}</b></div>
-      </div>
-      {last && last.topW>0 &&
+      </div></div>}
+      {last && work.length>0 &&
         <div className="po-box">
-          <div className="po-h">🎯 Next target — progressive overload</div>
-          <div style={{fontSize:13,marginBottom:8}}>Last session your best set was <b>{last.topW}×{last.topR} {unit}</b>. Beat it:</div>
-          <div className="po-opt"><span>One more rep, same weight</span><b>{last.topW} × {last.topR+1}</b></div>
-          <div className="po-opt"><span>Or add weight, same reps</span><b>{last.topW+inc} × {last.topR}</b></div>
-          <div style={{fontSize:11,color:'var(--muted2)',marginTop:8,lineHeight:1.45}}>Either nudges your est. 1RM to ~{Math.max(epley(last.topW,last.topR+1),epley(last.topW+inc,last.topR))} {unit}. Add weight once the reps feel easy; otherwise chase the extra rep first.</div>
+          <div className="po-h">🎯 Progressive overload — 8-rep rule</div>
+          {track==='ws' ? <>
+            <div style={{fontSize:13,marginBottom:8}}>Last session at <b>{last.topW} {unit}</b>: {work.map(s=>s.r).join(', ')} rep{work.length!==1?'s':''} across {work.length} set{work.length!==1?'s':''}.</div>
+            {allHit
+              ? <><div className="po-opt"><span>✅ All sets hit 8+ — level up</span><b>{last.topW+inc} × 8</b></div>
+                  <div style={{fontSize:11,color:'var(--muted2)',marginTop:8,lineHeight:1.45}}>Add {inc} {unit}, drop back to whatever reps you get, and build to 8×all-sets again.</div></>
+              : <><div className="po-opt"><span>Stay at this weight</span><b>{last.topW} × 8</b></div>
+                  <div style={{fontSize:11,color:'var(--muted2)',marginTop:8,lineHeight:1.45}}>{below} set{below!==1?'s':''} still under 8 reps. Hit <b>8 on every set</b>, then add {inc} {unit} next time.</div></>}
+          </> : <>
+            <div style={{fontSize:13,marginBottom:8}}>Last session: {work.map(s=>s.r).join(', ')} reps.</div>
+            {allHit
+              ? <div style={{fontSize:12.5}}>✅ All sets hit 8+ — progress the movement (harder variation, add load, or slow the tempo).</div>
+              : <div style={{fontSize:12.5}}>Push every set to <b>8 reps</b> before making it harder.</div>}
+          </>}
         </div>}
     </div>
   );
 }
 
-function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
+
+function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit}){
   const color=MUSCLE[ex.m]||'#888';
   const demo=demoFor(ex);
   const ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent(ex.name+' proper form');
   const sessions=rec?rec.sessions.slice().reverse():[];
-  const sparkData=rec?rec.sessions.map(s=>s.e1rm).filter(Boolean):[];
+  const sparkData=rec?rec.sessions.map(s=>s.val).filter(Boolean):[];
+  const mi=rec?metricInfo(rec.track,unit):null;
+  const tk=trackOf(ex);
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2 style={{fontSize:16}}>Exercise</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2 style={{fontSize:16}}>Exercise</h2>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <button className="rc-edit" onClick={()=>onEdit(ex)}>Edit</button>
+            <button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           {demo && <AnimatedDemo demo={demo} />}
           <div className="detail-hero">
@@ -1773,20 +2020,22 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
               <div className="dm-name">{ex.name}</div>
               <div className="detail-tags">
                 <Pill color={EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}>{ex.eq}</Pill>
+                <Pill color="#7c87a8">{TRACK[tk].label}</Pill>
                 {ex.custom && <Pill color="#9095ad">Custom</Pill>}
+                {ex.edited && !ex.custom && <Pill color="#9095ad">Edited</Pill>}
               </div>
               {rec &&
                 <div style={{display:'flex',gap:16,marginTop:4}}>
-                  <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800,color}}>{rec.best1rm}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Best 1RM</div></div>
-                  <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800}}>{rec.maxW}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Heaviest</div></div>
+                  <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800,color}}>{rec.best}{mi.suffix}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>{mi.label}</div></div>
+                  {(tk==='ws'||tk==='wt') && <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800}}>{rec.maxW}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Heaviest</div></div>}
                 </div>}
             </div>
           </div>
           <MuscleTiers ex={ex} />
           {ex.cue && <div className="cue"><b>Form cue:</b> {ex.cue}</div>}
           <a className="demo-btn" href={ytUrl} target="_blank" rel="noopener noreferrer">{I.yt}<span>Watch full demo on YouTube</span></a>
-          <ProgressionTool rec={rec} unit={unit} />
-          {sparkData.length>=2 && <div><div className="section-h" style={{margin:'0 0 6px'}}>Est. 1RM Progress</div><Spark data={sparkData} color={color} /></div>}
+          {(tk==='ws'||tk==='r') && <ProgressionTool rec={rec} unit={unit} track={tk} />}
+          {sparkData.length>=2 && <div><div className="section-h" style={{margin:'0 0 6px'}}>{mi.label} Progress</div><Spark data={sparkData} color={color} /></div>}
           <div className="section-h" style={{margin:'8px 0 4px'}}>History</div>
           {sessions.length===0 ?
             <p style={{color:'var(--muted)',fontSize:13.5,padding:'8px 2px'}}>No logged sets yet. Add this to a workout and your sets track here.</p>
@@ -1795,12 +2044,13 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
               <div key={i} className="hist-row">
                 <div className="hist-top">
                   <div><div className="hist-date">{new Date(s.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div>
-                    <div className="hist-sets">Top set {s.top} · {Math.round(s.vol).toLocaleString()} {unit} volume</div></div>
-                  <div className="hist-1rm">{s.e1rm} {unit}</div>
+                    <div className="hist-sets">Top {s.top} · {Math.round(s.vol).toLocaleString()}{mi.volSuffix} {mi.volLabel}</div></div>
+                  <div className="hist-1rm">{s.val}{mi.suffix}</div>
                 </div>
                 {(s.note||s.snote) && <div className="hist-note">🗒 {[s.note, s.snote].filter(Boolean).join(' · ')}</div>}
               </div>)}
-          {ex.custom && <button className="btn btn-danger btn-sm" style={{marginTop:20}} onClick={()=>onDelete(ex.id)}>{I.trash}Delete this exercise</button>}
+          <button className="btn btn-ghost btn-sm" style={{marginTop:18}} onClick={()=>onEdit(ex)}>{I.edit||I.plus}Edit exercise</button>
+          {ex.custom && <button className="btn btn-danger btn-sm" style={{marginTop:10}} onClick={()=>onDelete(ex.id)}>{I.trash}Delete this exercise</button>}
         </div>
       </div>
     </div>
@@ -1810,19 +2060,23 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
 /* ============================================================
    NEW CUSTOM EXERCISE
    ============================================================ */
-function NewExerciseSheet({onClose, onSave, initialName}){
-  const [name,setName]=useState(initialName||''); const [eq,setEq]=useState('Barbell'); const [m,setM]=useState('Chest');
-  const [sec,setSec]=useState(''); const [cue,setCue]=useState(''); const [media,setMedia]=useState('');
+function NewExerciseSheet({onClose, onSave, initialName, exercise}){
+  const ed=!!exercise;
+  const [name,setName]=useState(ed?exercise.name:(initialName||'')); const [eq,setEq]=useState(ed?exercise.eq:'Barbell'); const [m,setM]=useState(ed?exercise.m:'Chest');
+  const [sec,setSec]=useState(ed?(exercise.sec||''):''); const [cue,setCue]=useState(ed?(exercise.cue||''):''); const [media,setMedia]=useState(ed?(exercise.media||''):'');
+  const [track,setTrack]=useState(ed?trackOf(exercise):'ws');
   const valid=name.trim().length>0;
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>New Exercise</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
         <div className="sheet-body">
           <div className="field"><label>Name</label>
-            <input placeholder="e.g. Smith Machine Squat" value={name} onChange={e=>setName(e.target.value)} autoFocus />
+            <input placeholder="e.g. Smith Machine Squat" value={name} onChange={e=>setName(e.target.value)} autoFocus={!ed} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Tip: name it <b style={{color:'var(--muted)'}}>Equipment + Movement</b> to match the library.</div></div>
+          <div className="field"><label>Tracks</label><div className="seg">{Object.keys(TRACK).map(x=><button key={x} className={track===x?'on':''} onClick={()=>setTrack(x)}>{TRACK[x].label}</button>)}</div>
+            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set — weights, bodyweight reps, a hold/time, a run’s distance &amp; time, etc.</div></div>
           <div className="field"><label>Equipment</label><div className="seg">{Object.keys(EQUIP).map(x=><button key={x} className={eq===x?'on':''} onClick={()=>setEq(x)}>{x}</button>)}</div></div>
           <div className="field"><label>Primary muscle</label><div className="seg">{Object.keys(MUSCLE).map(x=><button key={x} className={m===x?'on':''} onClick={()=>setM(x)}>{x}</button>)}</div></div>
           <div className="field"><label>Secondary muscle (optional)</label><div className="seg">
@@ -1834,7 +2088,7 @@ function NewExerciseSheet({onClose, onSave, initialName}){
             <input placeholder="https://…/demo.gif, .jpg or .mp4" value={media} onChange={e=>setMedia(e.target.value)} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Paste a link to your own hosted media and it displays on the exercise.</div></div>
           <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45}}
-            onClick={()=>valid&&onSave({name:name.trim(),eq,m,sec:sec||undefined,cue:cue.trim()||undefined,media:media.trim()})}>{I.check}Save exercise</button>
+            onClick={()=>valid&&onSave({name:name.trim(),eq,m,sec:sec||undefined,cue:cue.trim()||undefined,media:media.trim(),track})}>{I.check}{ed?'Save changes':'Save exercise'}</button>
         </div>
       </div>
     </div>
