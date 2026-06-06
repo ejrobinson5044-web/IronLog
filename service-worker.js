@@ -1,22 +1,23 @@
 /* ============================================================
-   IronLog — Service Worker
+   IronLog - Service Worker
    Gives the app two superpowers:
      1. It can be installed to your home screen as a real app.
-     2. It works OFFLINE (important — gyms are signal dead zones).
+     2. It works offline, which matters in gyms with spotty signal.
 
    HOW UPDATES WORK:
-     Whenever you change index.html (or any file), bump the number in
-     CACHE_VERSION below (v1 -> v2 -> v3...). That tells phones to throw
-     away the old cached copy after the user taps the in-app Update banner.
+     Whenever you change index.html or any other app file, bump the number in
+     CACHE_VERSION below. Phones will throw away the old cached copy after the
+     new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v13';
+const CACHE_VERSION = 'ironlog-v14';
 
-/* The "app shell" — the core files the app is made of.
-   Relative paths (./) so it works no matter what GitHub Pages URL it lives at. */
+/* The app shell: the core files the app is made of.
+   Relative paths keep this working on GitHub Pages project URLs. */
 const SHELL = [
   './',
   './index.html',
+  './ironlog-patch.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -39,10 +40,11 @@ self.addEventListener('install', (event) => {
     const cache = await caches.open(CACHE_VERSION);
     await cache.addAll(SHELL);                                  // these must succeed
     await Promise.allSettled(CDN.map((u) => cache.add(u)));     // best-effort
+    await self.skipWaiting();                                   // activate this patch release immediately
   })());
 });
 
-/* ---- UPDATE: wait until the app asks to activate the new version ---- */
+/* ---- UPDATE: let the app request activation for future versions ---- */
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -59,8 +61,8 @@ self.addEventListener('activate', (event) => {
 });
 
 /* ---- FETCH: stale-while-revalidate ----
-   Serve from cache instantly (fast + offline), then quietly refresh the
-   cached copy from the network in the background for next time. */
+   Serve from cache instantly, then quietly refresh the cached copy from the
+   network in the background for next time. */
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
@@ -69,11 +71,37 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // NEVER cache Supabase — that's your live auth + workout data. Always network.
+  // Never cache Supabase because that is live auth and workout data.
   if (url.hostname.endsWith('supabase.co')) return;
+
+  if (isAppShellRequest(req, url)) {
+    event.respondWith(appShellWithPatch(req, event));
+    return;
+  }
 
   event.respondWith(staleWhileRevalidate(req, event));
 });
+
+function isAppShellRequest(req, url) {
+  return url.origin === self.location.origin &&
+    (req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html'));
+}
+
+async function appShellWithPatch(req, event) {
+  const res = await staleWhileRevalidate(req, event);
+  const type = res.headers.get('Content-Type') || '';
+  if (!type.includes('text/html')) return res;
+
+  const html = await res.text();
+  if (html.includes('ironlog-patch.js')) {
+    return new Response(html, { status: res.status, statusText: res.statusText, headers: res.headers });
+  }
+
+  const patched = html.replace('</body>', '<script src="./ironlog-patch.js" defer></script></body>');
+  const headers = new Headers(res.headers);
+  headers.set('Content-Type', 'text/html; charset=utf-8');
+  return new Response(patched, { status: res.status, statusText: res.statusText, headers });
+}
 
 async function staleWhileRevalidate(req, event) {
   const cache = await caches.open(CACHE_VERSION);
@@ -81,7 +109,7 @@ async function staleWhileRevalidate(req, event) {
 
   const network = fetch(req)
     .then((res) => {
-      // store a fresh copy (normal or opaque cross-origin responses)
+      // Store a fresh copy for normal or opaque cross-origin responses.
       if (res && (res.ok || res.type === 'opaque')) {
         cache.put(req, res.clone()).catch(() => {});
       }
@@ -89,22 +117,23 @@ async function staleWhileRevalidate(req, event) {
     })
     .catch(() => null);
 
-  // Cache hit → return it now, refresh in the background.
+  // Cache hit: return it now and refresh in the background.
   if (cached) {
     event.waitUntil(network);
     return cached;
   }
 
-  // Cache miss → wait for the network.
+  // Cache miss: wait for the network.
   const fresh = await network;
   if (fresh) return fresh;
 
-  // Offline AND not cached → if it's a page load, fall back to the app shell.
+  // Offline and not cached: if it is a page load, fall back to the app shell.
   if (req.mode === 'navigate') {
     const shell = await cache.match('./index.html');
     if (shell) return shell;
   }
-  return new Response('Offline — open IronLog once while online to cache it.', {
+
+  return new Response('Offline - open IronLog once while online to cache it.', {
     status: 503,
     headers: { 'Content-Type': 'text/plain' }
   });
