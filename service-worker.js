@@ -7,10 +7,10 @@
    HOW UPDATES WORK:
      Whenever you change index.html (or any file), bump the number in
      CACHE_VERSION below (v1 -> v2 -> v3...). That tells phones to throw
-     away the old cached copy and pull your new version on next launch.
+     away the old cached copy after the user taps the in-app Update banner.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v12';
+const CACHE_VERSION = 'ironlog-v13';
 
 /* The "app shell" — the core files the app is made of.
    Relative paths (./) so it works no matter what GitHub Pages URL it lives at. */
@@ -39,8 +39,14 @@ self.addEventListener('install', (event) => {
     const cache = await caches.open(CACHE_VERSION);
     await cache.addAll(SHELL);                                  // these must succeed
     await Promise.allSettled(CDN.map((u) => cache.add(u)));     // best-effort
-    await self.skipWaiting();                                   // activate immediately
   })());
+});
+
+/* ---- UPDATE: wait until the app asks to activate the new version ---- */
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 /* ---- ACTIVATE: delete caches from older versions ---- */
