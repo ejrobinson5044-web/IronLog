@@ -102,6 +102,8 @@
   .day-name-input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 12px;
     color:var(--text);font-family:var(--display);font-weight:700;font-size:14.5px;outline:none;transition:.12s}
   .day-name-input:focus{border-color:var(--accent);background:var(--surface3)}
+  .day-pos{flex-shrink:0;font-family:var(--display);font-weight:700;font-size:12px;color:var(--accent);background:var(--surface3);
+    border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:56px;text-align:center;letter-spacing:.01em}
   .day-edit-meta{color:var(--muted);font-size:12px;margin:9px 0 9px 2px}
   .start-btn{background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;padding:9px 16px;
     border-radius:999px;white-space:nowrap;font-family:var(--display)}
@@ -184,6 +186,8 @@
   .log-ex-head .ex-thumb svg{width:22px;height:22px}
   .log-ex-name{flex:1;font-weight:700;font-size:14.5px}
   .log-prev{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .po-hint{font-size:12px;color:var(--muted);background:rgba(129,140,248,.08);border-bottom:1px solid var(--border);padding:8px 14px}
+  .po-hint b{color:var(--accent);font-family:var(--display)}
   .set-table{padding:6px 14px 14px}
   .set-hdr,.set-row{display:grid;grid-template-columns:34px 1fr 1fr 46px;gap:8px;align-items:center}
   .set-hdr{font-size:10.5px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:8px 0 6px}
@@ -271,6 +275,20 @@
     padding:9px 12px;color:var(--text);outline:none;margin-top:10px;font-size:12.5px;transition:.12s}
   .ex-note:focus{border-color:var(--accent);background:var(--surface3)}
   .ex-note::placeholder{color:var(--muted2)}
+  .calc-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px}
+  .calc-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted2);font-weight:700;padding:4px 6px;border-bottom:1px solid var(--border)}
+  .calc-tbl td{padding:6px;border-bottom:1px solid var(--border)}
+  .calc-tbl tr:last-child td{border-bottom:none}
+  .calc-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:10px}
+  .calc-in{width:64px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 9px;color:var(--text);
+    font-family:var(--display);font-weight:700;font-size:14px;outline:none;text-align:center}
+  .calc-in:focus{border-color:var(--accent)}
+  .po-box{background:linear-gradient(135deg,rgba(129,140,248,.13),rgba(79,70,229,.05));border:1px solid var(--accent-dim);
+    border-radius:var(--radius-sm);padding:14px;margin-top:12px}
+  .po-h{font-family:var(--display);font-weight:700;font-size:14px;margin-bottom:8px;color:var(--accent)}
+  .po-opt{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);
+    border-radius:9px;padding:9px 12px;margin-bottom:6px;font-size:13px;color:var(--muted)}
+  .po-opt b{font-family:var(--display);font-size:15px;color:var(--text)}
   .hist-1rm{font-family:var(--display);font-weight:800;color:var(--accent);font-size:15px}
   .spark{margin:6px 0 16px}
 
@@ -877,10 +895,11 @@ function migrateExercises(saved){
 /* Routines are now PROGRAMS that contain days. Wrap any old flat routine (exerciseIds) into one day. */
 function migrateRoutines(saved){
   if(!Array.isArray(saved)) return [];
+  const fixDay=(d)=>({ id:d.id||uid(), name: isAutoName(d.name)?'':(d.name||''), exerciseIds:Array.isArray(d.exerciseIds)?d.exerciseIds:[] });
   return saved.map(r=>{
-    if(Array.isArray(r.days)) return { labelMode:'num', ...r };
+    if(Array.isArray(r.days)) return { labelMode:'num', ...r, days:r.days.map(fixDay) };
     return { id:r.id||uid(), name:r.name||'Routine', note:r.note||'', labelMode:'num',
-      days:[{id:uid(), name:'Day 1', exerciseIds:Array.isArray(r.exerciseIds)?r.exerciseIds:[]}] };
+      days:[{id:uid(), name:'', exerciseIds:Array.isArray(r.exerciseIds)?r.exerciseIds:[]}] };
   });
 }
 
@@ -1279,10 +1298,10 @@ function App(){
   };
   const newEntry = (id)=>({ exerciseId:id, sets: lastSetsFor(id) || [{weight:'',reps:'',done:false}], note: lastNoteFor(id) });
 
-  const startDay = (day, program)=>{
+  const startDay = (day, program, label)=>{
     setActive({ id:uid(), date:todayISO(), startedAt:Date.now(), note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
-      name: day ? day.name : 'Quick Workout',
+      name: day ? (label || day.name || 'Workout') : 'Quick Workout',
       entries:(day?day.exerciseIds:[]).map(id=>newEntry(id)) });
     setTab('train');
   };
@@ -1314,10 +1333,10 @@ function App(){
       session.entries.forEach(en=>{
         const valid = en.sets.filter(s=>+s.weight>0 && +s.reps>0); if(!valid.length) return;
         if(!r[en.exerciseId]) r[en.exerciseId]={best1rm:0,maxW:0,bestVol:0,sessions:[],count:0};
-        const rec=r[en.exerciseId]; let se=0,mw=0,vol=0,top='';
-        valid.forEach(s=>{ const e=epley(s.weight,s.reps), v=+s.weight*+s.reps; if(e>se){se=e;top=`${+s.weight}×${+s.reps}`;} if(+s.weight>mw)mw=+s.weight; vol+=v; });
+        const rec=r[en.exerciseId]; let se=0,mw=0,vol=0,top='',tw=0,tr=0;
+        valid.forEach(s=>{ const e=epley(s.weight,s.reps), v=+s.weight*+s.reps; if(e>se){se=e;top=`${+s.weight}×${+s.reps}`;tw=+s.weight;tr=+s.reps;} if(+s.weight>mw)mw=+s.weight; vol+=v; });
         rec.best1rm=Math.max(rec.best1rm,se); rec.maxW=Math.max(rec.maxW,mw); rec.bestVol=Math.max(rec.bestVol,vol);
-        rec.count++; rec.sessions.push({date:session.date, top, e1rm:se, vol, note:en.note||'', snote:session.note||''});
+        rec.count++; rec.sessions.push({date:session.date, top, topW:tw, topR:tr, e1rm:se, vol, note:en.note||'', snote:session.note||''});
       });
     });
     return r;
@@ -1437,17 +1456,17 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
                 {days.length===0 ?
                   <div style={{color:'var(--muted2)',fontSize:12.5,padding:'8px 2px'}}>No days yet — tap Edit to add days.</div>
                   :
-                  days.map(d=>{
+                  days.map((d,i)=>{
                     const muscles=[...new Set(d.exerciseIds.map(id=>exById[id]&&exById[id].m).filter(Boolean))];
                     return (
                       <div key={d.id} className="day-row" onClick={()=>onEdit(r)}>
                         <div className="day-info">
-                          <div className="day-name">{d.name}</div>
+                          <div className="day-name">{dayLabel(d, i, r.labelMode||'num')}</div>
                           <div className="day-meta">{d.exerciseIds.length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
                           {muscles.length>0 && <div className="day-tags">{muscles.slice(0,4).map(m=><span key={m} className="day-dot" style={{background:MUSCLE[m]||'#8b93a2'}} title={m}></span>)}</div>}
                         </div>
                         <button className="day-start" disabled={d.exerciseIds.length===0} style={{opacity:d.exerciseIds.length?1:.4}}
-                          onClick={(e)=>{e.stopPropagation(); if(d.exerciseIds.length) onStartDay(d, r);}}>Start</button>
+                          onClick={(e)=>{e.stopPropagation(); if(d.exerciseIds.length) onStartDay(d, r, dayLabel(d, i, r.labelMode||'num'));}}>Start</button>
                       </div>
                     );
                   })}
@@ -1547,6 +1566,9 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
                 <div className="log-prev">{rec?`Best 1RM ${rec.best1rm} ${unit} · heaviest ${rec.maxW} ${unit}`:'No history yet — set the baseline'}</div></div>
               <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
             </div>
+            {(()=>{ const last=rec&&rec.sessions&&rec.sessions.length?rec.sessions[rec.sessions.length-1]:null;
+              if(!last||!last.topW) return null; const inc=unit==='kg'?2.5:5;
+              return <div className="po-hint">🎯 Beat <b>{last.topW}×{last.topR}</b> — try <b>{last.topW}×{last.topR+1}</b> or <b>{last.topW+inc}×{last.topR}</b></div>; })()}
             <div className="set-table">
               <div className="set-hdr"><div>Set</div><div>{unit==='lb'?'Weight (lb)':'Weight (kg)'}</div><div>Reps</div><div>✓</div></div>
               {en.sets.map((s,si)=>
@@ -1616,6 +1638,54 @@ function RecordsView({records, exById, logs, unit, onOpen}){
 /* ============================================================
    EXERCISE DETAIL
    ============================================================ */
+function ProgressionTool({rec, unit}){
+  const base = rec && rec.best1rm ? rec.best1rm : 0;
+  const [orm,setOrm]=useState(base?String(base):'');
+  const [repsIn,setRepsIn]=useState('5');
+  const [wIn,setWIn]=useState(base?String(Math.round(base*0.8/5)*5):'');
+  const O=+orm||0;
+  const r2=(x)=>{ const v=Math.round(x/2.5)*2.5; return v%1===0?String(v):v.toFixed(1); };
+  const wForReps=(r)=> (O<=0||r<=0) ? '–' : (r<=1 ? String(Math.round(O)) : r2(O/(1+r/30)));
+  const rForWeight=(w)=>{ if(O<=0||w<=0||w>O) return '–'; return String(Math.max(1, Math.round(30*(O/w-1)))); };
+  const last = rec && rec.sessions && rec.sessions.length ? rec.sessions[rec.sessions.length-1] : null;
+  const inc = unit==='kg'?2.5:5;
+  const tblReps=[1,2,3,5,8,10,12];
+  return (
+    <div>
+      <div className="section-h" style={{margin:'10px 0 8px'}}>Strength Calculator</div>
+      <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:14}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <label style={{fontSize:12.5,color:'var(--muted)',fontWeight:700}}>Your 1RM</label>
+          <input type="number" inputMode="decimal" value={orm} onChange={e=>setOrm(e.target.value)} placeholder="—"
+            style={{width:92,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,padding:'8px 10px',color:'var(--text)',fontFamily:'var(--display)',fontWeight:800,fontSize:18,outline:'none'}} />
+          <span style={{fontSize:12.5,color:'var(--muted)'}}>{unit}</span>
+          {base>0 && +orm!==base && <button onClick={()=>setOrm(String(base))} style={{marginLeft:'auto',fontSize:11,color:'var(--accent)',fontWeight:700}}>reset to {base}</button>}
+        </div>
+        <div style={{fontSize:11,color:'var(--muted2)',margin:'7px 0 12px',lineHeight:1.4}}>
+          {base>0?'Estimated from your best logged set (Epley). Edit it to model any max.':'No logged sets yet — type a 1RM to model targets.'}</div>
+        <table className="calc-tbl"><thead><tr><th>Reps</th><th>Weight</th><th>% 1RM</th></tr></thead>
+          <tbody>{tblReps.map(r=>{ const w=wForReps(r); const pct=(O>0&&w!=='–')?Math.round((+w/O)*100):'–';
+            return <tr key={r}><td><b>{r}</b></td><td>{w==='–'?'–':w+' '+unit}</td><td style={{color:'var(--muted)'}}>{pct==='–'?'–':pct+'%'}</td></tr>; })}</tbody>
+        </table>
+        <div className="calc-row"><span>Lift</span>
+          <input type="number" inputMode="numeric" value={repsIn} onChange={e=>setRepsIn(e.target.value)} className="calc-in" />
+          <span>reps →</span><b style={{color:'var(--accent)'}}>{wForReps(+repsIn)}{wForReps(+repsIn)!=='–'?' '+unit:''}</b></div>
+        <div className="calc-row"><span>At</span>
+          <input type="number" inputMode="decimal" value={wIn} onChange={e=>setWIn(e.target.value)} className="calc-in" />
+          <span>{unit} →</span><b style={{color:'var(--accent)'}}>{rForWeight(+wIn)}{rForWeight(+wIn)!=='–'?' reps':''}</b></div>
+      </div>
+      {last && last.topW>0 &&
+        <div className="po-box">
+          <div className="po-h">🎯 Next target — progressive overload</div>
+          <div style={{fontSize:13,marginBottom:8}}>Last session your best set was <b>{last.topW}×{last.topR} {unit}</b>. Beat it:</div>
+          <div className="po-opt"><span>One more rep, same weight</span><b>{last.topW} × {last.topR+1}</b></div>
+          <div className="po-opt"><span>Or add weight, same reps</span><b>{last.topW+inc} × {last.topR}</b></div>
+          <div style={{fontSize:11,color:'var(--muted2)',marginTop:8,lineHeight:1.45}}>Either nudges your est. 1RM to ~{Math.max(epley(last.topW,last.topR+1),epley(last.topW+inc,last.topR))} {unit}. Add weight once the reps feel easy; otherwise chase the extra rep first.</div>
+        </div>}
+    </div>
+  );
+}
+
 function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
   const color=MUSCLE[ex.m]||'#888';
   const demo=demoFor(ex);
@@ -1647,6 +1717,7 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
           <MuscleTiers ex={ex} />
           {ex.cue && <div className="cue"><b>Form cue:</b> {ex.cue}</div>}
           <a className="demo-btn" href={ytUrl} target="_blank" rel="noopener noreferrer">{I.yt}<span>Watch full demo on YouTube</span></a>
+          <ProgressionTool rec={rec} unit={unit} />
           {sparkData.length>=2 && <div><div className="section-h" style={{margin:'0 0 6px'}}>Est. 1RM Progress</div><Spark data={sparkData} color={color} /></div>}
           <div className="section-h" style={{margin:'8px 0 4px'}}>History</div>
           {sessions.length===0 ?
@@ -1705,20 +1776,19 @@ function NewExerciseSheet({onClose, onSave}){
 /* ============================================================
    ROUTINE EDITOR
    ============================================================ */
-const WEEKDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const WEEKDAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const isAutoName=(nm)=> /^Day \d+$/i.test(nm||'') || WEEKDAYS.includes(nm);
+const posLabel=(i,mode)=> mode==='week' ? WEEKDAYS[i%7] : ('Day '+(i+1));
+const dayLabel=(day,i,mode)=> (day&&day.name) ? (posLabel(i,mode)+' · '+day.name) : posLabel(i,mode);
 function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, onSave, onDelete}){
   const editing=!!routine;
   const [name,setName]=useState(routine?routine.name:'');
   const [note,setNote]=useState(routine?routine.note||'':'');
   const [labelMode,setLabelMode]=useState(routine?(routine.labelMode||'num'):'num');
-  const [days,setDays]=useState(routine? clone(routine.days||[]) : [{id:uid(),name:'Day 1',exerciseIds:[]}]);
+  const [days,setDays]=useState(routine? clone(routine.days||[]) : [{id:uid(),name:'',exerciseIds:[]}]);
   const [dayIdx,setDayIdx]=useState(null);
   const valid = name.trim() && days.length>0 && days.some(d=>d.exerciseIds.length>0);
-  const schemeName=(i,mode)=> mode==='week' ? WEEKDAYS[i%7] : ('Day '+(i+1));
-  const isAuto=(nm)=> /^Day \d+$/i.test(nm||'') || WEEKDAYS.includes(nm);
-  // switching label style relabels only auto-named days; custom names you typed are kept
-  const switchMode=(mode)=>{ setLabelMode(mode); setDays(days.map((d,i)=> isAuto(d.name) ? {...d, name:schemeName(i,mode)} : d)); };
-  const addDay=()=> setDays([...days, {id:uid(), name:schemeName(days.length,labelMode), exerciseIds:[]}]);
+  const addDay=()=> setDays([...days, {id:uid(), name:'', exerciseIds:[]}]);
   const renameDay=(i,v)=>{ const a=clone(days); a[i].name=v; setDays(a); };
   const delDay=(i)=> setDays(days.filter((_,j)=>j!==i));
   const moveDay=(i,dir)=>{ const j=i+dir; if(j<0||j>=days.length) return; const a=clone(days); [a[i],a[j]]=[a[j],a[i]]; setDays(a); };
@@ -1733,11 +1803,11 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, 
           <div className="field"><label>Note (optional)</label><input placeholder="e.g. 7-day split — rebuilding after the knee" value={note} onChange={e=>setNote(e.target.value)} /></div>
           <div className="field"><label>Day labels</label>
             <div className="unit-toggle" style={{display:'inline-flex'}}>
-              <button className={labelMode==='num'?'on':''} onClick={()=>switchMode('num')}>Numbered</button>
-              <button className={labelMode==='week'?'on':''} onClick={()=>switchMode('week')}>Weekday</button>
+              <button className={labelMode==='num'?'on':''} onClick={()=>setLabelMode('num')}>Numbered</button>
+              <button className={labelMode==='week'?'on':''} onClick={()=>setLabelMode('week')}>Weekday</button>
             </div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:7,lineHeight:1.45}}>
-              {labelMode==='week'?'Days are named Monday, Tuesday, … ':'Days are named Day 1, Day 2, … '}Names you type yourself are kept either way.
+              {labelMode==='week'?'Each slot is a weekday (Sunday → Saturday). ':'Each slot is numbered by order (Day 1, Day 2, …). '}Add an optional name like “Legs” — the position stays fixed, and reordering renumbers automatically.
             </div>
           </div>
           <div className="section-h" style={{margin:'4px 0 10px'}}><span>Days ({days.length})</span>
@@ -1749,7 +1819,8 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, 
                   <button onClick={()=>moveDay(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▲</button>
                   <button onClick={()=>moveDay(i,1)} style={{color:i===days.length-1?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▼</button>
                 </div>
-                <input className="day-name-input" placeholder={schemeName(i,labelMode)} value={d.name} onChange={e=>renameDay(i,e.target.value)} />
+                <span className="day-pos">{posLabel(i,labelMode)}</span>
+                <input className="day-name-input" placeholder="Optional name — e.g. Legs, Push" value={d.name||''} onChange={e=>renameDay(i,e.target.value)} />
                 <button className="delset" onClick={()=>delDay(i)}>{I.trash}</button>
               </div>
               <div className="day-edit-meta">{d.exerciseIds.length} exercise{d.exerciseIds.length!==1?'s':''} · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>

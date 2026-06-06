@@ -10,7 +10,7 @@
      away the old cached copy and pull your new version on next launch.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v9';
+const CACHE_VERSION = 'ironlog-v10';
 
 /* The "app shell" — the core files the app is made of.
    Relative paths (./) so it works no matter what GitHub Pages URL it lives at. */
