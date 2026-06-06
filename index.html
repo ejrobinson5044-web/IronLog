@@ -145,10 +145,15 @@
   .btn-sm{padding:10px;font-size:13px;border-radius:var(--radius-sm)}
   .btn[disabled]{cursor:not-allowed}
 
-  .fab{position:absolute;right:18px;bottom:84px;width:56px;height:56px;border-radius:18px;background:var(--accent);
-    color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 8px 26px rgba(129,140,248,.4);z-index:25;transition:.12s}
+  .fab{position:absolute;right:18px;bottom:calc(90px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:18px;background:var(--accent);
+    color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 8px 26px rgba(129,140,248,.4);z-index:35;transition:.12s}
   .fab:active{transform:scale(.92)}
   .fab svg{width:28px;height:28px}
+  .create-ex-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:10px 0 4px;padding:11px;
+    background:rgba(129,140,248,.08);border:1.5px dashed var(--accent-dim);border-radius:11px;color:var(--accent);
+    font-family:var(--display);font-weight:700;font-size:13px}
+  .create-ex-btn:active{background:rgba(129,140,248,.16)}
+  .create-ex-btn svg{width:18px;height:18px}
 
   .empty{text-align:center;padding:50px 24px;color:var(--muted)}
   .empty .ic{width:64px;height:64px;border-radius:20px;background:var(--surface);border:1px solid var(--border);
@@ -379,7 +384,7 @@ const todayISO = () => new Date().toISOString().slice(0,10);
 const clone = o => JSON.parse(JSON.stringify(o));
 
 const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
-  Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},Landmine:{c:'#e8915a'},Other:{c:'#9095ad'}};
+  Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},Landmine:{c:'#e8915a'},Leverage:{c:'#00b8a9'},'Pit Shark':{c:'#d65db1'},Other:{c:'#9095ad'}};
 const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff','Front Delts':'#ff9f45','Side Delts':'#ffc04d','Rear Delts':'#e07b3c',Biceps:'#9d7bff',Triceps:'#b794ff',
   Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8'};
 const tint = (hex, a) => { const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
@@ -546,6 +551,33 @@ const GIFS = {
 
 /* Muscle involvement per exercise: [displayName, coarseRegion], primary->tertiary. Powers the per-lift muscle list + routine breakdown. */
 const MUS = {
+  "Leverage Chest Press": [["Chest","Chest"],["Triceps","Triceps"],["Front Delts","Front Delts"]],
+  "Leverage Incline Chest Press": [["Chest","Chest"],["Front Delts","Front Delts"],["Triceps","Triceps"]],
+  "Leverage Decline Chest Press": [["Chest","Chest"],["Triceps","Triceps"],["Front Delts","Front Delts"]],
+  "Leverage Iso-Row": [["Lats","Back"],["Biceps","Biceps"],["Rear Delts","Rear Delts"]],
+  "Leverage High Row": [["Lats","Back"],["Rear Delts","Rear Delts"],["Biceps","Biceps"]],
+  "Leverage Low Row": [["Middle Back","Back"],["Biceps","Biceps"],["Lats","Back"]],
+  "Leverage Shoulder Press": [["Front Delts","Front Delts"],["Triceps","Triceps"],["Side Delts","Side Delts"]],
+  "Leverage Lat Pulldown": [["Lats","Back"],["Biceps","Biceps"],["Rear Delts","Rear Delts"]],
+  "Leverage Pullover": [["Lats","Back"],["Chest","Chest"],["Triceps","Triceps"]],
+  "Leverage Deadlift": [["Lower Back","Back"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Leverage Leg Press": [["Quadriceps","Quads"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Leverage Hack Squat": [["Quadriceps","Quads"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Leverage Squat": [["Quadriceps","Quads"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Leverage Triceps Dip": [["Triceps","Triceps"],["Chest","Chest"],["Front Delts","Front Delts"]],
+  "Leverage Chest Fly": [["Chest","Chest"],["Front Delts","Front Delts"]],
+  "Leverage Rear Delt Fly": [["Rear Delts","Rear Delts"],["Middle Back","Back"]],
+  "Pit Shark Belt Squat": [["Quadriceps","Quads"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Pit Shark Squat": [["Quadriceps","Quads"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Pit Shark Wide-Stance Squat": [["Glutes","Glutes"],["Quadriceps","Quads"],["Hamstrings","Hamstrings"]],
+  "Pit Shark Split Squat": [["Quadriceps","Quads"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Pit Shark Romanian Deadlift": [["Hamstrings","Hamstrings"],["Glutes","Glutes"],["Lower Back","Back"]],
+  "Pit Shark Good Morning": [["Hamstrings","Hamstrings"],["Glutes","Glutes"],["Lower Back","Back"]],
+  "Pit Shark Hip Thrust": [["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Pit Shark Walking Lunge": [["Quadriceps","Quads"],["Glutes","Glutes"],["Hamstrings","Hamstrings"]],
+  "Pit Shark Reverse Lunge": [["Glutes","Glutes"],["Quadriceps","Quads"],["Hamstrings","Hamstrings"]],
+  "Pit Shark Bent-Over Row": [["Middle Back","Back"],["Biceps","Biceps"],["Lats","Back"]],
+  "Pit Shark Pull-Through": [["Glutes","Glutes"],["Hamstrings","Hamstrings"],["Lower Back","Back"]],
   "Ab Wheel Rollout": [["Abdominals", "Core"], ["Front Delts", "Front Delts"]],
   "Barbell Back Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
   "Barbell Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
@@ -874,6 +906,42 @@ const SEED = [
   {name:"Landmine Rotation", eq:"Landmine", m:"Core", sec:"Front Delts", cue:"Swing the bar side to side in an arc \u2014 rotational core power."},
   {name:"Landmine Deadlift", eq:"Landmine", m:"Back", sec:"Hamstrings", cue:"Pull the bar from the floor at the landmine \u2014 posterior chain."},
   {name:"Landmine Thruster", eq:"Landmine", m:"Full Body", sec:"Front Delts", cue:"Squat then drive the bar overhead in one explosive motion."},
+  // ---- Leverage (plate-loaded / Hammer Strength style) ----
+  {name:"Leverage Chest Press", eq:"Leverage", m:"Chest", sec:"Triceps", cue:"Plate-loaded press \u2014 drive the handles forward, control the stretch."},
+  {name:"Leverage Incline Chest Press", eq:"Leverage", m:"Chest", sec:"Front Delts", cue:"Upper-chest bias \u2014 press up and slightly in."},
+  {name:"Leverage Decline Chest Press", eq:"Leverage", m:"Chest", sec:"Triceps", cue:"Lower-chest bias \u2014 press down and out."},
+  {name:"Leverage Iso-Row", eq:"Leverage", m:"Back", sec:"Biceps", cue:"Chest on the pad, drive the elbows back, squeeze the lats."},
+  {name:"Leverage High Row", eq:"Leverage", m:"Back", sec:"Biceps", cue:"Pull from a high angle down toward the lower lats."},
+  {name:"Leverage Low Row", eq:"Leverage", m:"Back", sec:"Biceps", cue:"Row low to the waist with a big squeeze at the back."},
+  {name:"Leverage Shoulder Press", eq:"Leverage", m:"Front Delts", sec:"Triceps", cue:"Press the handles overhead without shrugging the traps."},
+  {name:"Leverage Lat Pulldown", eq:"Leverage", m:"Back", sec:"Biceps", cue:"Iso-lateral pulldown \u2014 drive the elbows to the hips."},
+  {name:"Leverage Pullover", eq:"Leverage", m:"Back", sec:"Chest", cue:"Big arc \u2014 feel the lats stretch then contract."},
+  {name:"Leverage Deadlift", eq:"Leverage", m:"Back", sec:"Hamstrings", cue:"Machine deadlift \u2014 push the floor away and hinge tall."},
+  {name:"Leverage Shrug", eq:"Leverage", m:"Back", sec:"Forearms", cue:"Shrug straight up and pause at the top."},
+  {name:"Leverage Leg Press", eq:"Leverage", m:"Quads", sec:"Glutes", cue:"Feet mid-platform, control to depth, drive through the midfoot."},
+  {name:"Leverage Hack Squat", eq:"Leverage", m:"Quads", sec:"Glutes", cue:"Stay tight to the pad, knees track over the toes."},
+  {name:"Leverage Squat", eq:"Leverage", m:"Quads", sec:"Glutes", cue:"Upright torso, sit between the hips."},
+  {name:"Leverage Calf Raise", eq:"Leverage", m:"Calves", cue:"Full stretch at the bottom, big squeeze up top."},
+  {name:"Leverage Biceps Curl", eq:"Leverage", m:"Biceps", sec:"Forearms", cue:"Pinned elbows, curl through a full range."},
+  {name:"Leverage Triceps Dip", eq:"Leverage", m:"Triceps", sec:"Chest", cue:"Machine dip \u2014 press down and lock out the elbows."},
+  {name:"Leverage Chest Fly", eq:"Leverage", m:"Chest", sec:"Front Delts", cue:"Hug the handles together, slow on the stretch."},
+  {name:"Leverage Rear Delt Fly", eq:"Leverage", m:"Rear Delts", sec:"Back", cue:"Reverse pec-deck motion \u2014 lead with the elbows."},
+  {name:"Leverage Lateral Raise", eq:"Leverage", m:"Side Delts", cue:"Machine lateral \u2014 drive the pads up to shoulder height."},
+  // ---- Pit Shark (belt squat / pendulum) ----
+  {name:"Pit Shark Belt Squat", eq:"Pit Shark", m:"Quads", sec:"Glutes", cue:"Belt loaded at the hips \u2014 squat tall with zero spinal load."},
+  {name:"Pit Shark Squat", eq:"Pit Shark", m:"Quads", sec:"Glutes", cue:"Sit between the hips, drive through the midfoot."},
+  {name:"Pit Shark Wide-Stance Squat", eq:"Pit Shark", m:"Glutes", sec:"Quads", cue:"Wider stance loads the adductors and glutes harder."},
+  {name:"Pit Shark Split Squat", eq:"Pit Shark", m:"Quads", sec:"Glutes", cue:"Front-foot loaded \u2014 drop the back knee straight down."},
+  {name:"Pit Shark Romanian Deadlift", eq:"Pit Shark", m:"Hamstrings", sec:"Glutes", cue:"Hinge back, the belt pulls straight down \u2014 feel the hamstrings."},
+  {name:"Pit Shark Good Morning", eq:"Pit Shark", m:"Hamstrings", sec:"Back", cue:"Soft knees, hinge from the hips with a flat back."},
+  {name:"Pit Shark Hip Thrust", eq:"Pit Shark", m:"Glutes", sec:"Hamstrings", cue:"Drive the hips up, squeeze hard, keep the ribs down."},
+  {name:"Pit Shark Calf Raise", eq:"Pit Shark", m:"Calves", cue:"Belt-loaded calves \u2014 full stretch, full contraction."},
+  {name:"Pit Shark Walking Lunge", eq:"Pit Shark", m:"Quads", sec:"Glutes", cue:"Long strides, control each descent."},
+  {name:"Pit Shark Reverse Lunge", eq:"Pit Shark", m:"Glutes", sec:"Quads", cue:"Step back and sit into the front hip."},
+  {name:"Pit Shark March", eq:"Pit Shark", m:"Core", sec:"Glutes", cue:"Tall march under load \u2014 brace and stay even."},
+  {name:"Pit Shark Bent-Over Row", eq:"Pit Shark", m:"Back", sec:"Biceps", cue:"Belt-anchored row \u2014 hinge and pull to the waist."},
+  {name:"Pit Shark Shrug", eq:"Pit Shark", m:"Back", sec:"Forearms", cue:"Load the belt, shrug tall, pause at the top."},
+  {name:"Pit Shark Pull-Through", eq:"Pit Shark", m:"Glutes", sec:"Hamstrings", cue:"Hinge then snap the hips forward to lockout."},
 ].map(e => ({ id:uid(), media:'', custom:false, ...e }));
 
 /* Merge library updates (new exercises, re-tagged muscles) into a user's saved data.
@@ -1388,10 +1456,10 @@ function App(){
 
       {detailEx && <ExerciseDetail ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} />}
       {newExOpen && <NewExerciseSheet onClose={()=>setNewExOpen(false)} onSave={addCustomExercise} />}
-      {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
+      {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {pickerFor==='active' &&
         <ExercisePicker exercises={exercises} preselected={active?active.entries.map(e=>e.exerciseId):[]}
-          onClose={()=>setPickerFor(null)}
+          onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
           onConfirm={(ids)=>{ const ex=active.entries.map(e=>e.exerciseId);
             const add=ids.filter(id=>!ex.includes(id)).map(id=>newEntry(id));
             setActive({...active, entries:[...active.entries, ...add]}); setPickerFor(null); }} />}
@@ -1742,8 +1810,8 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete}){
 /* ============================================================
    NEW CUSTOM EXERCISE
    ============================================================ */
-function NewExerciseSheet({onClose, onSave}){
-  const [name,setName]=useState(''); const [eq,setEq]=useState('Barbell'); const [m,setM]=useState('Chest');
+function NewExerciseSheet({onClose, onSave, initialName}){
+  const [name,setName]=useState(initialName||''); const [eq,setEq]=useState('Barbell'); const [m,setM]=useState('Chest');
   const [sec,setSec]=useState(''); const [cue,setCue]=useState(''); const [media,setMedia]=useState('');
   const valid=name.trim().length>0;
   return (
@@ -1780,14 +1848,14 @@ const WEEKDAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Sat
 const isAutoName=(nm)=> /^Day \d+$/i.test(nm||'') || WEEKDAYS.includes(nm);
 const posLabel=(i,mode)=> mode==='week' ? WEEKDAYS[i%7] : ('Day '+(i+1));
 const dayLabel=(day,i,mode)=> (day&&day.name) ? (posLabel(i,mode)+' · '+day.name) : posLabel(i,mode);
-function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, onSave, onDelete}){
+function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateExercise, onClose, onSave, onDelete}){
   const editing=!!routine;
   const [name,setName]=useState(routine?routine.name:'');
   const [note,setNote]=useState(routine?routine.note||'':'');
   const [labelMode,setLabelMode]=useState(routine?(routine.labelMode||'num'):'num');
   const [days,setDays]=useState(routine? clone(routine.days||[]) : [{id:uid(),name:'',exerciseIds:[]}]);
   const [dayIdx,setDayIdx]=useState(null);
-  const valid = name.trim() && days.length>0 && days.some(d=>d.exerciseIds.length>0);
+  const valid = !!name.trim();
   const addDay=()=> setDays([...days, {id:uid(), name:'', exerciseIds:[]}]);
   const renameDay=(i,v)=>{ const a=clone(days); a[i].name=v; setDays(a); };
   const delDay=(i)=> setDays(days.filter((_,j)=>j!==i));
@@ -1830,19 +1898,19 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onClose, 
           <button className="btn btn-ghost btn-sm" onClick={addDay} style={{marginTop:4}}>{I.plus}Add a day</button>
           <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45,marginTop:16}}
             onClick={()=>valid&&onSave({id:routine?routine.id:uid(),name:name.trim(),note:note.trim(),labelMode,days})}>{I.check}{editing?'Save changes':'Create routine'}</button>
-          {!valid && name.trim() && <div style={{fontSize:11.5,color:'var(--muted2)',textAlign:'center',marginTop:8}}>Add at least one exercise to a day to save.</div>}
+          {!days.some(d=>d.exerciseIds.length>0) && <div style={{fontSize:11.5,color:'var(--muted2)',textAlign:'center',marginTop:8}}>Tip: you can save now with empty days and add exercises later.</div>}
           {editing && <button className="btn btn-danger btn-sm" style={{marginTop:10}} onClick={()=>onDelete(routine.id)}>{I.trash}Delete routine</button>}
         </div>
       </div>
       {dayIdx!==null &&
-        <DayEditor day={days[dayIdx]} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault}
+        <DayEditor day={days[dayIdx]} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreate={onCreateExercise}
           onClose={()=>setDayIdx(null)} onSave={saveDay} />}
     </div>
   );
 }
 
 /* edits a single day inside a routine (name + its exercises) */
-function DayEditor({day, exById, exercises, logs, restDefault, onClose, onSave}){
+function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose, onSave}){
   const [name,setName]=useState(day.name||'');
   const [ids,setIds]=useState([...day.exerciseIds]);
   const [picking,setPicking]=useState(false);
@@ -1886,7 +1954,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onClose, onSave})
             onClick={()=>onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids})}>{I.check}Done</button>
         </div>
       </div>
-      {picking && <ExercisePicker exercises={exercises} preselected={ids} onClose={()=>setPicking(false)} onConfirm={(sel)=>{setIds([...new Set([...ids,...sel])]);setPicking(false);}} />}
+      {picking && <ExercisePicker exercises={exercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={onCreate} onConfirm={(sel)=>{setIds([...new Set([...ids,...sel])]);setPicking(false);}} />}
     </div>
   );
 }
@@ -1894,9 +1962,10 @@ function DayEditor({day, exById, exercises, logs, restDefault, onClose, onSave})
 /* ============================================================
    EXERCISE PICKER
    ============================================================ */
-function ExercisePicker({exercises, preselected, onClose, onConfirm}){
+function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
   const [q,setQ]=useState(''); const [eq,setEq]=useState('All'); const [mus,setMus]=useState('All');
   const [sel,setSel]=useState(()=>new Set(preselected));
+  const [creating,setCreating]=useState(false);
   const toggle=id=>{const s=new Set(sel);s.has(id)?s.delete(id):s.add(id);setSel(s);};
   const filtered=exercises.filter(e=>{
     if(q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
@@ -1905,6 +1974,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm}){
     return true;
   });
   const addedCount=[...sel].filter(id=>!preselected.includes(id)).length;
+  const handleCreated=(e)=>{ const ex=onCreate&&onCreate(e); if(ex&&ex.id){ const s=new Set(sel); s.add(ex.id); setSel(s); } setCreating(false); };
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
@@ -1912,8 +1982,14 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm}){
         <div className="sheet-head"><h2>Add Exercises</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
         <div className="sheet-body" style={{paddingTop:12}}>
           <div className="search-wrap" style={{marginTop:0}}>{I.search}<input className="search" placeholder="Search…" value={q} onChange={e=>setQ(e.target.value)} /></div>
+          {onCreate && <button className="create-ex-btn" onClick={()=>setCreating(true)}>{I.plus}<span>Can’t find it? Create a new exercise</span></button>}
           <div className="filter-scroll">{['All',...Object.keys(EQUIP)].map(x=><button key={x} className={'chip'+(eq===x?' on':'')} onClick={()=>setEq(x)}>{x}</button>)}</div>
           <div className="filter-scroll" style={{paddingTop:0,marginBottom:6}}>{['All',...Object.keys(MUSCLE)].map(x=><button key={x} className={'chip'+(mus===x?' on':'')} onClick={()=>setMus(x)} style={mus===x?{}:{color:MUSCLE[x]||'var(--muted)'}}>{x}</button>)}</div>
+          {filtered.length===0 &&
+            <div style={{textAlign:'center',padding:'22px 12px'}}>
+              <div style={{color:'var(--muted)',fontSize:13.5,marginBottom:12}}>No exercises match{q?<span> “<b style={{color:'var(--text)'}}>{q}</b>”</span>:''}.</div>
+              {onCreate && <button className="btn btn-accent" onClick={()=>setCreating(true)}>{I.plus}Create {q?'“'+q+'”':'a new exercise'}</button>}
+            </div>}
           {filtered.map(e=>{ const on=sel.has(e.id), already=preselected.includes(e.id);
             return (
               <div key={e.id} className="ex-row tap" onClick={()=>toggle(e.id)} style={on?{borderColor:'var(--accent)',background:'rgba(129,140,248,.07)'}:{}}>
@@ -1928,6 +2004,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm}){
           </div>
         </div>
       </div>
+      {creating && <NewExerciseSheet initialName={q} onClose={()=>setCreating(false)} onSave={handleCreated} />}
     </div>
   );
 }
