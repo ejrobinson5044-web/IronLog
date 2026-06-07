@@ -27,24 +27,52 @@ jobs:
           const fs = require('fs');
 
           let patch = fs.readFileSync('ironlog-patch.js', 'utf8');
-          if (!patch.includes('ironlogSnapshotGuard')) {
-            const lines = patch.split(/\r?\n/);
-            const start = lines.findIndex((line) => line === '  function ensureRestoreButton(general) {');
-            if (start === -1) throw new Error('Could not find ensureRestoreButton.');
-            const insertAfter = lines.findIndex((line, index) => index > start && line === '    const snapshot = readJson(SAFETY_SNAPSHOT_KEY, null);');
-            if (insertAfter === -1) throw new Error('Could not find ensureRestoreButton snapshot line.');
-            lines.splice(insertAfter + 1, 0,
-              '    const fileInput = general.querySelector(\'input[type="file"]\');',
-              '    if (fileInput && fileInput.dataset.ironlogSnapshotGuard !== \'1\') {',
-              '      fileInput.dataset.ironlogSnapshotGuard = \'1\';',
-              '      fileInput.addEventListener(\'change\', () => {',
-              '        if (fileInput.files && fileInput.files[0]) saveSafetySnapshot(\'before import\');',
-              '      }, true);',
+          if (!patch.includes('function ensureRestoreButton')) {
+            const existing = "    if (labels.includes('Backup') && /\\bExport\\b/.test(general.textContent || '') && /\\bImport\\b/.test(general.textContent || '')) return;";
+            const replacement = [
+              "    if (labels.includes('Backup') && /\\bExport\\b/.test(general.textContent || '') && /\\bImport\\b/.test(general.textContent || '')) {",
+              '      ensureRestoreButton(general);',
+              '      return;',
               '    }'
-            );
-            patch = lines.join('\n');
+            ].join('\n');
+            if (!patch.includes(existing)) throw new Error('Could not find existing Backup UI return.');
+            patch = patch.replace(existing, replacement);
+
+            const helper = `
+  function ensureRestoreButton(general) {
+    const snapshot = readJson(SAFETY_SNAPSHOT_KEY, null);
+    const fileInput = general.querySelector('input[type="file"]');
+    if (fileInput && fileInput.dataset.ironlogSnapshotGuard !== '1') {
+      fileInput.dataset.ironlogSnapshotGuard = '1';
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files[0]) saveSafetySnapshot('before import');
+      }, true);
+    }
+    if (!snapshot || general.querySelector('[data-restore-snapshot]')) return;
+    const actions = general.querySelector('.backup-actions');
+    if (!actions) return;
+    const button = document.createElement('button');
+    button.className = 'btn btn-ghost btn-sm';
+    button.type = 'button';
+    button.dataset.restoreSnapshot = '1';
+    button.textContent = 'Restore';
+    button.addEventListener('click', restoreSafetySnapshot);
+    actions.appendChild(button);
+    if (!general.querySelector('[data-snapshot-meta]') && snapshot.exportedAt) {
+      const meta = document.createElement('div');
+      meta.className = 'backup-meta';
+      meta.dataset.snapshotMeta = '1';
+      meta.textContent = ` + "`Safety snapshot: ${new Date(snapshot.exportedAt).toLocaleString()}`" + `;
+      actions.insertAdjacentElement('afterend', meta);
+    }
+  }
+`;
+            const marker = '\n  function ensureResetGuard() {';
+            if (!patch.includes(marker)) throw new Error('Could not find ensureResetGuard insertion point.');
+            patch = patch.replace(marker, helper + marker);
             fs.writeFileSync('ironlog-patch.js', patch.endsWith('\n') ? patch : patch + '\n');
           }
+          if (!patch.includes('ironlogSnapshotGuard')) throw new Error('Import snapshot guard was not applied.');
 
           let sw = fs.readFileSync('service-worker.js', 'utf8');
           sw = sw.replace(/const CACHE_VERSION = 'ironlog-v\d+';/, "const CACHE_VERSION = 'ironlog-v19';");
