@@ -1,0 +1,64 @@
+name: Apply helper safety guard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-helper-guard.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-helper-guard:
+    if: ${{ !contains(github.event.head_commit.message, '[skip helper guard]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply import safety guard
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          let patch = fs.readFileSync('ironlog-patch.js', 'utf8');
+          if (!patch.includes('ironlogSnapshotGuard')) {
+            const target = /  function ensureRestoreButton\(general\) \{\r?\n    const snapshot = readJson\(SAFETY_SNAPSHOT_KEY, null\);\r?\n/;
+            if (!target.test(patch)) throw new Error('Could not find ensureRestoreButton snapshot line.');
+            const guard = [
+              '    const fileInput = general.querySelector(\'input[type="file"]\');',
+              '    if (fileInput && fileInput.dataset.ironlogSnapshotGuard !== \'1\') {',
+              '      fileInput.dataset.ironlogSnapshotGuard = \'1\';',
+              '      fileInput.addEventListener(\'change\', () => {',
+              '        if (fileInput.files && fileInput.files[0]) saveSafetySnapshot(\'before import\');',
+              '      }, true);',
+              '    }'
+            ].join('\n') + '\n';
+            patch = patch.replace(target, (match) => match + guard);
+            fs.writeFileSync('ironlog-patch.js', patch);
+          }
+
+          let sw = fs.readFileSync('service-worker.js', 'utf8');
+          sw = sw.replace(/const CACHE_VERSION = 'ironlog-v\d+';/, "const CACHE_VERSION = 'ironlog-v19';");
+          fs.writeFileSync('service-worker.js', sw);
+          NODE
+
+      - name: Run smoke checks
+        run: node tests/smoke-check.js
+
+      - name: Commit helper update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ironlog-patch.js service-worker.js
+          if git diff --cached --quiet; then
+            echo "No helper changes to commit."
+          else
+            git commit -m "Add import safety guard [skip helper guard]"
+            git push
+          fi
