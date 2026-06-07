@@ -1,0 +1,14 @@
+{
+  "name": "ironlog",
+  "version": "0.2.0",
+  "private": true,
+  "description": "IronLog static PWA workout tracker",
+  "scripts": {
+    "build:v2": "node tools/build-v2.js",
+    "check": "node --check ironlog-patch.js && node --check service-worker.js && node --check app.bundle.js && node tests/smoke-check.js"
+  },
+  "devDependencies": {
+    "@babel/standalone": "^7.28.5",
+    "terser": "^5.44.1"
+  }
+}
