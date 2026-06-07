@@ -33,9 +33,11 @@ check('deployed helper keeps safety snapshot', patch.includes('SAFETY_SNAPSHOT_K
 check('deployed helper normalizes imported routines', patch.includes('cleanRoutine') && patch.includes('cleanExercise'));
 check('app opens to Today dashboard', index.includes("'train' : 'today'") && index.includes('function TodayView') && index.includes('<span>Today</span>'));
 check('progress keeps calendar access', index.includes('onOpenCalendar') && index.includes('Calendar</button>'));
-check('routine day tap starts training', index.includes('className="day-row" onClick={()=>{ if(d.exerciseIds.length) onStartDay') && index.includes('button className="rc-edit"'));
+check('routine day tap opens day preview', index.includes('function DayPreviewSheet') && index.includes('onOpenDay(d, r, dayLabel') && index.includes('onStart={(idx=0)=>') && index.includes('Start from first'));
 check('planned routines use guided flow', index.includes("mode: day ? 'guided' : 'open'") && index.includes('currentEntryIndex') && index.includes('className="guided-head"'));
 check('set entry auto-completes and advances', index.includes('function TrainView') && index.includes('advanceAfterSet') && index.includes('setHasData(tk,set)') && index.includes("'Next: '+nx.name"));
+check('workout timer starts after first logged set', index.includes('startedAt:null') && index.includes('if(!active.startedAt){ setElapsed(0); return; }') && index.includes('if(!e.startedAt) e.startedAt=Date.now();'));
+check('guided workout shows exercise demo and targets', index.includes('workout-demo') && index.includes('function targetSummary') && index.includes('targetSummary(en, ex, unit)') && index.includes('<AnimatedDemo demo={demo} />'));
 check('routine day exercises support hold reorder', index.includes('reorder-row') && index.includes('armReorder') && index.includes('onPointerDown={e=>armReorder(id,e)}') && index.includes('Move exercise up') && index.includes('Move exercise down'));
 check('unilateral exercise variants are supported', index.includes('SIDE_OPTIONS') && index.includes('formatExerciseName') && index.includes('sideRepLabel') && index.includes('onVariant={createExerciseVariant}') && index.includes('Reps / '));
 check('single-arm and single-leg library names are normalized', index.includes('Cable One Arm Triceps Extension') && index.includes('Bodyweight One Leg Glute Bridge') && !index.includes('\"Cable Single-Arm Triceps Extension\"') && !index.includes('\"Bodyweight Single-Leg Glute Bridge\"'));

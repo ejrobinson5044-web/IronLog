@@ -284,6 +284,13 @@
   .mini-btn:disabled{opacity:.35}
   .guided-count{text-align:center;font-size:12px;color:var(--muted);font-weight:800}
   .guided-done{background:linear-gradient(135deg,rgba(99,230,190,.12),rgba(168,85,247,.1));border:1px solid rgba(99,230,190,.22);border-radius:var(--radius);padding:13px 14px;margin-bottom:13px;color:var(--text);font-weight:800;text-align:center}
+  .plan-day-head{background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(13,9,20,.94));border:1px solid rgba(168,85,247,.2);border-radius:var(--radius);padding:14px;margin-bottom:13px}
+  .plan-day-title{font-family:var(--display);font-size:19px;font-weight:800;letter-spacing:-.01em}
+  .plan-day-meta{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .target-line{font-size:12px;color:var(--muted);margin-top:3px}
+  .target-line b{color:var(--accent);font-weight:800}
+  .workout-demo{padding:12px 14px 0}
+  .workout-demo .demo-hero{height:190px;margin-bottom:2px}
 
   /* ---- REST TIMER bar ---- */
   .rest-bar{position:absolute;left:12px;right:12px;bottom:78px;z-index:28;background:linear-gradient(135deg,var(--accent-deep),var(--accent-dim));
@@ -1471,6 +1478,7 @@ function App(){
   const [editEx, setEditEx] = useState(null);
   const [measSheet, setMeasSheet] = useState(null);
   const [editRoutine, setEditRoutine] = useState(undefined);
+  const [previewDay, setPreviewDay] = useState(null);
   const [pickerFor, setPickerFor] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -1586,19 +1594,25 @@ function App(){
   const blankSets = (count)=> Array.from({length:count}, ()=>({weight:'', reps:'', time:'', dist:'', done:false}));
   const newEntry = (id, planned=false)=>({ exerciseId:id, sets: lastSetsFor(id) || blankSets(planned?3:1), note: lastNoteFor(id) });
 
-  const startDay = (day, program, label)=>{
-    setActive({ id:uid(), date:todayISO(), startedAt:Date.now(), note:'',
+  const startDay = (day, program, label, focusIndex=0)=>{
+    const entries=(day?day.exerciseIds:[]).map(id=>newEntry(id, !!day));
+    const currentEntryIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+focusIndex||0)));
+    setActive({ id:uid(), date:todayISO(), startedAt:null, note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
-      mode: day ? 'guided' : 'open', currentEntryIndex: 0,
+      mode: day ? 'guided' : 'open', currentEntryIndex,
       name: day ? (label || day.name || 'Workout') : 'Quick Workout',
-      entries:(day?day.exerciseIds:[]).map(id=>newEntry(id, !!day)) });
+      entries });
     setTab('train');
+  };
+  const openDayPreview = (day, program, label)=>{
+    if(!day || !day.exerciseIds || !day.exerciseIds.length) return;
+    setPreviewDay({day, program, label, entries:day.exerciseIds.map(id=>newEntry(id, true))});
   };
   const finishWorkout = ()=>{
     // with pre-filled presets, the checkmark means "I actually did this set".
     // If any set is checked, save only checked sets; otherwise fall back to whatever was typed.
     const anyDone = active.entries.some(en=>en.sets.some(s=>s.done));
-    const c = {...active, entries: active.entries.map(en=>{
+    const c = {...active, startedAt: active.startedAt || Date.now(), endedAt: Date.now(), entries: active.entries.map(en=>{
       const tk = trackOf(exById[en.exerciseId]);
       const keep = anyDone ? (s=>s.done && setHasData(tk,s)) : (s=>setHasData(tk,s));
       return {...en, sets: en.sets.filter(keep)};
@@ -1680,7 +1694,7 @@ function App(){
             onGoCalendar={()=>setTab('calendar')} onMeasure={()=>setMeasSheet({date:todayISO(), entry:null})} />}
         {tab==='routines' &&
           <RoutinesView routines={routines} exById={exById} active={active} logs={logs} restDefault={restDefault}
-            onStartDay={startDay} onNew={()=>setEditRoutine(null)} onEdit={setEditRoutine} onResume={()=>setTab('train')} />}
+            onStartDay={startDay} onOpenDay={openDayPreview} onNew={()=>setEditRoutine(null)} onEdit={setEditRoutine} onResume={()=>setTab('train')} />}
         {tab==='library' &&
           <LibraryView exercises={exercises} onOpen={setDetailEx} onNew={()=>setNewExOpen(true)} />}
         {tab==='train' &&
@@ -1716,6 +1730,8 @@ function App(){
       {newExOpen && <NewExerciseSheet onClose={()=>setNewExOpen(false)} onSave={addCustomExercise} />}
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
+      {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault}
+        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} />}
       {pickerFor==='active' &&
         <ExercisePicker exercises={exercises} preselected={active?active.entries.map(e=>e.exerciseId):[]}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
@@ -1775,6 +1791,19 @@ function trainingStreak(logs){
   }
   return count;
 }
+function targetSummary(entry, ex, unit){
+  const sets=(entry&&entry.sets)||[];
+  if(!ex) return sets.length+' set'+(sets.length!==1?'s':'');
+  const fields=TRACK[trackOf(ex)].fields;
+  const parts=fields.map(f=>{
+    const vals=[...new Set(sets.map(s=>s[targetKey(f)]).filter(v=>v!==''&&v!==undefined&&v!==null))];
+    if(!vals.length) return null;
+    const label=f==='weight'?unit:f==='reps'?'reps':f==='time'?'min':distUnit(unit);
+    return vals.length===1 ? vals[0]+' '+label : vals.join('/')+' '+label;
+  }).filter(Boolean);
+  return sets.length+' planned set'+(sets.length!==1?'s':'')+(parts.length?' \u00b7 '+parts.join(' \u00b7 '):'');
+}
+
 function nextTrainingTarget(routines, logs){
   const plans=(routines||[]).filter(r=>(r.days||[]).some(d=>d.exerciseIds&&d.exerciseIds.length));
   if(!plans.length) return null;
@@ -1794,6 +1823,44 @@ function nextTrainingTarget(routines, logs){
   const idx=(routine.days||[]).findIndex(d=>d.exerciseIds&&d.exerciseIds.length);
   const day=routine.days[idx];
   return {routine,day,label:dayLabel(day,idx,routine.labelMode||'num')};
+}
+
+function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart}){
+  const day=preview.day;
+  const entries=preview.entries||[];
+  const label=preview.label || day.name || 'Routine day';
+  const ids=day.exerciseIds||[];
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Plan Day</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div className="plan-day-head">
+            <div className="guided-meta">{preview.program?preview.program.name:'Routine'}</div>
+            <div className="plan-day-title">{label}</div>
+            <div className="plan-day-meta">{ids.length} exercise{ids.length!==1?'s':''} {'\u00b7'} ~{estimateMinutes(ids, logs, restDefault)} min</div>
+          </div>
+          {ids.map((id,i)=>{
+            const ex=exById[id]; if(!ex) return null;
+            const entry=entries[i]||{sets:[]};
+            return (
+              <div key={id+'-'+i} className="ex-row tap" onClick={()=>onStart(i)}>
+                <Thumb ex={ex} />
+                <div className="ex-info">
+                  <div className="ex-name">{ex.name}</div>
+                  <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>{'\u00b7'}<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>{'\u00b7'} {sideLabel(ex)}</span>}</div>
+                  <div className="target-line"><b>{i+1}</b> {'\u00b7'} {targetSummary(entry, ex, unit)}</div>
+                </div>
+                <span className="chevron">{I.chevron}</span>
+              </div>
+            );
+          })}
+          <button className="btn btn-accent" style={{marginTop:10}} onClick={()=>onStart(0)}>{I.flame}Start from first</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TodayView({active, routines, logs, measurements, exById, unit, restDefault, onStartDay, onResume, onNewRoutine, onGoRoutines, onGoLibrary, onGoRecords, onGoCalendar, onMeasure}){
@@ -1868,7 +1935,7 @@ function TodayView({active, routines, logs, measurements, exById, unit, restDefa
 }
 
 
-function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, onNew, onEdit, onResume}){
+function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, onOpenDay, onNew, onEdit, onResume}){
   return (
     <div>
       {active &&
@@ -1902,7 +1969,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
                   days.map((d,i)=>{
                     const muscles=[...new Set(d.exerciseIds.map(id=>exById[id]&&exById[id].m).filter(Boolean))];
                     return (
-                      <div key={d.id} className="day-row" onClick={()=>{ if(d.exerciseIds.length) onStartDay(d, r, dayLabel(d, i, r.labelMode||'num')); }}>
+                      <div key={d.id} className="day-row" onClick={()=>{ if(d.exerciseIds.length) onOpenDay(d, r, dayLabel(d, i, r.labelMode||'num')); }}>
                         <div className="day-info">
                           <div className="day-name">{dayLabel(d, i, r.labelMode||'num')}</div>
                           <div className="day-meta">{d.exerciseIds.length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
@@ -1965,10 +2032,11 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const [elapsed,setElapsed]=useState(0);
   useEffect(()=>{
     if(!active) return;
+    if(!active.startedAt){ setElapsed(0); return; }
     const t=setInterval(()=>setElapsed(Math.floor((Date.now()-active.startedAt)/1000)),1000);
     setElapsed(Math.floor((Date.now()-active.startedAt)/1000));
     return ()=>clearInterval(t);
-  },[active]);
+  },[active&&active.startedAt]);
 
   if(!active) return (
     <div className="empty" style={{paddingTop:70}}><div className="ic">{I.flame}</div><h3>No active workout</h3>
@@ -2021,6 +2089,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     const e=eOverride||clone(active); const entry=e.entries[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
     if(!setHasData(tk,set)){ set.done=false; setActive(e); return; }
+    if(!e.startedAt) e.startedAt=Date.now();
     const was=set.done; set.done=true;
     if(!was) advanceAfterSet(e,ei,ex?ex.name:'Rest'); else setActive(e);
   };
@@ -2082,9 +2151,11 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
             <div className="log-ex-head">
               <Thumb ex={ex} />
               <div style={{flex:1,minWidth:0}}><div className="log-ex-name">{ex.name}</div>
-                <div className="log-prev">{rec?`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`:'No history yet — set the baseline'}</div></div>
+                <div className="log-prev">{rec?`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`:'No history yet — set the baseline'}</div>
+                <div className="target-line">{targetSummary(en, ex, unit)}</div></div>
               <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
             </div>
+            {guided && demo && <div className="workout-demo"><AnimatedDemo demo={demo} /></div>}
             {(tk==='ws'||tk==='r') && (()=>{ const last=rec&&rec.sessions&&rec.sessions.length?rec.sessions[rec.sessions.length-1]:null;
               if(!last||!last.sets||!last.sets.length) return null; const inc=unit==='kg'?2.5:5;
               const work=last.sets; const allHit=work.every(s=>s.r>=8);

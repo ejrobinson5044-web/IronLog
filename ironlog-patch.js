@@ -87,7 +87,7 @@
       ...item,
       id: String(item.id || Math.random().toString(36).slice(2, 9)),
       date: String(item.date || todayISO()).slice(0, 10),
-      startedAt: safeNumber(item.startedAt, Date.now()),
+      startedAt: item.startedAt == null ? null : safeNumber(item.startedAt, Date.now()),
       endedAt: item.endedAt ? safeNumber(item.endedAt, Date.now()) : undefined,
       name: String(item.name || 'Workout'),
       note: String(item.note || ''),
