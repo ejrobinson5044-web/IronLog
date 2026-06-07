@@ -15,5 +15,8 @@ My workout app
 Run this before deploying changes:
 
 ```bash
-node tests/smoke-check.js
+npm run build:v2
+npm run check
 ```
+
+`index.html` remains the first-load fallback. The service worker serves `index-v2.html`, `app-loader.js`, and `app-chunks/*` after activation so returning users avoid the in-browser Babel transform.
