@@ -295,7 +295,10 @@
     const general = Array.from(sheet.querySelectorAll('.set-block')).find((block) => /General/i.test(block.textContent || ''));
     if (!general) return;
     const labels = Array.from(general.querySelectorAll('label')).map((label) => label.textContent.trim());
-    if (labels.includes('Backup') && /\bExport\b/.test(general.textContent || '') && /\bImport\b/.test(general.textContent || '')) return;
+    if (labels.includes('Backup') && /\bExport\b/.test(general.textContent || '') && /\bImport\b/.test(general.textContent || '')) {
+      ensureRestoreButton(general);
+      return;
+    }
     const reset = general.querySelector('.btn-danger');
     const snapshot = readJson(SAFETY_SNAPSHOT_KEY, null);
     const lastBackupAt = localStorage.getItem(LAST_BACKUP_KEY);
@@ -332,6 +335,34 @@
     general.insertBefore(wrap, reset || null);
   }
 
+
+  function ensureRestoreButton(general) {
+    const snapshot = readJson(SAFETY_SNAPSHOT_KEY, null);
+    const fileInput = general.querySelector('input[type="file"]');
+    if (fileInput && fileInput.dataset.ironlogSnapshotGuard !== '1') {
+      fileInput.dataset.ironlogSnapshotGuard = '1';
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files[0]) saveSafetySnapshot('before import');
+      }, true);
+    }
+    if (!snapshot || general.querySelector('[data-restore-snapshot]')) return;
+    const actions = general.querySelector('.backup-actions');
+    if (!actions) return;
+    const button = document.createElement('button');
+    button.className = 'btn btn-ghost btn-sm';
+    button.type = 'button';
+    button.dataset.restoreSnapshot = '1';
+    button.textContent = 'Restore';
+    button.addEventListener('click', restoreSafetySnapshot);
+    actions.appendChild(button);
+    if (!general.querySelector('[data-snapshot-meta]') && snapshot.exportedAt) {
+      const meta = document.createElement('div');
+      meta.className = 'backup-meta';
+      meta.dataset.snapshotMeta = '1';
+      meta.textContent = `Safety snapshot: ${new Date(snapshot.exportedAt).toLocaleString()}`;
+      actions.insertAdjacentElement('afterend', meta);
+    }
+  }
   function ensureResetGuard() {
     const sheet = document.querySelector('.sheet-body');
     const general = sheet && Array.from(sheet.querySelectorAll('.set-block')).find((block) => /General/i.test(block.textContent || ''));
