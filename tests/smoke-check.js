@@ -12,6 +12,9 @@ function check(name, pass) {
 const index = read('index.html');
 const patch = read('ironlog-patch.js');
 const sw = read('service-worker.js');
+const v2 = read('index-v2.html');
+const bundle = read('app.bundle.js');
+const loader = read('app-loader.js');
 const manifest = JSON.parse(read('manifest.json'));
 const coreHasBackupSafety = index.includes('BACKUP_KEYS') && index.includes('Backup file does not contain IronLog data');
 const helperHasBackupSafety = patch.includes('normalizeBackup') && patch.includes('BACKUP_KEYS');
@@ -27,7 +30,12 @@ check('deployed helper validates imports', helperHasBackupSafety);
 check('deployed helper avoids duplicate backup UI', patch.includes("labels.includes('Backup')"));
 check('deployed helper keeps safety snapshot', patch.includes('SAFETY_SNAPSHOT_KEY') && patch.includes('restoreSafetySnapshot'));
 check('deployed helper normalizes imported routines', patch.includes('cleanRoutine') && patch.includes('cleanExercise'));
+check('compiled v2 shell removes browser Babel', v2.includes('app-loader.js') && !v2.includes('text/babel') && !v2.includes('babel.min.js'));
+check('compiled bundle contains app mount', bundle.includes('ReactDOM.createRoot') || bundle.includes('createRoot'));
+check('compiled loader references chunks', loader.includes('app-chunks/app.00.js') && loader.includes('eval'));
 check('service worker caches helper', sw.includes('./ironlog-patch.js'));
+check('service worker caches v2 shell', sw.includes('./index-v2.html') && sw.includes('./app-loader.js') && sw.includes('./app-chunks/app.11.js'));
+check('service worker serves v2 shell', sw.includes("new URL('./index-v2.html'"));
 check('service worker version bumped', /ironlog-v\d+/.test(sw));
 check('service worker injects helper once', sw.includes('html.includes') && sw.includes('ironlog-patch.js'));
 
