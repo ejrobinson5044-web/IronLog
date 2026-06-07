@@ -98,16 +98,22 @@
   function cleanExercise(item) {
     const ex = item && typeof item === 'object' ? item : {};
     const allowedTracks = new Set(['ws', 'r', 't', 'dt', 'd', 'wt']);
+    let name = String(ex.name || 'Exercise').trim().replace(/\s+/g, ' ').slice(0, 120);
+    let side = ex.side === 'arm' || ex.side === 'leg' ? ex.side : '';
+    if (/(?:single|one)[-\s]+arm/i.test(name)) side = 'arm';
+    if (/(?:single|one)[-\s]+leg/i.test(name)) side = 'leg';
+    name = name.replace(/Single[-\s]+Arm/ig, 'One Arm').replace(/Single[-\s]+Leg/ig, 'One Leg');
     return {
       ...ex,
       id: String(ex.id || Math.random().toString(36).slice(2, 9)),
-      name: String(ex.name || 'Exercise').trim().slice(0, 120),
+      name,
       eq: String(ex.eq || 'Other').trim() || 'Other',
       m: String(ex.m || 'Other').trim() || 'Other',
       sec: ex.sec ? String(ex.sec).trim() : undefined,
       media: String(ex.media || ''),
       custom: !!ex.custom,
       edited: !!ex.edited,
+      side,
       track: allowedTracks.has(ex.track) ? ex.track : 'ws',
       cue: String(ex.cue || '')
     };

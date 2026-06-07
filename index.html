@@ -489,9 +489,51 @@ const TRACK = {
   d:  {label:'Distance',      fields:['dist']},
   wt: {label:'Weight & time', fields:['weight','time']},
 };
+const SIDE_OPTIONS = {
+  arm:{label:'One Arm', per:'arm'},
+  leg:{label:'One Leg', per:'leg'}
+};
+const sideOf = (ex)=> ex && (ex.side==='arm'||ex.side==='leg') ? ex.side : '';
+const sideLabel = (ex)=> sideOf(ex) ? SIDE_OPTIONS[sideOf(ex)].label : '';
+const sideRepLabel = (ex)=> sideOf(ex) ? 'Reps / '+SIDE_OPTIONS[sideOf(ex)].per : 'Reps';
+const sideFromName = (name)=>{
+  if(/(?:single|one)[-\s]+arm/i.test(name||'')) return 'arm';
+  if(/(?:single|one)[-\s]+leg/i.test(name||'')) return 'leg';
+  return '';
+};
+function stripSidePrefix(name, eq){
+  let base=String(name||'Exercise').trim().replace(/\s+/g,' ');
+  const eqName=String(eq||'').trim();
+  if(eqName && base.toLowerCase().startsWith(eqName.toLowerCase()+' ')) base=base.slice(eqName.length).trim();
+  return base.replace(/^(?:single|one)[-\s]+(?:arm|leg)\s+/i,'').trim() || 'Exercise';
+}
+function formatExerciseName(name, eq, side){
+  const cleanSide = side==='arm'||side==='leg' ? side : '';
+  const raw = String(name||'Exercise').trim().replace(/\s+/g,' ');
+  if(!cleanSide) return raw || 'Exercise';
+  const base = stripSidePrefix(raw, eq);
+  const prefix = String(eq||'Other').trim() || 'Other';
+  return prefix+' '+SIDE_OPTIONS[cleanSide].label+' '+base;
+}
+function normalizeExerciseVariant(ex){
+  const side = sideOf(ex) || sideFromName(ex&&ex.name);
+  return side ? {...ex, side, name:formatExerciseName(ex.name, ex.eq, side)} : {...ex, side:''};
+}
+function baseExerciseName(ex){
+  return sideOf(ex) ? (String(ex.eq||'Other').trim()||'Other')+' '+stripSidePrefix(ex.name, ex.eq) : (ex&&ex.name);
+}
+const ARM_SIDE_MUSCLES = new Set(['Chest','Back','Front Delts','Side Delts','Rear Delts','Biceps','Triceps','Forearms']);
+const LEG_SIDE_MUSCLES = new Set(['Quads','Hamstrings','Glutes','Calves']);
+function sideOptionsFor(ex){
+  const name=String(ex&&ex.name||'').toLowerCase();
+  const opts=[];
+  if(ARM_SIDE_MUSCLES.has(ex&&ex.m) || /\b(press|row|curl|raise|fly|extension|pushdown|pulldown|shrug|snatch|swing|windmill|carry|get-up)\b/.test(name)) opts.push('arm');
+  if(LEG_SIDE_MUSCLES.has(ex&&ex.m) || /\b(squat|lunge|step|leg|glute|calf|kickback|deadlift|thrust|march)\b/.test(name)) opts.push('leg');
+  return [...new Set(opts)];
+}
 const trackOf = (ex)=> (ex && TRACK[ex.track]) ? ex.track : 'ws';
 const distUnit = (unit)=> unit==='lb' ? 'mi' : 'km';
-const fieldLabel = (f, unit)=> f==='weight' ? ('Weight ('+unit+')') : f==='reps' ? 'Reps' : f==='time' ? 'Time (min)' : ('Dist ('+distUnit(unit)+')');
+const fieldLabel = (f, unit, ex)=> f==='weight' ? ('Weight ('+unit+')') : f==='reps' ? sideRepLabel(ex) : f==='time' ? 'Time (min)' : ('Dist ('+distUnit(unit)+')');
 const fieldMode = (f)=> f==='reps' ? 'numeric' : 'decimal';
 const targetKey = (f)=> 'target'+f.charAt(0).toUpperCase()+f.slice(1);
 function setHasData(track, s){
@@ -646,7 +688,7 @@ const GIFS = {
   "Barbell Close-Grip Bench Press": ["Close-Grip_Barbell_Bench_Press/0.jpg", "Close-Grip_Barbell_Bench_Press/1.jpg"],
   "Dumbbell Triceps Kickback": ["Tricep_Dumbbell_Kickback/0.jpg", "Tricep_Dumbbell_Kickback/1.jpg"],
   "Cable Overhead Triceps Extension": ["Cable_Rope_Overhead_Triceps_Extension/0.jpg", "Cable_Rope_Overhead_Triceps_Extension/1.jpg"],
-  "Cable Single-Arm Triceps Extension": ["Cable_One_Arm_Tricep_Extension/0.jpg", "Cable_One_Arm_Tricep_Extension/1.jpg"],
+  "Cable One Arm Triceps Extension": ["Cable_One_Arm_Tricep_Extension/0.jpg", "Cable_One_Arm_Tricep_Extension/1.jpg"],
   "Bodyweight Triceps Dip": ["Dips_-_Triceps_Version/0.jpg", "Dips_-_Triceps_Version/1.jpg"],
   "Smith Machine Close-Grip Bench": ["Smith_Machine_Close-Grip_Bench_Press/0.jpg", "Smith_Machine_Close-Grip_Bench_Press/1.jpg"],
   "Dumbbell Bulgarian Split Squat": ["Split_Squat_with_Dumbbells/0.jpg", "Split_Squat_with_Dumbbells/1.jpg"],
@@ -665,7 +707,7 @@ const GIFS = {
   "Barbell Glute Bridge": ["Barbell_Glute_Bridge/0.jpg", "Barbell_Glute_Bridge/1.jpg"],
   "Cable Glute Kickback": ["One-Legged_Cable_Kickback/0.jpg", "One-Legged_Cable_Kickback/1.jpg"],
   "Bodyweight Glute Kickback": ["Glute_Kickback/0.jpg", "Glute_Kickback/1.jpg"],
-  "Bodyweight Single-Leg Glute Bridge": ["Single_Leg_Glute_Bridge/0.jpg", "Single_Leg_Glute_Bridge/1.jpg"],
+  "Bodyweight One Leg Glute Bridge": ["Single_Leg_Glute_Bridge/0.jpg", "Single_Leg_Glute_Bridge/1.jpg"],
   "Machine Standing Calf Raise": ["Standing_Calf_Raises/0.jpg", "Standing_Calf_Raises/1.jpg"],
   "Machine Leg Press Calf Raise": ["Calf_Press_On_The_Leg_Press_Machine/0.jpg", "Calf_Press_On_The_Leg_Press_Machine/1.jpg"],
   "Barbell Standing Calf Raise": ["Standing_Barbell_Calf_Raise/0.jpg", "Standing_Barbell_Calf_Raise/1.jpg"],
@@ -777,7 +819,7 @@ const MUS = {
   "Bodyweight Reverse Crunch": [["Abdominals", "Core"]],
   "Bodyweight Russian Twist": [["Abdominals", "Core"], ["Lower Back", "Back"]],
   "Bodyweight Side Plank": [["Abdominals", "Core"], ["Front Delts", "Front Delts"]],
-  "Bodyweight Single-Leg Glute Bridge": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Bodyweight One Leg Glute Bridge": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
   "Bodyweight Sit-Up": [["Abdominals", "Core"]],
   "Bodyweight Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
   "Bodyweight Superman": [["Lower Back", "Back"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
@@ -799,7 +841,7 @@ const MUS = {
   "Cable Rear Delt Fly": [["Rear Delts", "Rear Delts"]],
   "Cable Seated Row": [["Middle Back", "Back"], ["Biceps", "Biceps"], ["Lats", "Back"]],
   "Cable Shrug": [["Traps", "Back"]],
-  "Cable Single-Arm Triceps Extension": [["Triceps", "Triceps"]],
+  "Cable One Arm Triceps Extension": [["Triceps", "Triceps"]],
   "Cable Straight-Arm Pulldown": [["Lats", "Back"]],
   "Cable Triceps Pushdown": [["Triceps", "Triceps"]],
   "Cable Underhand Pulldown": [["Lats", "Back"], ["Biceps", "Biceps"], ["Middle Back", "Back"]],
@@ -882,7 +924,7 @@ function demoFor(ex){
     if(/\.(mp4|webm)$/i.test(ex.media)) return {type:'video', src:ex.media};
     return {type:'frames', frames:[ex.media]};
   }
-  const f = GIFS[ex.name];
+  const f = GIFS[ex.name] || GIFS[baseExerciseName(ex)];
   if(f && f.length) return {type:'frames', frames:f.map(p=>GIF_BASE+p)};
   return null;
 }
@@ -999,7 +1041,7 @@ const SEED = [
   {name:"Barbell Close-Grip Bench Press", eq:"Barbell", m:"Triceps", sec:"Chest", cue:"Hands shoulder-width, elbows tucked \u2014 triceps pressing."},
   {name:"Dumbbell Triceps Kickback", eq:"Dumbbell", m:"Triceps", cue:"Hinge over, upper arm fixed, extend straight back."},
   {name:"Cable Overhead Triceps Extension", eq:"Cable", m:"Triceps", cue:"Rope overhead, extend up \u2014 long-head stretch."},
-  {name:"Cable Single-Arm Triceps Extension", eq:"Cable", m:"Triceps", cue:"One-arm pushdown \u2014 fix imbalances, full lockout."},
+  {name:"Cable One Arm Triceps Extension", eq:"Cable", m:"Triceps", side:"arm", cue:"One arm pushdown \u2014 fix imbalances, full lockout."},
   {name:"Bodyweight Triceps Dip", eq:"Bodyweight", m:"Triceps", sec:"Chest", cue:"Stay upright, elbows back \u2014 triceps emphasis."},
   {name:"Smith Machine Close-Grip Bench", eq:"Machine", m:"Triceps", sec:"Chest", cue:"Fixed-bar close-grip press \u2014 triceps without a spotter."},
   {name:"Dumbbell Bulgarian Split Squat", eq:"Dumbbell", m:"Quads", sec:"Glutes", cue:"Rear foot elevated, drop straight down, drive the front heel."},
@@ -1018,7 +1060,7 @@ const SEED = [
   {name:"Barbell Glute Bridge", eq:"Barbell", m:"Glutes", sec:"Hamstrings", cue:"On the floor, bar over hips, full lockout squeeze."},
   {name:"Cable Glute Kickback", eq:"Cable", m:"Glutes", cue:"Ankle strap, drive the leg straight back, squeeze."},
   {name:"Bodyweight Glute Kickback", eq:"Bodyweight", m:"Glutes", cue:"On all fours, drive heel to ceiling, controlled."},
-  {name:"Bodyweight Single-Leg Glute Bridge", eq:"Bodyweight", m:"Glutes", sec:"Hamstrings", cue:"One leg extended, bridge with the other \u2014 unilateral glutes."},
+  {name:"Bodyweight One Leg Glute Bridge", eq:"Bodyweight", m:"Glutes", sec:"Hamstrings", side:"leg", cue:"One leg extended, bridge with the other \u2014 unilateral glutes."},
   {name:"Machine Standing Calf Raise", eq:"Machine", m:"Calves", cue:"Full stretch at the bottom, big squeeze at the top."},
   {name:"Machine Leg Press Calf Raise", eq:"Machine", m:"Calves", cue:"Balls of feet on the platform, press through with the calves."},
   {name:"Barbell Standing Calf Raise", eq:"Barbell", m:"Calves", cue:"Bar on back, rise onto the toes, pause at the top."},
@@ -1102,22 +1144,23 @@ const SEED = [
   {name:"Plank", eq:"Bodyweight", m:"Core", track:"t", cue:"Hold a straight line; log total time."},
   {name:"Dead Hang", eq:"Bodyweight", m:"Forearms", track:"t", cue:"Hang for time \u2014 grip and shoulders."},
   {name:"Farmer's Carry", eq:"Dumbbell", m:"Forearms", sec:"Core", track:"wt", cue:"Heavy carry \u2014 log load and time."},
-].map(e => ({ id:uid(), media:'', custom:false, track: e.track||'ws', ...e }));
+].map(e => normalizeExerciseVariant({ id:uid(), media:'', custom:false, track: e.track||'ws', side:e.side||'', ...e }));
 
 /* Merge library updates (new exercises, re-tagged muscles) into a user's saved data.
    Preserves existing ids (so routines/logs still resolve) and keeps custom exercises. */
 function migrateExercises(saved){
   if(!Array.isArray(saved) || saved.length===0) return SEED;
-  const savedByName = new Map(saved.map(e=>[e.name, e]));
+  const normalizedSaved = saved.map(e=>normalizeExerciseVariant(e));
+  const savedByName = new Map(normalizedSaved.map(e=>[e.name, e]));
   // current SEED, reusing the prior id when this exercise already existed
   const merged = SEED.map(s=>{
     const prev = savedByName.get(s.name);
-    if(prev && prev.edited) return prev; // keep the user's edited version verbatim
+    if(prev && prev.edited) return normalizeExerciseVariant(prev); // keep the user's edited version, but normalize unilateral naming
     return prev ? { ...s, id: prev.id, media: prev.media || s.media || '' } : s;
   });
   // keep any user-created customs (saved names that aren't part of SEED)
   const seedNames = new Set(SEED.map(s=>s.name));
-  saved.forEach(e=>{ if(!seedNames.has(e.name)) merged.push(e); });
+  normalizedSaved.forEach(e=>{ if(!seedNames.has(e.name)) merged.push(e); });
   return merged;
 }
 
@@ -1239,7 +1282,7 @@ function BodyMap({muscle, color}){
 
 /* ---- per-lift muscle tiers (primary / secondary / tertiary) ---- */
 function MuscleTiers({ex}){
-  let tiers = MUS[ex.name];
+  let tiers = MUS[ex.name] || MUS[baseExerciseName(ex)];
   if(!tiers){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
   if(!tiers.length) return null;
   const labels=['Primary','Secondary','Tertiary'];
@@ -1304,7 +1347,7 @@ function MuscleBreakdown({exerciseIds, exById}){
   const sums={};
   (exerciseIds||[]).forEach(id=>{
     const ex=exById[id]; if(!ex) return;
-    let tiers = MUS[ex.name];
+    let tiers = MUS[ex.name] || MUS[baseExerciseName(ex)];
     if(!tiers){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
     tiers.slice(0,3).forEach((t,idx)=>{ const region=t[1]; const w=[3,2,1][idx]||1; sums[region]=(sums[region]||0)+w; });
   });
@@ -1573,8 +1616,15 @@ function App(){
   };
   const deleteRoutine = (id)=>{ setRoutines(routines.filter(r=>r.id!==id)); setEditRoutine(undefined); flash('Routine deleted'); };
 
-  const addCustomExercise = (e)=>{ const ex={id:uid(), custom:true, media:'', ...e}; setExercises([ex, ...exercises]); setNewExOpen(false); flash('Exercise added'); return ex; };
-  const updateExercise = (id, p)=>{ const upd={...exById[id], ...p, edited:true}; setExercises(exercises.map(e=>e.id===id?upd:e)); if(detailEx&&detailEx.id===id) setDetailEx(upd); setEditEx(null); flash('Exercise updated'); };
+  const addCustomExercise = (e)=>{ const ex=normalizeExerciseVariant({id:uid(), custom:true, media:'', ...e}); setExercises([ex, ...exercises]); setNewExOpen(false); flash('Exercise added'); return ex; };
+  const updateExercise = (id, p)=>{ const upd=normalizeExerciseVariant({...exById[id], ...p, edited:true}); setExercises(exercises.map(e=>e.id===id?upd:e)); if(detailEx&&detailEx.id===id) setDetailEx(upd); setEditEx(null); flash('Exercise updated'); };
+  const createExerciseVariant = (base, side)=>{
+    const name=formatExerciseName(base.name, base.eq, side);
+    const existing=exercises.find(e=>e.name.toLowerCase()===name.toLowerCase());
+    if(existing){ setDetailEx(existing); flash('Variation already exists'); return existing; }
+    const ex=normalizeExerciseVariant({...base, id:uid(), name, side, custom:true, edited:false, media:base.media||'', track:trackOf(base)});
+    setExercises([ex, ...exercises]); setDetailEx(ex); flash(side==='arm'?'One arm variation added':'One leg variation added'); return ex;
+  };
   const saveMeasurement = (m)=>{ setMeasurements(prev=>{ const has=prev.some(x=>x.id===m.id); return has ? prev.map(x=>x.id===m.id?m:x) : [...prev, m]; }); setMeasSheet(null); flash('Measurements saved'); };
   const deleteExercise = (id)=>{ setExercises(exercises.filter(e=>e.id!==id)); setRoutines(routines.map(r=>({...r, days:(r.days||[]).map(d=>({...d, exerciseIds:d.exerciseIds.filter(x=>x!==id)}))}))); setDetailEx(null); flash('Exercise deleted'); };
 
@@ -1659,7 +1709,7 @@ function App(){
         <button className={(tab==='records'||tab==='calendar')?'on':''} onClick={()=>setTab('records')}>{I.trophy}<span>Progress</span></button>
       </nav>
 
-      {detailEx && <ExerciseDetail ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} onEdit={setEditEx} />}
+      {detailEx && <ExerciseDetail ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} onEdit={setEditEx} onVariant={createExerciseVariant} />}
       {measSheet && <MeasurementsSheet date={measSheet.date} entry={measSheet.entry}
         last={measurements.length?measurements.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]:null}
         unit={unit} onClose={()=>setMeasSheet(null)} onSave={saveMeasurement} />}
@@ -1899,7 +1949,7 @@ function LibraryView({exercises, onOpen, onNew}){
           <div key={e.id} className="ex-row tap" onClick={()=>onOpen(e)}>
             <Thumb ex={e} />
             <div className="ex-info"><div className="ex-name">{e.name}</div>
-              <div className="ex-sub"><span style={{color:EQUIP[e.eq]?EQUIP[e.eq].c:'#888'}}>{e.eq}</span>·<span style={{color:MUSCLE[e.m]||'#888'}}>{e.m}</span>{e.custom&&<span style={{color:'var(--muted2)'}}>· custom</span>}</div></div>
+              <div className="ex-sub"><span style={{color:EQUIP[e.eq]?EQUIP[e.eq].c:'#888'}}>{e.eq}</span>·<span style={{color:MUSCLE[e.m]||'#888'}}>{e.m}</span>{sideOf(e)&&<span style={{color:'var(--accent)'}}>· {sideLabel(e)}</span>}{e.custom&&<span style={{color:'var(--muted2)'}}>· custom</span>}</div></div>
             <span className="chevron">{I.chevron}</span>
           </div>)}
       <div className="attrib">Exercise demos from free-exercise-db (CC0 / public domain).</div>
@@ -2024,7 +2074,8 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         if(guided && ei!==currentIndex) return null;
         const ex=exById[en.exerciseId]; if(!ex) return null;
         const rec=records[en.exerciseId];
-        const tk=trackOf(ex); const fields=TRACK[tk].fields;
+        const tk=trackOf(ex);
+  const variantOptions=sideOptionsFor(ex).filter(s=>s!==sideOf(ex)); const fields=TRACK[tk].fields;
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 46px';
         return (
           <div key={ei} className="log-ex">
@@ -2269,7 +2320,7 @@ function ProgressionTool({rec, unit, track}){
 }
 
 
-function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit}){
+function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit, onVariant}){
   const color=MUSCLE[ex.m]||'#888';
   const demo=demoFor(ex);
   const ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent(ex.name+' proper form');
@@ -2294,6 +2345,7 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit}){
               <div className="detail-tags">
                 <Pill color={EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}>{ex.eq}</Pill>
                 <Pill color="#7c87a8">{TRACK[tk].label}</Pill>
+                {sideOf(ex) && <Pill color="#c084fc">{sideLabel(ex)}</Pill>}
                 {ex.custom && <Pill color="#9095ad">Custom</Pill>}
                 {ex.edited && !ex.custom && <Pill color="#9095ad">Edited</Pill>}
               </div>
@@ -2306,6 +2358,12 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit}){
           </div>
           <MuscleTiers ex={ex} />
           {ex.cue && <div className="cue"><b>Form cue:</b> {ex.cue}</div>}
+          {onVariant && variantOptions.length>0 &&
+            <div>
+              <div className="section-h" style={{margin:'12px 0 8px'}}>Variations</div>
+              <div className="seg">{variantOptions.map(s=>
+                <button key={s} onClick={()=>onVariant(ex,s)}>{SIDE_OPTIONS[s].label}</button>)}</div>
+            </div>}
           <a className="demo-btn" href={ytUrl} target="_blank" rel="noopener noreferrer">{I.yt}<span>Watch full demo on YouTube</span></a>
           {(tk==='ws'||tk==='r') && <ProgressionTool rec={rec} unit={unit} track={tk} />}
           {sparkData.length>=2 && <div><div className="section-h" style={{margin:'0 0 6px'}}>{mi.label} Progress</div><Spark data={sparkData} color={color} /></div>}
@@ -2338,7 +2396,9 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
   const [name,setName]=useState(ed?exercise.name:(initialName||'')); const [eq,setEq]=useState(ed?exercise.eq:'Barbell'); const [m,setM]=useState(ed?exercise.m:'Chest');
   const [sec,setSec]=useState(ed?(exercise.sec||''):''); const [cue,setCue]=useState(ed?(exercise.cue||''):''); const [media,setMedia]=useState(ed?(exercise.media||''):'');
   const [track,setTrack]=useState(ed?trackOf(exercise):'ws');
-  const valid=name.trim().length>0;
+  const [side,setSide]=useState(ed?sideOf(exercise):sideFromName(initialName||''));
+  const finalName=formatExerciseName(name.trim(),eq,side);
+  const valid=finalName.length>0;
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
@@ -2350,6 +2410,11 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Tip: name it <b style={{color:'var(--muted)'}}>Equipment + Movement</b> to match the library.</div></div>
           <div className="field"><label>Tracks</label><div className="seg">{Object.keys(TRACK).map(x=><button key={x} className={track===x?'on':''} onClick={()=>setTrack(x)}>{TRACK[x].label}</button>)}</div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set — weights, bodyweight reps, a hold/time, a run’s distance &amp; time, etc.</div></div>
+          <div className="field"><label>Variation</label><div className="seg">
+            <button className={side===''?'on':''} onClick={()=>setSide('')}>Standard</button>
+            <button className={side==='arm'?'on':''} onClick={()=>setSide('arm')}>One Arm</button>
+            <button className={side==='leg'?'on':''} onClick={()=>setSide('leg')}>One Leg</button>
+          </div></div>
           <div className="field"><label>Equipment</label><div className="seg">{Object.keys(EQUIP).map(x=><button key={x} className={eq===x?'on':''} onClick={()=>setEq(x)}>{x}</button>)}</div></div>
           <div className="field"><label>Primary muscle</label><div className="seg">{Object.keys(MUSCLE).map(x=><button key={x} className={m===x?'on':''} onClick={()=>setM(x)}>{x}</button>)}</div></div>
           <div className="field"><label>Secondary muscle (optional)</label><div className="seg">
@@ -2361,7 +2426,7 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
             <input placeholder="https://…/demo.gif, .jpg or .mp4" value={media} onChange={e=>setMedia(e.target.value)} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Paste a link to your own hosted media and it displays on the exercise.</div></div>
           <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45}}
-            onClick={()=>valid&&onSave({name:name.trim(),eq,m,sec:sec||undefined,cue:cue.trim()||undefined,media:media.trim(),track})}>{I.check}{ed?'Save changes':'Save exercise'}</button>
+            onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side})}>{I.check}{ed?'Save changes':'Save exercise'}</button>
         </div>
       </div>
     </div>
@@ -2484,7 +2549,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
                   <div className="reorder-handle" title="Hold to reorder" aria-hidden="true">{I.grip}</div>
                   <Thumb ex={ex} cls="" />
                   <div className="ex-info"><div className="ex-name">{ex.name}</div>
-                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>{'\u00b7'}<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span></div></div>
+                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>{'\u00b7'}<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div></div>
                   {ordering ?
                     <div className="reorder-actions">
                       <button type="button" aria-label="Move exercise up" disabled={i===0} onPointerDown={stopButton} onClick={()=>move(i,-1)}>{I.up}</button>
@@ -2549,7 +2614,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
               <div key={e.id} className="ex-row tap" onClick={()=>toggle(e.id)} style={on?{borderColor:'var(--accent)',background:'rgba(168,85,247,.07)'}:{}}>
                 <Thumb ex={e} />
                 <div className="ex-info"><div className="ex-name">{e.name}</div>
-                  <div className="ex-sub"><span style={{color:EQUIP[e.eq]?EQUIP[e.eq].c:'#888'}}>{e.eq}</span>·<span style={{color:MUSCLE[e.m]||'#888'}}>{e.m}</span>{already&&on?<span style={{color:'var(--muted2)'}}>· in routine</span>:''}</div></div>
+                  <div className="ex-sub"><span style={{color:EQUIP[e.eq]?EQUIP[e.eq].c:'#888'}}>{e.eq}</span>·<span style={{color:MUSCLE[e.m]||'#888'}}>{e.m}</span>{sideOf(e)&&<span style={{color:'var(--accent)'}}>· {sideLabel(e)}</span>}{already&&on?<span style={{color:'var(--muted2)'}}>· in routine</span>:''}</div></div>
                 {on ? <div className="added-badge">{I.check}</div> : <div className="add-circle">{I.plus}</div>}
               </div>
             ); })}
