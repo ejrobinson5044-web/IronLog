@@ -1,0 +1,84 @@
+name: Apply royal purple palette
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-royal-purple.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-royal-purple:
+    if: ${{ !contains(github.event.head_commit.message, '[skip royal purple]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply royal purple visual system
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          let html = fs.readFileSync('index.html', 'utf8');
+          const replacements = [
+            ['<meta name="theme-color" content="#0d0e16" />', '<meta name="theme-color" content="#050407" />'],
+            ['/* ---- ORBIT INDIGO theme ---- */', '/* ---- ROYAL VOID theme ---- */'],
+            ['--bg:#0d0e16; --surface:#161826; --surface2:#1e2133; --surface3:#282c44;', '--bg:#050407; --surface:#0d0914; --surface2:#171021; --surface3:#241631;'],
+            ['--border:#2a2e45; --border2:#383d5a;', '--border:#2f1d45; --border2:#55306f;'],
+            ['--text:#eef0f7; --muted:#9095ad; --muted2:#646a86;', '--text:#f7f1ff; --muted:#aa9bbd; --muted2:#756482;'],
+            ['--accent:#a5b4fc; --accent-dim:#818cf8; --accent-deep:#5b5eea; --accent-ink:#ffffff;', '--accent:#c084fc; --accent-dim:#a855f7; --accent-deep:#6d28d9; --accent-ink:#ffffff;'],
+            ['--good:#5ddca5; --warn:#ffb454; --bad:#ff6b9a; --info:#7aa2ff;', '--good:#63e6be; --warn:#f5c16c; --bad:#ff6b9a; --info:#a78bfa;'],
+            ['--glow:rgba(129,140,248,.34); --hot:#c084fc;', '--glow:rgba(168,85,247,.38); --hot:#e879f9;'],
+            ['body{background:#060712;', 'body{background:#020104;'],
+            ['background:linear-gradient(180deg,#111321 0%,#0d0e18 44%,#080913 100%);', 'background:linear-gradient(180deg,#09060d 0%,#050407 44%,#030205 100%);'],
+            ['rgba(13,14,22', 'rgba(5,4,7'],
+            ['rgba(129,140,248', 'rgba(168,85,247'],
+            ['rgba(91,94,234', 'rgba(109,40,217'],
+            ['rgba(192,132,252', 'rgba(232,121,249'],
+            ['rgba(22,24,38', 'rgba(13,9,20'],
+            ['rgba(14,16,28', 'rgba(6,4,10'],
+            ['rgba(10,11,20', 'rgba(4,3,7'],
+            ['rgba(30,33,51', 'rgba(23,16,33'],
+            ['rgba(40,44,68', 'rgba(36,22,49'],
+            ['rgba(79,70,229,.05)', 'rgba(109,40,217,.07)'],
+            ['rgba(129,140,248,.07)', 'rgba(168,85,247,.08)']
+          ];
+          for (const [from, to] of replacements) html = html.split(from).join(to);
+          if (/ORBIT INDIGO|a5b4fc|818cf8|5b5eea|129,140,248|91,94,234|192,132,252|#0d0e16|161826|1e2133|282c44/.test(html)) {
+            throw new Error('Indigo palette leftovers remain.');
+          }
+          if (!html.includes('ROYAL VOID') || !html.includes('--accent:#c084fc')) throw new Error('Royal purple palette not applied.');
+          fs.writeFileSync('index.html', html);
+
+          let sw = fs.readFileSync('service-worker.js', 'utf8');
+          sw = sw.replace(/const CACHE_VERSION = 'ironlog-v\d+';/, "const CACHE_VERSION = 'ironlog-v22';");
+          fs.writeFileSync('service-worker.js', sw);
+          NODE
+
+      - name: Install build tools
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build compiled shell
+        run: npm run build:v2
+
+      - name: Run smoke checks
+        run: npm run check
+
+      - name: Commit royal purple palette
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html service-worker.js index-v2.html app.bundle.js app-loader.js app-chunks/
+          if git diff --cached --quiet; then
+            echo "No palette changes to commit."
+          else
+            git commit -m "Apply royal purple palette [skip v2 build] [skip royal purple]"
+            git push
+          fi
