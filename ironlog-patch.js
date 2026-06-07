@@ -1,5 +1,6 @@
 (function () {
   const BACKUP_SCHEMA = 'ironlog.backup.v1';
+  const BACKUP_KEYS = ['exercises', 'routines', 'logs', 'measurements', 'unit', 'restDefault', 'active'];
   const PATCH_STYLE_ID = 'ironlog-safety-patch-style';
 
   function readJson(key, fallback) {
@@ -32,6 +33,79 @@
     };
   }
 
+  function asArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function safeNumber(value, fallback = 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function cleanSet(set) {
+    const s = set && typeof set === 'object' ? set : {};
+    return {
+      done: !!s.done,
+      weight: s.weight == null || s.weight === '' ? '' : safeNumber(s.weight),
+      reps: s.reps == null || s.reps === '' ? '' : safeNumber(s.reps),
+      time: s.time == null || s.time === '' ? '' : safeNumber(s.time),
+      dist: s.dist == null || s.dist === '' ? '' : safeNumber(s.dist)
+    };
+  }
+
+  function cleanEntries(entries) {
+    return asArray(entries).map((en) => ({
+      exerciseId: String(en && en.exerciseId || ''),
+      note: String(en && en.note || ''),
+      sets: asArray(en && en.sets)
+        .map(cleanSet)
+        .filter((s) => s.weight !== '' || s.reps !== '' || s.time !== '' || s.dist !== '' || s.done)
+    })).filter((en) => en.exerciseId);
+  }
+
+  function cleanWorkout(item) {
+    if (!item || typeof item !== 'object') return null;
+    return {
+      ...item,
+      id: String(item.id || Math.random().toString(36).slice(2, 9)),
+      date: String(item.date || todayISO()).slice(0, 10),
+      startedAt: safeNumber(item.startedAt, Date.now()),
+      endedAt: item.endedAt ? safeNumber(item.endedAt, Date.now()) : undefined,
+      name: String(item.name || 'Workout'),
+      note: String(item.note || ''),
+      entries: cleanEntries(item.entries)
+    };
+  }
+
+  function cleanLogs(logs) {
+    return asArray(logs).map(cleanWorkout).filter((w) => w && (w.entries.length || w.note));
+  }
+
+  function cleanMeasurements(measurements) {
+    return asArray(measurements).map((m) => ({
+      ...(m && typeof m === 'object' ? m : {}),
+      id: String(m && m.id || Math.random().toString(36).slice(2, 9)),
+      date: String(m && m.date || todayISO()).slice(0, 10)
+    })).filter((m) => m.date);
+  }
+
+  function normalizeBackup(raw) {
+    const data = raw && raw.schema === BACKUP_SCHEMA ? raw.data : raw;
+    if (!data || typeof data !== 'object') throw new Error('That is not an IronLog backup.');
+    if (!BACKUP_KEYS.some((key) => Object.prototype.hasOwnProperty.call(data, key))) {
+      throw new Error('Backup file does not contain IronLog data.');
+    }
+    return {
+      exercises: asArray(data.exercises),
+      routines: asArray(data.routines),
+      logs: cleanLogs(data.logs),
+      measurements: cleanMeasurements(data.measurements),
+      unit: data.unit === 'kg' ? 'kg' : 'lb',
+      restDefault: Math.max(10, Math.min(600, safeNumber(data.restDefault, 90))),
+      active: cleanWorkout(data.active)
+    };
+  }
+
   function exportBackup() {
     const backup = {
       schema: BACKUP_SCHEMA,
@@ -53,9 +127,9 @@
 
   async function importBackup(file) {
     const parsed = JSON.parse(await file.text());
-    const data = parsed && parsed.schema === BACKUP_SCHEMA ? parsed.data : parsed;
-    if (!data || typeof data !== 'object') throw new Error('That is not an IronLog backup.');
+    const data = normalizeBackup(parsed);
     if (!confirm('Import this backup? It replaces the IronLog data on this device.')) return;
+    if (confirm('Export your current IronLog data first? This gives you a quick undo file before the import replaces it.')) exportBackup();
     ['exercises', 'routines', 'logs', 'measurements', 'unit', 'restDefault', 'active'].forEach((key) => {
       if (Object.prototype.hasOwnProperty.call(data, key)) writeJson(key, data[key]);
     });
@@ -137,6 +211,8 @@
     if (!sheet || sheet.querySelector('[data-ironlog-backup]')) return;
     const general = Array.from(sheet.querySelectorAll('.set-block')).find((block) => /General/i.test(block.textContent || ''));
     if (!general) return;
+    const labels = Array.from(general.querySelectorAll('label')).map((label) => label.textContent.trim());
+    if (labels.includes('Backup') && /\bExport\b/.test(general.textContent || '') && /\bImport\b/.test(general.textContent || '')) return;
     const reset = general.querySelector('.btn-danger');
     const wrap = document.createElement('div');
     wrap.dataset.ironlogBackup = '1';
@@ -164,6 +240,17 @@
       }
     });
     general.insertBefore(wrap, reset || null);
+  }
+
+  function ensureResetGuard() {
+    const sheet = document.querySelector('.sheet-body');
+    const general = sheet && Array.from(sheet.querySelectorAll('.set-block')).find((block) => /General/i.test(block.textContent || ''));
+    const reset = general && general.querySelector('.btn-danger');
+    if (!reset || reset.dataset.ironlogResetGuard === '1') return;
+    reset.dataset.ironlogResetGuard = '1';
+    reset.addEventListener('click', () => {
+      if (confirm('Export a backup first? This gives you a quick undo file before reset.')) exportBackup();
+    }, true);
   }
 
   function ensureSupabaseValidation() {
@@ -244,6 +331,7 @@
   function scan() {
     ensureStyles();
     ensureBackupUi();
+    ensureResetGuard();
     ensureSupabaseValidation();
   }
 
