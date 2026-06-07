@@ -263,6 +263,17 @@
     border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 28px rgba(168,85,247,.12)}
   .wb-time{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--accent)}
   .wb-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+  .guided-head{background:rgba(13,9,20,.82);border:1px solid rgba(168,85,247,.16);border-radius:var(--radius);padding:13px 14px;margin-bottom:13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  .guided-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .guided-title{font-family:var(--display);font-size:16px;font-weight:800}
+  .guided-meta{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:800}
+  .guided-track{height:7px;background:rgba(36,22,49,.92);border-radius:999px;overflow:hidden;border:1px solid rgba(168,85,247,.14)}
+  .guided-fill{height:100%;background:linear-gradient(90deg,var(--accent-deep),var(--accent),var(--hot));box-shadow:0 0 18px rgba(168,85,247,.32);transition:width .2s ease}
+  .guided-controls{display:grid;grid-template-columns:70px 1fr 70px;align-items:center;gap:8px;margin-top:11px}
+  .mini-btn{height:34px;border-radius:9px;background:rgba(36,22,49,.82);border:1px solid rgba(168,85,247,.14);color:var(--text);font-size:12px;font-weight:800;font-family:var(--display)}
+  .mini-btn:disabled{opacity:.35}
+  .guided-count{text-align:center;font-size:12px;color:var(--muted);font-weight:800}
+  .guided-done{background:linear-gradient(135deg,rgba(99,230,190,.12),rgba(168,85,247,.1));border:1px solid rgba(99,230,190,.22);border-radius:var(--radius);padding:13px 14px;margin-bottom:13px;color:var(--text);font-weight:800;text-align:center}
 
   /* ---- REST TIMER bar ---- */
   .rest-bar{position:absolute;left:12px;right:12px;bottom:78px;z-index:28;background:linear-gradient(135deg,var(--accent-deep),var(--accent-dim));
@@ -472,6 +483,7 @@ const trackOf = (ex)=> (ex && TRACK[ex.track]) ? ex.track : 'ws';
 const distUnit = (unit)=> unit==='lb' ? 'mi' : 'km';
 const fieldLabel = (f, unit)=> f==='weight' ? ('Weight ('+unit+')') : f==='reps' ? 'Reps' : f==='time' ? 'Time (min)' : ('Dist ('+distUnit(unit)+')');
 const fieldMode = (f)=> f==='reps' ? 'numeric' : 'decimal';
+const targetKey = (f)=> 'target'+f.charAt(0).toUpperCase()+f.slice(1);
 function setHasData(track, s){
   const w=+s.weight>0, r=+s.reps>0, t=+s.time>0, d=+s.dist>0;
   switch(track){ case 'r':return r; case 't':return t; case 'd':return d; case 'dt':return d; case 'wt':return w&&t; default:return w&&r; }
@@ -1504,20 +1516,26 @@ function App(){
   /* ----- workout ----- */
   // pull the most recent logged sets / note for an exercise (newest log first)
   const lastSetsFor = (exId)=>{
-    for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.sets&&en.sets.length) return en.sets.map(st=>({weight:st.weight, reps:st.reps, time:st.time, dist:st.dist, done:false})); }
+    for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.sets&&en.sets.length) return en.sets.map(st=>{
+      const next={weight:'', reps:'', time:'', dist:'', done:false};
+      ['weight','reps','time','dist'].forEach(f=>{ if(st[f]!==undefined && st[f]!==null && st[f] !== '') next[targetKey(f)] = st[f]; });
+      return next;
+    }); }
     return null;
   };
   const lastNoteFor = (exId)=>{
     for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.note) return en.note; }
     return '';
   };
-  const newEntry = (id)=>({ exerciseId:id, sets: lastSetsFor(id) || [{done:false}], note: lastNoteFor(id) });
+  const blankSets = (count)=> Array.from({length:count}, ()=>({weight:'', reps:'', time:'', dist:'', done:false}));
+  const newEntry = (id, planned=false)=>({ exerciseId:id, sets: lastSetsFor(id) || blankSets(planned?3:1), note: lastNoteFor(id) });
 
   const startDay = (day, program, label)=>{
     setActive({ id:uid(), date:todayISO(), startedAt:Date.now(), note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
+      mode: day ? 'guided' : 'open', currentEntryIndex: 0,
       name: day ? (label || day.name || 'Workout') : 'Quick Workout',
-      entries:(day?day.exerciseIds:[]).map(id=>newEntry(id)) });
+      entries:(day?day.exerciseIds:[]).map(id=>newEntry(id, !!day)) });
     setTab('train');
   };
   const finishWorkout = ()=>{
@@ -1639,7 +1657,7 @@ function App(){
         <ExercisePicker exercises={exercises} preselected={active?active.entries.map(e=>e.exerciseId):[]}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
           onConfirm={(ids)=>{ const ex=active.entries.map(e=>e.exerciseId);
-            const add=ids.filter(id=>!ex.includes(id)).map(id=>newEntry(id));
+            const add=ids.filter(id=>!ex.includes(id)).map(id=>newEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
             setActive({...active, entries:[...active.entries, ...add]}); setPickerFor(null); }} />}
       {settingsOpen &&
         <SettingsSheet onClose={()=>setSettingsOpen(false)}
@@ -1808,7 +1826,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
           return (
             <div key={r.id} className="card routine-card">
               <div className="rc-top">
-                <div style={{flex:1,minWidth:0}} onClick={()=>onEdit(r)}>
+                <div style={{flex:1,minWidth:0}}>
                   <div className="rc-name">{r.name}</div>
                   <div className="rc-meta">{days.length} day{days.length!==1?'s':''} · {totalEx} exercise{totalEx!==1?'s':''}{r.note?' · '+r.note:''}</div>
                 </div>
@@ -1821,7 +1839,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
                   days.map((d,i)=>{
                     const muscles=[...new Set(d.exerciseIds.map(id=>exById[id]&&exById[id].m).filter(Boolean))];
                     return (
-                      <div key={d.id} className="day-row" onClick={()=>onEdit(r)}>
+                      <div key={d.id} className="day-row" onClick={()=>{ if(d.exerciseIds.length) onStartDay(d, r, dayLabel(d, i, r.labelMode||'num')); }}>
                         <div className="day-info">
                           <div className="day-name">{dayLabel(d, i, r.labelMode||'num')}</div>
                           <div className="day-meta">{d.exerciseIds.length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
@@ -1895,14 +1913,69 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       <div style={{marginTop:20}}><button className="btn btn-accent" onClick={onStartQuick}>{I.flame}Start empty workout</button></div></div>
   );
 
-  const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  const fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
   const totalSets=active.entries.reduce((n,e)=>n+e.sets.filter(s=>s.done).length,0);
   const totalVol=active.entries.reduce((n,e)=>n+e.sets.filter(s=>s.done).reduce((v,s)=>v+(+s.weight||0)*(+s.reps||0),0),0);
+  const entryComplete=(en)=>{
+    const ex=exById[en.exerciseId]; const tk=trackOf(ex);
+    return en.sets.length>0 && en.sets.every(s=>s.done && setHasData(tk,s));
+  };
+  const guided=(active.mode==='guided'||!!active.routineId) && active.entries.length>0;
+  const completeExercises=active.entries.filter(entryComplete).length;
+  const allExercisesDone=active.entries.length>0 && completeExercises===active.entries.length;
+  const firstOpen=active.entries.findIndex(en=>!entryComplete(en));
+  const storedIndex=Math.max(0, Math.min(active.entries.length-1, Math.floor(+active.currentEntryIndex||0)));
+  const currentIndex=guided ? (firstOpen===-1 ? storedIndex : (entryComplete(active.entries[storedIndex]) ? firstOpen : storedIndex)) : -1;
+  const progressPct=active.entries.length ? (completeExercises/active.entries.length)*100 : 0;
 
-  const upd=(ei,si,f,v)=>{ const e=clone(active); e.entries[ei].sets[si][f]=v; setActive(e); };
-  const toggleDone=(ei,si)=>{ const e=clone(active); const was=e.entries[ei].sets[si].done; e.entries[ei].sets[si].done=!was; setActive(e);
-    if(!was) startRest(exById[e.entries[ei].exerciseId] ? exById[e.entries[ei].exerciseId].name : 'Rest'); };
-  const addSet=(ei)=>{ const e=clone(active); const last=e.entries[ei].sets[e.entries[ei].sets.length-1]; e.entries[ei].sets.push(last?{...last,done:false}:{done:false}); setActive(e); };
+  const setFocusIndex=(idx)=>{
+    if(!guided) return;
+    const next=Math.max(0, Math.min(active.entries.length-1, idx));
+    setActive({...active, currentEntryIndex:next});
+  };
+  const advanceAfterSet=(e,ei,label)=>{
+    if(!guided){ setActive(e); startRest(label||'Rest'); return; }
+    if(!entryComplete(e.entries[ei])){ setActive(e); startRest(label||'Rest'); return; }
+    const next=e.entries.findIndex((en,idx)=>idx>ei && !entryComplete(en));
+    if(next>=0){
+      e.currentEntryIndex=next;
+      setActive(e);
+      const nx=exById[e.entries[next].exerciseId];
+      startRest(nx ? 'Next: '+nx.name : 'Next exercise');
+      return;
+    }
+    const anyOpen=e.entries.findIndex(en=>!entryComplete(en));
+    if(anyOpen>=0){
+      e.currentEntryIndex=anyOpen;
+      setActive(e);
+      startRest(label||'Rest');
+      return;
+    }
+    e.currentEntryIndex=ei;
+    setActive(e);
+  };
+  const finishSet=(ei,si,eOverride)=>{
+    const e=eOverride||clone(active); const entry=e.entries[ei]; if(!entry) return;
+    const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
+    if(!setHasData(tk,set)){ set.done=false; setActive(e); return; }
+    const was=set.done; set.done=true;
+    if(!was) advanceAfterSet(e,ei,ex?ex.name:'Rest'); else setActive(e);
+  };
+  const upd=(ei,si,f,v)=>{
+    const e=clone(active); const entry=e.entries[ei]; if(!entry) return;
+    const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
+    const wasDone=set.done;
+    set[f]=v;
+    if(wasDone && !setHasData(tk,set)){ set.done=false; setActive(e); return; }
+    if(!wasDone && setHasData(tk,set)){ finishSet(ei,si,e); return; }
+    setActive(e);
+  };
+  const toggleDone=(ei,si)=>{
+    const e=clone(active); const set=e.entries[ei]&&e.entries[ei].sets[si]; if(!set) return;
+    if(set.done){ set.done=false; setActive(e); return; }
+    finishSet(ei,si,e);
+  };
+  const addSet=(ei)=>{ const e=clone(active); const last=e.entries[ei].sets[e.entries[ei].sets.length-1]; e.entries[ei].sets.push(last?{...last,weight:'',reps:'',time:'',dist:'',done:false}:{weight:'',reps:'',time:'',dist:'',done:false}); setActive(e); };
   const delSet=(ei,si)=>{ const e=clone(active); e.entries[ei].sets.splice(si,1); if(!e.entries[ei].sets.length) e.entries[ei].sets.push({done:false}); setActive(e); };
   const removeEx=(ei)=>{ const e=clone(active); e.entries.splice(ei,1); setActive(e); };
   const updNote=(ei,v)=>{ const e=clone(active); e.entries[ei].note=v; setActive(e); };
@@ -1915,9 +1988,27 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         <div style={{textAlign:'right'}}><div className="wb-lbl">{totalSets} sets · {Math.round(totalVol).toLocaleString()} {unit}</div>
           <button className="start-btn" style={{marginTop:6}} onClick={onFinish}>Finish ✓</button></div>
       </div>
+      {guided &&
+        <div className="guided-head">
+          <div className="guided-top">
+            <div>
+              <div className="guided-meta">Routine flow</div>
+              <div className="guided-title">{allExercisesDone?'All exercises complete':'Exercise '+(currentIndex+1)+' of '+active.entries.length}</div>
+            </div>
+            <div className="guided-meta">{completeExercises}/{active.entries.length}</div>
+          </div>
+          <div className="guided-track"><div className="guided-fill" style={{width:progressPct+'%'}}></div></div>
+          <div className="guided-controls">
+            <button className="mini-btn" disabled={currentIndex<=0} onClick={()=>setFocusIndex(currentIndex-1)}>Prev</button>
+            <div className="guided-count">{allExercisesDone?'Ready to finish':'Current lift'}</div>
+            <button className="mini-btn" disabled={currentIndex>=active.entries.length-1} onClick={()=>setFocusIndex(currentIndex+1)}>Next</button>
+          </div>
+        </div>}
+      {guided && allExercisesDone && <div className="guided-done">Routine day complete. Finish when notes look right.</div>}
       <textarea className="session-note" rows="2" placeholder="Session notes — how you feel, sleep, bodyweight, energy…" value={active.note||''} onChange={e=>updSessionNote(e.target.value)} />
       {active.entries.length===0 && <div className="empty" style={{padding:'30px 20px'}}><p>Empty session — add your first exercise below.</p></div>}
       {active.entries.map((en,ei)=>{
+        if(guided && ei!==currentIndex) return null;
         const ex=exById[en.exerciseId]; if(!ex) return null;
         const rec=records[en.exerciseId];
         const tk=trackOf(ex); const fields=TRACK[tk].fields;
@@ -1944,7 +2035,9 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
               {en.sets.map((s,si)=>
                 <div key={si} className={'set-row'+(s.done?' done':'')} style={{gridTemplateColumns:cols}}>
                   <div className="setno">{si+1}</div>
-                  {fields.map(f=><input key={f} type="number" inputMode={fieldMode(f)} placeholder="—" value={s[f]||''} onChange={e=>upd(ei,si,f,e.target.value)} />)}
+                  {fields.map(f=><input key={f} type="number" inputMode={fieldMode(f)}
+                    placeholder={s[targetKey(f)]!==undefined && s[targetKey(f)]!=='' ? String(s[targetKey(f)]) : '-'}
+                    value={s[f]||''} onChange={e=>upd(ei,si,f,e.target.value)} />)}
                   <button className={'check'+(s.done?' on':'')} onClick={()=>toggleDone(ei,si)}>
                     {s.done ? I.check : (en.sets.length>1 ? <span onClick={(ev)=>{ev.stopPropagation();delSet(ei,si);}} style={{fontSize:18,lineHeight:1}}>×</span> : '')}
                   </button>
@@ -2457,7 +2550,7 @@ function SettingsSheet({onClose, unit, setUnit, restDefault, setRestDefault,
           {/* REST TIMER */}
           <div className="set-block">
             <h3>{I.timer}Rest timer</h3>
-            <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12,lineHeight:1.5}}>Auto-starts when you check off a set. You can also tap <b style={{color:'var(--accent)'}}>Rest</b> on any exercise. Adjust the default below.</div>
+            <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12,lineHeight:1.5}}>Auto-starts when a set is completed. You can still tap <b style={{color:'var(--accent)'}}>Rest</b> on any exercise. Adjust the default below.</div>
             <div className="rest-stepper">
               <button onClick={()=>setRestDefault(Math.max(10, restDefault-15))}>−</button>
               <div className="val">{Math.floor(restDefault/60)}:{String(restDefault%60).padStart(2,'0')}</div>

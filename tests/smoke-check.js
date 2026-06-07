@@ -33,6 +33,9 @@ check('deployed helper keeps safety snapshot', patch.includes('SAFETY_SNAPSHOT_K
 check('deployed helper normalizes imported routines', patch.includes('cleanRoutine') && patch.includes('cleanExercise'));
 check('app opens to Today dashboard', index.includes("'train' : 'today'") && index.includes('function TodayView') && index.includes('<span>Today</span>'));
 check('progress keeps calendar access', index.includes('onOpenCalendar') && index.includes('Calendar</button>'));
+check('routine day tap starts training', index.includes('className="day-row" onClick={()=>{ if(d.exerciseIds.length) onStartDay') && index.includes('button className="rc-edit"'));
+check('planned routines use guided flow', index.includes("mode: day ? 'guided' : 'open'") && index.includes('currentEntryIndex') && index.includes('className="guided-head"'));
+check('set entry auto-completes and advances', index.includes('function TrainView') && index.includes('advanceAfterSet') && index.includes('setHasData(tk,set)') && index.includes("'Next: '+nx.name"));
 check('compiled v2 shell removes browser Babel', v2.includes('app-loader.js') && !v2.includes('text/babel') && !v2.includes('babel.min.js'));
 check('compiled bundle contains app mount', bundle.includes('ReactDOM.createRoot') || bundle.includes('createRoot'));
 check('compiled loader references chunks', generatedChunks.length > 0 && loader.includes('eval'));
