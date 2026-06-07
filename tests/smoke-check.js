@@ -25,6 +25,8 @@ check('Supabase secret keys are blocked', (index.includes('sb_secret_') && index
 check('PWA update event is wired', index.includes('ironlog:update-ready') || patch.includes('SKIP_WAITING'));
 check('deployed helper validates imports', helperHasBackupSafety);
 check('deployed helper avoids duplicate backup UI', patch.includes("labels.includes('Backup')"));
+check('deployed helper keeps safety snapshot', patch.includes('SAFETY_SNAPSHOT_KEY') && patch.includes('restoreSafetySnapshot'));
+check('deployed helper normalizes imported routines', patch.includes('cleanRoutine') && patch.includes('cleanExercise'));
 check('service worker caches helper', sw.includes('./ironlog-patch.js'));
 check('service worker version bumped', /ironlog-v\d+/.test(sw));
 check('service worker injects helper once', sw.includes('html.includes') && sw.includes('ironlog-patch.js'));
