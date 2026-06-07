@@ -28,9 +28,12 @@ jobs:
 
           let patch = fs.readFileSync('ironlog-patch.js', 'utf8');
           if (!patch.includes('ironlogSnapshotGuard')) {
-            const target = /  function ensureRestoreButton\(general\) \{\r?\n    const snapshot = readJson\(SAFETY_SNAPSHOT_KEY, null\);\r?\n/;
-            if (!target.test(patch)) throw new Error('Could not find ensureRestoreButton snapshot line.');
-            const guard = [
+            const lines = patch.split(/\r?\n/);
+            const start = lines.findIndex((line) => line === '  function ensureRestoreButton(general) {');
+            if (start === -1) throw new Error('Could not find ensureRestoreButton.');
+            const insertAfter = lines.findIndex((line, index) => index > start && line === '    const snapshot = readJson(SAFETY_SNAPSHOT_KEY, null);');
+            if (insertAfter === -1) throw new Error('Could not find ensureRestoreButton snapshot line.');
+            lines.splice(insertAfter + 1, 0,
               '    const fileInput = general.querySelector(\'input[type="file"]\');',
               '    if (fileInput && fileInput.dataset.ironlogSnapshotGuard !== \'1\') {',
               '      fileInput.dataset.ironlogSnapshotGuard = \'1\';',
@@ -38,9 +41,9 @@ jobs:
               '        if (fileInput.files && fileInput.files[0]) saveSafetySnapshot(\'before import\');',
               '      }, true);',
               '    }'
-            ].join('\n') + '\n';
-            patch = patch.replace(target, (match) => match + guard);
-            fs.writeFileSync('ironlog-patch.js', patch);
+            );
+            patch = lines.join('\n');
+            fs.writeFileSync('ironlog-patch.js', patch.endsWith('\n') ? patch : patch + '\n');
           }
 
           let sw = fs.readFileSync('service-worker.js', 'utf8');
