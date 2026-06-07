@@ -21,6 +21,19 @@ jobs:
         with:
           node-version: 22
 
+      - name: Prepare guided patch script
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const p = '.github/apply-guided-routine-flow.js';
+          let s = fs.readFileSync(p, 'utf8');
+          if (!s.includes("if (html.includes('function cleanSet'))")) {
+            s = s.replace("regex(\n  /function cleanSet", "if (html.includes('function cleanSet')) {\n  regex(\n    /function cleanSet");
+            s = s.replace("  'clean workout data'\n);\n\nregex(\n  /  const lastSetsFor", "    'clean workout data'\n  );\n}\n\nregex(\n  /  const lastSetsFor");
+          }
+          fs.writeFileSync(p, s);
+          NODE
+
       - name: Apply guided routine UX fixes
         run: node .github/apply-guided-routine-flow.js
 
