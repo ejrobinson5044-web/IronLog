@@ -15,6 +15,15 @@ function between(source, start, end, label) {
   return source.slice(a + start.length, b);
 }
 
+function syncServiceWorkerChunks(chunks) {
+  const swPath = path.join(root, 'service-worker.js');
+  if (!fs.existsSync(swPath)) return;
+  const chunkBlock = chunks.map((file) => `  './${file}',`).join('\n');
+  const sw = fs.readFileSync(swPath, 'utf8');
+  const next = sw.replace(/  '\.\/app-chunks\/app\.\d+\.js',\r?\n(?:  '\.\/app-chunks\/app\.\d+\.js',\r?\n)*/g, `${chunkBlock}\n`);
+  if (next !== sw) fs.writeFileSync(swPath, next);
+}
+
 async function main() {
   const html = read('index.html');
   const css = between(html, '<style>', '</style>', 'CSS').trim();
@@ -102,6 +111,7 @@ ${swRegistration}
   write('app.bundle.js', bundle);
   write('app-loader.js', loader);
   write('index-v2.html', shell);
+  syncServiceWorkerChunks(chunks);
 
   console.log(JSON.stringify({
     cssBytes: Buffer.byteLength(css),
