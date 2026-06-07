@@ -567,7 +567,7 @@ const todayISO = () => new Date().toISOString().slice(0,10);
 const clone = o => JSON.parse(JSON.stringify(o));
 
 const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
-  Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},Landmine:{c:'#e8915a'},Leverage:{c:'#00b8a9'},'Pit Shark':{c:'#d65db1'},Other:{c:'#9095ad'}};
+  Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},'Weight Plate':{c:'#c084fc'},Landmine:{c:'#e8915a'},Leverage:{c:'#00b8a9'},'Pit Shark':{c:'#d65db1'},Other:{c:'#9095ad'}};
 const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff','Front Delts':'#ff9f45','Side Delts':'#ffc04d','Rear Delts':'#e07b3c',Biceps:'#9d7bff',Triceps:'#b794ff',
   Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8'};
 const tint = (hex, a) => { const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };

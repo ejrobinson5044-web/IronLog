@@ -40,6 +40,7 @@ check('routine day exercises support hold reorder', index.includes('reorder-row'
 check('unilateral exercise variants are supported', index.includes('SIDE_OPTIONS') && index.includes('formatExerciseName') && index.includes('sideRepLabel') && index.includes('onVariant={createExerciseVariant}') && index.includes('Reps / '));
 check('single-arm and single-leg library names are normalized', index.includes('Cable One Arm Triceps Extension') && index.includes('Bodyweight One Leg Glute Bridge') && !index.includes('\"Cable Single-Arm Triceps Extension\"') && !index.includes('\"Bodyweight Single-Leg Glute Bridge\"'));
 check('backup cleaner preserves unilateral side', patch.includes("side = ex.side === 'arm' || ex.side === 'leg'") && patch.includes('side,') && patch.includes('One Arm') && patch.includes('One Leg'));
+check('weight plate equipment option exists', index.includes("'Weight Plate':{c:") && index.includes('Object.keys(EQUIP)'));
 check('compiled v2 shell removes browser Babel', v2.includes('app-loader.js') && !v2.includes('text/babel') && !v2.includes('babel.min.js'));
 check('compiled bundle contains app mount', bundle.includes('ReactDOM.createRoot') || bundle.includes('createRoot'));
 check('compiled loader references chunks', generatedChunks.length > 0 && loader.includes('eval'));
