@@ -1,0 +1,49 @@
+name: Build compiled v2 app shell
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - index.html
+      - package.json
+      - tools/build-v2.js
+      - service-worker.js
+      - tests/smoke-check.js
+      - .github/workflows/build-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build-v2:
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip v2 build]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install build tools
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build compiled shell
+        run: npm run build:v2
+
+      - name: Run smoke checks
+        run: npm run check
+
+      - name: Commit generated app shell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index-v2.html app.bundle.js app-loader.js app-chunks/
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+          else
+            git commit -m "Build compiled v2 app shell [skip v2 build]"
+            git push
+          fi
