@@ -1,6 +1,8 @@
 (function () {
   const BACKUP_SCHEMA = 'ironlog.backup.v1';
   const BACKUP_KEYS = ['exercises', 'routines', 'logs', 'measurements', 'unit', 'restDefault', 'active'];
+  const SAFETY_SNAPSHOT_KEY = 'ironlog.safetySnapshot.v1';
+  const LAST_BACKUP_KEY = 'ironlog.lastBackupAt';
   const PATCH_STYLE_ID = 'ironlog-safety-patch-style';
 
   function readJson(key, fallback) {
@@ -31,6 +33,22 @@
       restDefault: readJson('restDefault', 90),
       active: readJson('active', null)
     };
+  }
+
+  function backupEnvelope(reason) {
+    return {
+      schema: BACKUP_SCHEMA,
+      app: 'IronLog',
+      exportedAt: new Date().toISOString(),
+      reason: reason || 'manual',
+      data: backupPayload()
+    };
+  }
+
+  function saveSafetySnapshot(reason) {
+    const snapshot = backupEnvelope(reason || 'safety snapshot');
+    localStorage.setItem(SAFETY_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    return snapshot;
   }
 
   function asArray(value) {
@@ -77,6 +95,47 @@
     };
   }
 
+  function cleanExercise(item) {
+    const ex = item && typeof item === 'object' ? item : {};
+    const allowedTracks = new Set(['ws', 'r', 't', 'dt', 'd', 'wt']);
+    return {
+      ...ex,
+      id: String(ex.id || Math.random().toString(36).slice(2, 9)),
+      name: String(ex.name || 'Exercise').trim().slice(0, 120),
+      eq: String(ex.eq || 'Other').trim() || 'Other',
+      m: String(ex.m || 'Other').trim() || 'Other',
+      sec: ex.sec ? String(ex.sec).trim() : undefined,
+      media: String(ex.media || ''),
+      custom: !!ex.custom,
+      edited: !!ex.edited,
+      track: allowedTracks.has(ex.track) ? ex.track : 'ws',
+      cue: String(ex.cue || '')
+    };
+  }
+
+  function cleanDay(item) {
+    const day = item && typeof item === 'object' ? item : {};
+    return {
+      ...day,
+      id: String(day.id || Math.random().toString(36).slice(2, 9)),
+      name: String(day.name || ''),
+      exerciseIds: asArray(day.exerciseIds).map((id) => String(id)).filter(Boolean)
+    };
+  }
+
+  function cleanRoutine(item) {
+    const routine = item && typeof item === 'object' ? item : {};
+    const days = asArray(routine.days).length ? asArray(routine.days).map(cleanDay) : [cleanDay({ exerciseIds: routine.exerciseIds })];
+    return {
+      ...routine,
+      id: String(routine.id || Math.random().toString(36).slice(2, 9)),
+      name: String(routine.name || 'Routine'),
+      note: String(routine.note || ''),
+      labelMode: routine.labelMode === 'name' ? 'name' : 'num',
+      days
+    };
+  }
+
   function cleanLogs(logs) {
     return asArray(logs).map(cleanWorkout).filter((w) => w && (w.entries.length || w.note));
   }
@@ -96,8 +155,8 @@
       throw new Error('Backup file does not contain IronLog data.');
     }
     return {
-      exercises: asArray(data.exercises),
-      routines: asArray(data.routines),
+      exercises: asArray(data.exercises).map(cleanExercise).filter((ex) => ex.name),
+      routines: asArray(data.routines).map(cleanRoutine),
       logs: cleanLogs(data.logs),
       measurements: cleanMeasurements(data.measurements),
       unit: data.unit === 'kg' ? 'kg' : 'lb',
@@ -107,12 +166,7 @@
   }
 
   function exportBackup() {
-    const backup = {
-      schema: BACKUP_SCHEMA,
-      app: 'IronLog',
-      exportedAt: new Date().toISOString(),
-      data: backupPayload()
-    };
+    const backup = backupEnvelope('manual export');
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -122,18 +176,46 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
+    localStorage.setItem(LAST_BACKUP_KEY, backup.exportedAt);
     toast('Backup exported');
+  }
+
+  function summarizeData(data) {
+    return [
+      `${asArray(data.routines).length} routines`,
+      `${asArray(data.exercises).length} exercises`,
+      `${asArray(data.logs).length} workouts`,
+      `${asArray(data.measurements).length} measurements`
+    ].join(', ');
   }
 
   async function importBackup(file) {
     const parsed = JSON.parse(await file.text());
     const data = normalizeBackup(parsed);
-    if (!confirm('Import this backup? It replaces the IronLog data on this device.')) return;
+    if (!confirm(`Import this backup (${summarizeData(data)})? It replaces the IronLog data on this device.`)) return;
     if (confirm('Export your current IronLog data first? This gives you a quick undo file before the import replaces it.')) exportBackup();
+    saveSafetySnapshot('before import');
     ['exercises', 'routines', 'logs', 'measurements', 'unit', 'restDefault', 'active'].forEach((key) => {
       if (Object.prototype.hasOwnProperty.call(data, key)) writeJson(key, data[key]);
     });
     toast('Backup imported');
+    setTimeout(() => location.reload(), 500);
+  }
+
+  function restoreSafetySnapshot() {
+    const snapshot = readJson(SAFETY_SNAPSHOT_KEY, null);
+    if (!snapshot || snapshot.schema !== BACKUP_SCHEMA || !snapshot.data) {
+      toast('No safety snapshot found');
+      return;
+    }
+    const data = normalizeBackup(snapshot);
+    const when = snapshot.exportedAt ? new Date(snapshot.exportedAt).toLocaleString() : 'the last safety snapshot';
+    if (!confirm(`Restore the safety snapshot from ${when}? This replaces the IronLog data on this device.`)) return;
+    saveSafetySnapshot('before snapshot restore');
+    BACKUP_KEYS.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(data, key)) writeJson(key, data[key]);
+    });
+    toast('Safety snapshot restored');
     setTimeout(() => location.reload(), 500);
   }
 
@@ -187,8 +269,9 @@
     const style = document.createElement('style');
     style.id = PATCH_STYLE_ID;
     style.textContent = `
-      .backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+      .backup-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin-top:10px}
       .backup-note{font-size:11.5px;color:var(--muted2);line-height:1.45;margin:9px 0 13px}
+      .backup-meta{font-size:11px;color:var(--muted2);line-height:1.35;margin:8px 0 0}
       .patch-msg{font-size:12px;color:var(--warn);line-height:1.4;margin:-4px 0 10px}
       .update-banner{position:fixed;left:14px;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:80;display:flex;align-items:center;gap:10px;background:rgba(22,24,38,.97);border:1px solid var(--border);box-shadow:0 18px 40px rgba(0,0,0,.42);border-radius:14px;padding:10px 10px 10px 12px}
       .update-banner span{flex:1;min-width:0;font-size:12.5px;color:var(--text);font-weight:750}
@@ -214,6 +297,8 @@
     const labels = Array.from(general.querySelectorAll('label')).map((label) => label.textContent.trim());
     if (labels.includes('Backup') && /\bExport\b/.test(general.textContent || '') && /\bImport\b/.test(general.textContent || '')) return;
     const reset = general.querySelector('.btn-danger');
+    const snapshot = readJson(SAFETY_SNAPSHOT_KEY, null);
+    const lastBackupAt = localStorage.getItem(LAST_BACKUP_KEY);
     const wrap = document.createElement('div');
     wrap.dataset.ironlogBackup = '1';
     wrap.innerHTML = `
@@ -222,13 +307,18 @@
       <div class="backup-actions">
         <button class="btn btn-ghost btn-sm" type="button">Export</button>
         <button class="btn btn-ghost btn-sm" type="button">Import</button>
+        ${snapshot ? '<button class="btn btn-ghost btn-sm" type="button" data-restore-snapshot>Restore</button>' : ''}
       </div>
       <div class="backup-note">Export a JSON backup before major changes. Import replaces local data and will sync to cloud if you are signed in.</div>
+      ${lastBackupAt ? `<div class="backup-meta">Last manual export: ${new Date(lastBackupAt).toLocaleString()}</div>` : ''}
+      ${snapshot && snapshot.exportedAt ? `<div class="backup-meta">Safety snapshot: ${new Date(snapshot.exportedAt).toLocaleString()}</div>` : ''}
     `;
     const file = wrap.querySelector('input');
     const [exportBtn, importBtn] = wrap.querySelectorAll('button');
+    const restoreBtn = wrap.querySelector('[data-restore-snapshot]');
     exportBtn.addEventListener('click', exportBackup);
     importBtn.addEventListener('click', () => file.click());
+    if (restoreBtn) restoreBtn.addEventListener('click', restoreSafetySnapshot);
     file.addEventListener('change', async () => {
       if (!file.files || !file.files[0]) return;
       try {
@@ -250,6 +340,7 @@
     reset.dataset.ironlogResetGuard = '1';
     reset.addEventListener('click', () => {
       if (confirm('Export a backup first? This gives you a quick undo file before reset.')) exportBackup();
+      saveSafetySnapshot('before reset');
     }, true);
   }
 
