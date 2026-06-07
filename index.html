@@ -927,6 +927,7 @@ const MUS = {
 };
 // resolve a demo for any exercise: custom media wins, else CC0 frames, else none
 function demoFor(ex){
+  if(!ex) return null;
   if(ex.media){
     if(/\.(mp4|webm)$/i.test(ex.media)) return {type:'video', src:ex.media};
     return {type:'frames', frames:[ex.media]};
@@ -1226,19 +1227,21 @@ function Thumb({ex, cls}){
 
 /* ---- animated demo (crossfade two frames) ---- */
 function AnimatedDemo({demo}){
-  const frames=demo.frames;
+  if(!demo) return null;
+  const isVideo=demo.type==='video';
+  const frames=Array.isArray(demo.frames) ? demo.frames.filter(Boolean) : [];
   const [i,setI]=useState(0);
   const [bad,setBad]=useState(false);
   useEffect(()=>{
-    if(frames.length<2) return;
+    if(isVideo || frames.length<2) return;
     const t=setInterval(()=>setI(p=>(p+1)%frames.length), 950);
     return ()=>clearInterval(t);
-  },[frames]);
-  if(demo.type==='video') return (
+  },[isVideo,frames]);
+  if(isVideo) return (
     <video src={demo.src} autoPlay loop muted playsInline
-      style={{width:'100%',borderRadius:'var(--radius)',marginBottom:14,background:'#eef0f3'}} />
+      style={{width:'100%',borderRadius:'var(--radius)',marginBottom:14,background:'#0f0a18'}} />
   );
-  if(bad) return null;
+  if(bad || !frames.length) return null;
   return (
     <div className="demo-hero">
       {frames.map((src,idx)=>
@@ -2045,29 +2048,33 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   );
 
   const fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
-  const totalSets=active.entries.reduce((n,e)=>n+e.sets.filter(s=>s.done).length,0);
-  const totalVol=active.entries.reduce((n,e)=>n+e.sets.filter(s=>s.done).reduce((v,s)=>v+(+s.weight||0)*(+s.reps||0),0),0);
+  const entries=Array.isArray(active.entries) ? active.entries : [];
+  const validEntries=entries.filter(en=>exById[en&&en.exerciseId]);
+  const totalSets=entries.reduce((n,e)=>n+asArray(e&&e.sets).filter(s=>s.done).length,0);
+  const totalVol=entries.reduce((n,e)=>n+asArray(e&&e.sets).filter(s=>s.done).reduce((v,s)=>v+(+s.weight||0)*(+s.reps||0),0),0);
   const entryComplete=(en)=>{
+    if(!en || !Array.isArray(en.sets)) return false;
     const ex=exById[en.exerciseId]; const tk=trackOf(ex);
+    if(!ex) return false;
     return en.sets.length>0 && en.sets.every(s=>s.done && setHasData(tk,s));
   };
-  const guided=(active.mode==='guided'||!!active.routineId) && active.entries.length>0;
-  const completeExercises=active.entries.filter(entryComplete).length;
-  const allExercisesDone=active.entries.length>0 && completeExercises===active.entries.length;
-  const firstOpen=active.entries.findIndex(en=>!entryComplete(en));
-  const storedIndex=Math.max(0, Math.min(active.entries.length-1, Math.floor(+active.currentEntryIndex||0)));
-  const currentIndex=guided ? (firstOpen===-1 ? storedIndex : (entryComplete(active.entries[storedIndex]) ? firstOpen : storedIndex)) : -1;
-  const progressPct=active.entries.length ? (completeExercises/active.entries.length)*100 : 0;
+  const guided=(active.mode==='guided'||!!active.routineId) && entries.length>0;
+  const completeExercises=entries.filter(entryComplete).length;
+  const allExercisesDone=entries.length>0 && completeExercises===entries.length;
+  const firstOpen=entries.findIndex(en=>!entryComplete(en));
+  const storedIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+active.currentEntryIndex||0)));
+  const currentIndex=guided ? (firstOpen===-1 ? storedIndex : (entryComplete(entries[storedIndex]) ? firstOpen : storedIndex)) : -1;
+  const progressPct=entries.length ? (completeExercises/entries.length)*100 : 0;
 
   const setFocusIndex=(idx)=>{
     if(!guided) return;
-    const next=Math.max(0, Math.min(active.entries.length-1, idx));
+    const next=Math.max(0, Math.min(entries.length-1, idx));
     setActive({...active, currentEntryIndex:next});
   };
   const advanceAfterSet=(e,ei,label)=>{
     if(!guided){ setActive(e); startRest(label||'Rest'); return; }
     if(!entryComplete(e.entries[ei])){ setActive(e); startRest(label||'Rest'); return; }
-    const next=e.entries.findIndex((en,idx)=>idx>ei && !entryComplete(en));
+    const next=asArray(e.entries).findIndex((en,idx)=>idx>ei && !entryComplete(en));
     if(next>=0){
       e.currentEntryIndex=next;
       setActive(e);
@@ -2075,7 +2082,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       startRest(nx ? 'Next: '+nx.name : 'Next exercise');
       return;
     }
-    const anyOpen=e.entries.findIndex(en=>!entryComplete(en));
+    const anyOpen=asArray(e.entries).findIndex(en=>!entryComplete(en));
     if(anyOpen>=0){
       e.currentEntryIndex=anyOpen;
       setActive(e);
@@ -2086,7 +2093,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     setActive(e);
   };
   const finishSet=(ei,si,eOverride)=>{
-    const e=eOverride||clone(active); const entry=e.entries[ei]; if(!entry) return;
+    const e=eOverride||clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
     if(!setHasData(tk,set)){ set.done=false; setActive(e); return; }
     if(!e.startedAt) e.startedAt=Date.now();
@@ -2094,7 +2101,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     if(!was) advanceAfterSet(e,ei,ex?ex.name:'Rest'); else setActive(e);
   };
   const upd=(ei,si,f,v)=>{
-    const e=clone(active); const entry=e.entries[ei]; if(!entry) return;
+    const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
     const wasDone=set.done;
     set[f]=v;
@@ -2103,14 +2110,14 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     setActive(e);
   };
   const toggleDone=(ei,si)=>{
-    const e=clone(active); const set=e.entries[ei]&&e.entries[ei].sets[si]; if(!set) return;
+    const e=clone(active); const set=asArray(e.entries)[ei]&&asArray(e.entries[ei].sets)[si]; if(!set) return;
     if(set.done){ set.done=false; setActive(e); return; }
     finishSet(ei,si,e);
   };
-  const addSet=(ei)=>{ const e=clone(active); const last=e.entries[ei].sets[e.entries[ei].sets.length-1]; e.entries[ei].sets.push(last?{...last,weight:'',reps:'',time:'',dist:'',done:false}:{weight:'',reps:'',time:'',dist:'',done:false}); setActive(e); };
-  const delSet=(ei,si)=>{ const e=clone(active); e.entries[ei].sets.splice(si,1); if(!e.entries[ei].sets.length) e.entries[ei].sets.push({done:false}); setActive(e); };
-  const removeEx=(ei)=>{ const e=clone(active); e.entries.splice(ei,1); setActive(e); };
-  const updNote=(ei,v)=>{ const e=clone(active); e.entries[ei].note=v; setActive(e); };
+  const addSet=(ei)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); const last=entry.sets[entry.sets.length-1]; entry.sets.push(last?{...last,weight:'',reps:'',time:'',dist:'',done:false}:{weight:'',reps:'',time:'',dist:'',done:false}); setActive(e); };
+  const delSet=(ei,si)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length) entry.sets.push({done:false}); setActive(e); };
+  const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); setActive(e); };
+  const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
 
   return (
@@ -2125,21 +2132,22 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
           <div className="guided-top">
             <div>
               <div className="guided-meta">Routine flow</div>
-              <div className="guided-title">{allExercisesDone?'All exercises complete':'Exercise '+(currentIndex+1)+' of '+active.entries.length}</div>
+              <div className="guided-title">{allExercisesDone?'All exercises complete':'Exercise '+(currentIndex+1)+' of '+entries.length}</div>
             </div>
-            <div className="guided-meta">{completeExercises}/{active.entries.length}</div>
+            <div className="guided-meta">{completeExercises}/{entries.length}</div>
           </div>
           <div className="guided-track"><div className="guided-fill" style={{width:progressPct+'%'}}></div></div>
           <div className="guided-controls">
             <button className="mini-btn" disabled={currentIndex<=0} onClick={()=>setFocusIndex(currentIndex-1)}>Prev</button>
             <div className="guided-count">{allExercisesDone?'Ready to finish':'Current lift'}</div>
-            <button className="mini-btn" disabled={currentIndex>=active.entries.length-1} onClick={()=>setFocusIndex(currentIndex+1)}>Next</button>
+            <button className="mini-btn" disabled={currentIndex>=entries.length-1} onClick={()=>setFocusIndex(currentIndex+1)}>Next</button>
           </div>
         </div>}
       {guided && allExercisesDone && <div className="guided-done">Routine day complete. Finish when notes look right.</div>}
       <textarea className="session-note" rows="2" placeholder="Session notes — how you feel, sleep, bodyweight, energy…" value={active.note||''} onChange={e=>updSessionNote(e.target.value)} />
-      {active.entries.length===0 && <div className="empty" style={{padding:'30px 20px'}}><p>Empty session — add your first exercise below.</p></div>}
-      {active.entries.map((en,ei)=>{
+      {entries.length===0 && <div className="empty" style={{padding:'30px 20px'}}><p>Empty session - add your first exercise below.</p></div>}
+      {guided && entries.length>0 && !validEntries.length && <div className="empty" style={{padding:'30px 20px'}}><p>This routine day has exercises that no longer exist. Add them again from the library.</p></div>}
+      {entries.map((en,ei)=>{
         if(guided && ei!==currentIndex) return null;
         const ex=exById[en.exerciseId]; if(!ex) return null;
         const rec=records[en.exerciseId];
