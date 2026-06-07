@@ -156,6 +156,16 @@
   .ex-row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:var(--radius-sm);
     background:rgba(13,9,20,.82);border:1px solid rgba(168,85,247,.1);margin-bottom:8px;transition:.12s;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
   .ex-row.tap:active{background:rgba(23,16,33,.92)}
+  .reorder-row{position:relative;user-select:none;touch-action:pan-y}
+  .reorder-row.ordering{background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(13,9,20,.94));border-color:rgba(168,85,247,.48);box-shadow:0 0 28px rgba(168,85,247,.22),inset 0 1px 0 rgba(255,255,255,.07);transform:translateY(-1px)}
+  .reorder-handle{width:28px;height:46px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;color:var(--muted2);background:rgba(36,22,49,.45);border:1px solid transparent}
+  .reorder-row.ordering .reorder-handle{color:var(--accent);background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.25)}
+  .reorder-handle svg{width:18px;height:18px}
+  .reorder-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .reorder-actions button{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(36,22,49,.88);border:1px solid rgba(168,85,247,.22);color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  .reorder-actions button:disabled{opacity:.35;color:var(--muted2)}
+  .reorder-actions button svg{width:17px;height:17px}
+  .reorder-actions .reorder-done{background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:var(--accent-ink);border-color:transparent}
   .ex-thumb{width:46px;height:46px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;overflow:hidden;
     background:var(--surface2);border:1px solid var(--border)}
   .ex-thumb svg{width:26px;height:26px}
@@ -1134,6 +1144,9 @@ const I = {
   plus:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>,
   search:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
   chevron:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="m9 18 6-6-6-6"/></svg>,
+  grip:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/></svg>,
+  up:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>,
+  down:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
   x:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>,
   check:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
   trash:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
@@ -2428,7 +2441,28 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
   const [name,setName]=useState(day.name||'');
   const [ids,setIds]=useState([...day.exerciseIds]);
   const [picking,setPicking]=useState(false);
-  const remove=id=>setIds(ids.filter(x=>x!==id));
+  const [reorderId,setReorderId]=useState(null);
+  const holdRef=useRef(null);
+  const holdPointRef=useRef(null);
+  const clearHold=()=>{ if(holdRef.current) clearTimeout(holdRef.current); holdRef.current=null; holdPointRef.current=null; };
+  useEffect(()=>()=>{ if(holdRef.current) clearTimeout(holdRef.current); },[]);
+  const armReorder=(id,e)=>{
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    clearHold();
+    holdPointRef.current={x:e.clientX,y:e.clientY};
+    holdRef.current=setTimeout(()=>{
+      setReorderId(id);
+      holdRef.current=null;
+      holdPointRef.current=null;
+      if(typeof navigator!=='undefined' && navigator.vibrate) navigator.vibrate(12);
+    },420);
+  };
+  const trackHold=(e)=>{
+    const p=holdPointRef.current;
+    if(p && (Math.abs(e.clientX-p.x)>10 || Math.abs(e.clientY-p.y)>10)) clearHold();
+  };
+  const stopButton=e=>e.stopPropagation();
+  const remove=id=>{ setIds(ids.filter(x=>x!==id)); if(reorderId===id) setReorderId(null); };
   const move=(i,d)=>{const j=i+d;if(j<0||j>=ids.length)return;const a=[...ids];[a[i],a[j]]=[a[j],a[i]];setIds(a);};
   return (
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) onClose();}}>
@@ -2443,16 +2477,22 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
             <div style={{textAlign:'center',padding:'24px 10px',color:'var(--muted)',fontSize:13.5}}>No exercises yet. Tap <b style={{color:'var(--accent)'}}>+ Add</b> to pull from your library.</div>
             :
             ids.map((id,i)=>{ const ex=exById[id]; if(!ex) return null;
+              const ordering=reorderId===id;
               return (
-                <div key={id} className="ex-row" style={{marginBottom:8}}>
-                  <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                    <button onClick={()=>move(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 4px',fontSize:11}}>▲</button>
-                    <button onClick={()=>move(i,1)} style={{color:i===ids.length-1?'var(--muted2)':'var(--muted)',padding:'1px 4px',fontSize:11}}>▼</button>
-                  </div>
+                <div key={id} className={'ex-row reorder-row'+(ordering?' ordering':'')} style={{marginBottom:8}}
+                  onPointerDown={e=>armReorder(id,e)} onPointerMove={trackHold} onPointerUp={clearHold} onPointerCancel={clearHold} onPointerLeave={clearHold}>
+                  <div className="reorder-handle" title="Hold to reorder" aria-hidden="true">{I.grip}</div>
                   <Thumb ex={ex} cls="" />
                   <div className="ex-info"><div className="ex-name">{ex.name}</div>
-                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span></div></div>
-                  <button className="delset" onClick={()=>remove(id)}>{I.trash}</button>
+                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>{'\u00b7'}<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span></div></div>
+                  {ordering ?
+                    <div className="reorder-actions">
+                      <button type="button" aria-label="Move exercise up" disabled={i===0} onPointerDown={stopButton} onClick={()=>move(i,-1)}>{I.up}</button>
+                      <button type="button" aria-label="Move exercise down" disabled={i===ids.length-1} onPointerDown={stopButton} onClick={()=>move(i,1)}>{I.down}</button>
+                      <button type="button" className="reorder-done" aria-label="Done reordering" onPointerDown={stopButton} onClick={()=>setReorderId(null)}>{I.check}</button>
+                    </div>
+                    :
+                    <button className="delset" onPointerDown={stopButton} onClick={()=>remove(id)}>{I.trash}</button>}
                 </div>
               ); })}
           {ids.length>0 &&

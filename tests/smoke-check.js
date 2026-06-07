@@ -36,6 +36,7 @@ check('progress keeps calendar access', index.includes('onOpenCalendar') && inde
 check('routine day tap starts training', index.includes('className="day-row" onClick={()=>{ if(d.exerciseIds.length) onStartDay') && index.includes('button className="rc-edit"'));
 check('planned routines use guided flow', index.includes("mode: day ? 'guided' : 'open'") && index.includes('currentEntryIndex') && index.includes('className="guided-head"'));
 check('set entry auto-completes and advances', index.includes('function TrainView') && index.includes('advanceAfterSet') && index.includes('setHasData(tk,set)') && index.includes("'Next: '+nx.name"));
+check('routine day exercises support hold reorder', index.includes('reorder-row') && index.includes('armReorder') && index.includes('onPointerDown={e=>armReorder(id,e)}') && index.includes('Move exercise up') && index.includes('Move exercise down'));
 check('compiled v2 shell removes browser Babel', v2.includes('app-loader.js') && !v2.includes('text/babel') && !v2.includes('babel.min.js'));
 check('compiled bundle contains app mount', bundle.includes('ReactDOM.createRoot') || bundle.includes('createRoot'));
 check('compiled loader references chunks', generatedChunks.length > 0 && loader.includes('eval'));
