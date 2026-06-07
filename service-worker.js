@@ -10,13 +10,27 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v16';
+const CACHE_VERSION = 'ironlog-v18';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
 const SHELL = [
   './',
   './index.html',
+  './index-v2.html',
+  './app-loader.js',
+  './app-chunks/app.00.js',
+  './app-chunks/app.01.js',
+  './app-chunks/app.02.js',
+  './app-chunks/app.03.js',
+  './app-chunks/app.04.js',
+  './app-chunks/app.05.js',
+  './app-chunks/app.06.js',
+  './app-chunks/app.07.js',
+  './app-chunks/app.08.js',
+  './app-chunks/app.09.js',
+  './app-chunks/app.10.js',
+  './app-chunks/app.11.js',
   './ironlog-patch.js',
   './manifest.json',
   './icon-192.png',
@@ -88,7 +102,8 @@ function isAppShellRequest(req, url) {
 }
 
 async function appShellWithPatch(req, event) {
-  const res = await staleWhileRevalidate(req, event);
+  const shellReq = new Request(new URL('./index-v2.html', self.location.href).toString());
+  const res = await staleWhileRevalidate(shellReq, event);
   const type = res.headers.get('Content-Type') || '';
   if (!type.includes('text/html')) return res;
 
@@ -129,7 +144,7 @@ async function staleWhileRevalidate(req, event) {
 
   // Offline and not cached: if it is a page load, fall back to the app shell.
   if (req.mode === 'navigate') {
-    const shell = await cache.match('./index.html');
+    const shell = await cache.match('./index-v2.html') || await cache.match('./index.html');
     if (shell) return shell;
   }
 
