@@ -1292,6 +1292,7 @@ function BodyMap({muscle, color}){
 
 /* ---- per-lift muscle tiers (primary / secondary / tertiary) ---- */
 function MuscleTiers({ex}){
+  if(!ex) return null;
   let tiers = MUS[ex.name] || MUS[baseExerciseName(ex)];
   if(!tiers){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
   if(!tiers.length) return null;
@@ -1400,6 +1401,28 @@ function Spark({data, color}){
 }
 
 const Pill = ({children, color}) => <span className="pill" style={{background:tint(color,.18), color}}>{children}</span>;
+
+class AppErrorBoundary extends React.Component{
+  constructor(props){ super(props); this.state={error:null}; }
+  componentDidCatch(error){ this.setState({error}); }
+  render(){
+    if(!this.state.error) return this.props.children;
+    return (
+      <div className="app">
+        <div className="scroll">
+          <div className="empty" style={{paddingTop:80}}>
+            <div className="ic">{I.flame}</div>
+            <h3>IronLog hit a display issue</h3>
+            <p>The app is still safe. Refresh once to reload the screen.</p>
+            <div style={{marginTop:20}}>
+              <button className="btn btn-accent" onClick={()=>location.reload()}>{I.refresh}Reload IronLog</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
 
 /* ---- beep + vibrate when rest ends ---- */
 let _actx;
@@ -1726,7 +1749,7 @@ function App(){
         <button className={(tab==='records'||tab==='calendar')?'on':''} onClick={()=>setTab('records')}>{I.trophy}<span>Progress</span></button>
       </nav>
 
-      {detailEx && <ExerciseDetail ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} onEdit={setEditEx} onVariant={createExerciseVariant} />}
+      {detailEx && <ExerciseDetail key={detailEx.id} ex={detailEx} unit={unit} rec={records[detailEx.id]} onClose={()=>setDetailEx(null)} onDelete={deleteExercise} onEdit={setEditEx} onVariant={createExerciseVariant} />}
       {measSheet && <MeasurementsSheet date={measSheet.date} entry={measSheet.entry}
         last={measurements.length?measurements.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]:null}
         unit={unit} onClose={()=>setMeasSheet(null)} onSave={saveMeasurement} />}
@@ -1735,12 +1758,14 @@ function App(){
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault}
         onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} />}
-      {pickerFor==='active' &&
-        <ExercisePicker exercises={exercises} preselected={active?active.entries.map(e=>e.exerciseId):[]}
+      {pickerFor==='active' && active &&
+        <ExercisePicker exercises={exercises} preselected={asArray(active.entries).map(e=>e.exerciseId)}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
-          onConfirm={(ids)=>{ const ex=active.entries.map(e=>e.exerciseId);
+          onConfirm={(ids)=>{ if(!active){ setPickerFor(null); return; }
+            const currentEntries=asArray(active.entries);
+            const ex=currentEntries.map(e=>e.exerciseId);
             const add=ids.filter(id=>!ex.includes(id)).map(id=>newEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
-            setActive({...active, entries:[...active.entries, ...add]}); setPickerFor(null); }} />}
+            setActive({...active, entries:[...currentEntries, ...add]}); setPickerFor(null); }} />}
       {settingsOpen &&
         <SettingsSheet onClose={()=>setSettingsOpen(false)}
           unit={unit} setUnit={setUnit} restDefault={restDefault} setRestDefault={setRestDefault}
@@ -1997,7 +2022,8 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
    ============================================================ */
 function LibraryView({exercises, onOpen, onNew}){
   const [q,setQ]=useState(''); const [eq,setEq]=useState('All'); const [mus,setMus]=useState('All');
-  const filtered = exercises.filter(e=>{
+  const allExercises=asArray(exercises).filter(e=>e&&e.id&&e.name);
+  const filtered = allExercises.filter(e=>{
     if(q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
     if(eq!=='All' && e.eq!==eq) return false;
     if(mus!=='All' && e.m!==mus) return false;
@@ -2400,13 +2426,17 @@ function ProgressionTool({rec, unit, track}){
 
 
 function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit, onVariant}){
+  if(!ex) return null;
+  const safeSessions=rec && Array.isArray(rec.sessions) ? rec.sessions : [];
+  const safeRec=rec && typeof rec==='object' ? {...rec, sessions:safeSessions} : null;
   const color=MUSCLE[ex.m]||'#888';
   const demo=demoFor(ex);
   const ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent(ex.name+' proper form');
-  const sessions=rec?rec.sessions.slice().reverse():[];
-  const sparkData=rec?rec.sessions.map(s=>s.val).filter(Boolean):[];
-  const mi=rec?metricInfo(rec.track,unit):null;
+  const sessions=safeSessions.slice().reverse();
+  const sparkData=safeSessions.map(s=>s&&s.val).filter(Boolean);
+  const mi=safeRec?metricInfo(safeRec.track,unit):null;
   const tk=trackOf(ex);
+  const variantOptions=sideOptionsFor(ex).filter(s=>s!==sideOf(ex));
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
@@ -2428,10 +2458,10 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit, onVariant}){
                 {ex.custom && <Pill color="#9095ad">Custom</Pill>}
                 {ex.edited && !ex.custom && <Pill color="#9095ad">Edited</Pill>}
               </div>
-              {rec &&
+              {safeRec &&
                 <div style={{display:'flex',gap:16,marginTop:4}}>
-                  <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800,color}}>{rec.best}{mi.suffix}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>{mi.label}</div></div>
-                  {(tk==='ws'||tk==='wt') && <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800}}>{rec.maxW}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Heaviest</div></div>}
+                  <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800,color}}>{safeRec.best||0}{mi.suffix}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>{mi.label}</div></div>
+                  {(tk==='ws'||tk==='wt') && <div><div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:800}}>{safeRec.maxW||0}</div><div style={{fontSize:10.5,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Heaviest</div></div>}
                 </div>}
             </div>
           </div>
@@ -2444,7 +2474,7 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit, onVariant}){
                 <button key={s} onClick={()=>onVariant(ex,s)}>{SIDE_OPTIONS[s].label}</button>)}</div>
             </div>}
           <a className="demo-btn" href={ytUrl} target="_blank" rel="noopener noreferrer">{I.yt}<span>Watch full demo on YouTube</span></a>
-          {(tk==='ws'||tk==='r') && <ProgressionTool rec={rec} unit={unit} track={tk} />}
+          {(tk==='ws'||tk==='r') && <ProgressionTool rec={safeRec} unit={unit} track={tk} />}
           {sparkData.length>=2 && <div><div className="section-h" style={{margin:'0 0 6px'}}>{mi.label} Progress</div><Spark data={sparkData} color={color} /></div>}
           <div className="section-h" style={{margin:'8px 0 4px'}}>History</div>
           {sessions.length===0 ?
@@ -2583,7 +2613,7 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateE
 /* edits a single day inside a routine (name + its exercises) */
 function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose, onSave}){
   const [name,setName]=useState(day.name||'');
-  const [ids,setIds]=useState([...day.exerciseIds]);
+  const [ids,setIds]=useState(()=>asArray(day.exerciseIds));
   const [picking,setPicking]=useState(false);
   const [reorderId,setReorderId]=useState(null);
   const holdRef=useRef(null);
@@ -2661,17 +2691,19 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
    EXERCISE PICKER
    ============================================================ */
 function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
+  const safeExercises=asArray(exercises).filter(e=>e&&e.id&&e.name);
+  const selectedIds=asArray(preselected);
   const [q,setQ]=useState(''); const [eq,setEq]=useState('All'); const [mus,setMus]=useState('All');
-  const [sel,setSel]=useState(()=>new Set(preselected));
+  const [sel,setSel]=useState(()=>new Set(selectedIds));
   const [creating,setCreating]=useState(false);
   const toggle=id=>{const s=new Set(sel);s.has(id)?s.delete(id):s.add(id);setSel(s);};
-  const filtered=exercises.filter(e=>{
+  const filtered=safeExercises.filter(e=>{
     if(q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
     if(eq!=='All' && e.eq!==eq) return false;
     if(mus!=='All' && e.m!==mus) return false;
     return true;
   });
-  const addedCount=[...sel].filter(id=>!preselected.includes(id)).length;
+  const addedCount=[...sel].filter(id=>!selectedIds.includes(id)).length;
   const handleCreated=(e)=>{ const ex=onCreate&&onCreate(e); if(ex&&ex.id){ const s=new Set(sel); s.add(ex.id); setSel(s); } setCreating(false); };
   return (
     <div className="overlay" onClick={onClose}>
@@ -2688,7 +2720,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
               <div style={{color:'var(--muted)',fontSize:13.5,marginBottom:12}}>No exercises match{q?<span> “<b style={{color:'var(--text)'}}>{q}</b>”</span>:''}.</div>
               {onCreate && <button className="btn btn-accent" onClick={()=>setCreating(true)}>{I.plus}Create {q?'“'+q+'”':'a new exercise'}</button>}
             </div>}
-          {filtered.map(e=>{ const on=sel.has(e.id), already=preselected.includes(e.id);
+          {filtered.map(e=>{ const on=sel.has(e.id), already=selectedIds.includes(e.id);
             return (
               <div key={e.id} className="ex-row tap" onClick={()=>toggle(e.id)} style={on?{borderColor:'var(--accent)',background:'rgba(168,85,247,.07)'}:{}}>
                 <Thumb ex={e} />
@@ -2819,7 +2851,7 @@ create policy "own row update" on ironlog_data for update using (auth.uid() = us
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<AppErrorBoundary><App/></AppErrorBoundary>);
 </script>
 
 <!-- ============ Register the service worker (enables offline + install) ============ -->
