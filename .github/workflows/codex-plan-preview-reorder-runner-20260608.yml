@@ -1,0 +1,39 @@
+name: Codex plan preview reorder runner
+
+on:
+  push:
+    paths:
+      - '.github/workflows/codex-plan-preview-reorder-runner-20260608.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply plan preview reorder fix
+        run: node .github/scripts/codex-fix-plan-preview-reorder-20260607.js
+      - name: Install build tools
+        run: npm install --no-audit --no-fund --package-lock=false
+      - name: Build production app
+        run: npm run build:v2
+      - name: Run smoke checks
+        run: npm run check
+      - name: Commit rebuilt app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html index-v2.html app-loader.js app.bundle.js app-chunks service-worker.js tests/smoke-check.js
+          if git diff --cached --quiet; then
+            echo "No app changes to commit."
+          else
+            git commit -m "Enable reorder from plan day preview"
+            git push
+          fi
