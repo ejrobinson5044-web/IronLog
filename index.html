@@ -571,6 +571,66 @@ const MEAS_FIELDS = [
 const measUnitFor = (f, unit)=> f.u==='w' ? unit : f.u==='%' ? '%' : measUnit(unit);
 const uid = () => Math.random().toString(36).slice(2,9);
 const todayISO = () => new Date().toISOString().slice(0,10);
+
+function asArray(value){ return Array.isArray(value) ? value : []; }
+function safeNumber(value, fallback=0){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+function cleanSet(set){
+  const s = (set && typeof set === 'object') ? set : {};
+  const cleaned = {
+    done: !!s.done,
+    weight: s.weight == null || s.weight === '' ? '' : safeNumber(s.weight),
+    reps: s.reps == null || s.reps === '' ? '' : safeNumber(s.reps),
+    time: s.time == null || s.time === '' ? '' : safeNumber(s.time),
+    dist: s.dist == null || s.dist === '' ? '' : safeNumber(s.dist)
+  };
+  ['weight','reps','time','dist'].forEach(f=>{
+    const k=targetKey(f);
+    cleaned[k] = s[k] == null || s[k] === '' ? '' : safeNumber(s[k]);
+  });
+  return cleaned;
+}
+function cleanEntries(entries){
+  return asArray(entries).map(en=>({
+    exerciseId: String(en && en.exerciseId || ''),
+    note: String(en && en.note || ''),
+    sets: asArray(en && en.sets).map(cleanSet).filter(s=>
+      s.weight!=='' || s.reps!=='' || s.time!=='' || s.dist!=='' || s.done ||
+      s.targetWeight!=='' || s.targetReps!=='' || s.targetTime!=='' || s.targetDist!=='')
+  })).filter(en=>en.exerciseId);
+}
+function cleanWorkout(item){
+  if(!item || typeof item !== 'object') return null;
+  return {
+    id: String(item.id || uid()),
+    date: String(item.date || todayISO()).slice(0,10),
+    startedAt: item.startedAt == null ? null : safeNumber(item.startedAt, Date.now()),
+    endedAt: item.endedAt ? safeNumber(item.endedAt, Date.now()) : undefined,
+    routineId: item.routineId || null,
+    dayId: item.dayId || null,
+    mode: item.mode === 'guided' ? 'guided' : 'open',
+    currentEntryIndex: Math.max(0, Math.floor(safeNumber(item.currentEntryIndex, 0))),
+    name: String(item.name || 'Workout'),
+    note: String(item.note || ''),
+    entries: cleanEntries(item.entries)
+  };
+}
+function cleanLogs(logs){
+  return asArray(logs).map(cleanWorkout).filter(w=>w && (w.entries.length || w.note));
+}
+function cleanMeasurements(measurements){
+  return asArray(measurements).map(m=>({
+    ...(m && typeof m === 'object' ? m : {}),
+    id: String(m && m.id || uid()),
+    date: String(m && m.date || todayISO()).slice(0,10)
+  })).filter(m=>m.date);
+}
+function cleanActive(active){
+  const workout = cleanWorkout(active);
+  return workout && workout.entries ? workout : null;
+}
 const clone = o => JSON.parse(JSON.stringify(o));
 
 const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
@@ -1158,7 +1218,7 @@ const SEED = [
    Preserves existing ids (so routines/logs still resolve) and keeps custom exercises. */
 function migrateExercises(saved){
   if(!Array.isArray(saved) || saved.length===0) return SEED;
-  const normalizedSaved = saved.map(e=>normalizeExerciseVariant(e));
+  const normalizedSaved = saved.map(e=>normalizeExerciseVariant({id:(e&&e.id)||uid(), media:'', ...e})).filter(e=>e&&e.name);
   const savedByName = new Map(normalizedSaved.map(e=>[e.name, e]));
   // current SEED, reusing the prior id when this exercise already existed
   const merged = SEED.map(s=>{
@@ -1402,6 +1462,17 @@ function Spark({data, color}){
 
 const Pill = ({children, color}) => <span className="pill" style={{background:tint(color,.18), color}}>{children}</span>;
 
+function repairStoredIronLog(){
+  try{
+    store.set('exercises', migrateExercises(store.get('exercises', null)));
+    store.set('routines', migrateRoutines(store.get('routines', [])));
+    store.set('logs', cleanLogs(store.get('logs', [])));
+    store.set('measurements', cleanMeasurements(store.get('measurements', [])));
+    store.set('active', cleanActive(store.get('active', null)));
+  }catch(e){}
+  location.reload();
+}
+
 class AppErrorBoundary extends React.Component{
   constructor(props){ super(props); this.state={error:null}; }
   componentDidCatch(error){ this.setState({error}); }
@@ -1413,9 +1484,9 @@ class AppErrorBoundary extends React.Component{
           <div className="empty" style={{paddingTop:80}}>
             <div className="ic">{I.flame}</div>
             <h3>IronLog hit a display issue</h3>
-            <p>The app is still safe. Refresh once to reload the screen.</p>
+            <p>The app is still safe. Repair saved workout data and reload the screen.</p>
             <div style={{marginTop:20}}>
-              <button className="btn btn-accent" onClick={()=>location.reload()}>{I.refresh}Reload IronLog</button>
+              <button className="btn btn-accent" onClick={repairStoredIronLog}>{I.refresh}Repair and reload</button>\n              <button className="btn btn-ghost btn-sm" style={{marginTop:10}} onClick={()=>location.reload()}>{I.refresh}Reload only</button>
             </div>
           </div>
         </div>
@@ -1487,14 +1558,14 @@ function RestBar({rest, onAdjust, onSkip, onDone}){
    MAIN APP
    ============================================================ */
 function App(){
-  const [tab, setTab] = useState(()=>store.get('active', null) ? 'train' : 'today');
+  const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
   const [restDefault, setRestDefault] = useState(()=>store.get('restDefault',90));
   const [exercises, setExercises] = useState(()=>migrateExercises(store.get('exercises', null)));
   const [routines, setRoutines] = useState(()=>migrateRoutines(store.get('routines', [])));
-  const [logs, setLogs] = useState(()=>store.get('logs', []));
-  const [measurements, setMeasurements] = useState(()=>store.get('measurements', []));
-  const [active, setActive] = useState(()=>store.get('active', null));
+  const [logs, setLogs] = useState(()=>cleanLogs(store.get('logs', [])));
+  const [measurements, setMeasurements] = useState(()=>cleanMeasurements(store.get('measurements', [])));
+  const [active, setActive] = useState(()=>cleanActive(store.get('active', null)));
   const [rest, setRest] = useState(null); // {endsAt,total,label,startedAt}
   const [toast, setToast] = useState(null);
 
@@ -1572,8 +1643,9 @@ function App(){
             applyingRemote.current=true;
             setExercises(migrateExercises(row.data.exercises));
             setRoutines(migrateRoutines(row.data.routines||[]));
-            setLogs(row.data.logs||[]);
-            setMeasurements(row.data.measurements||[]);
+            setLogs(cleanLogs(row.data.logs||[]));
+            setMeasurements(cleanMeasurements(row.data.measurements||[]));
+            if(Object.prototype.hasOwnProperty.call(row.data,'active')) setActive(cleanActive(row.data.active));
             if(row.data.unit) setUnit(row.data.unit);
             if(row.data.restDefault) setRestDefault(row.data.restDefault);
             setTimeout(()=>{ applyingRemote.current=false; },150);
@@ -1606,7 +1678,7 @@ function App(){
   /* ----- workout ----- */
   // pull the most recent logged sets / note for an exercise (newest log first)
   const lastSetsFor = (exId)=>{
-    for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.sets&&en.sets.length) return en.sets.map(st=>{
+    for(const s of asArray(logs)){ const en=asArray(s&&s.entries).find(e=>e.exerciseId===exId); if(en&&asArray(en.sets).length) return asArray(en.sets).map(st=>{
       const next={weight:'', reps:'', time:'', dist:'', done:false};
       ['weight','reps','time','dist'].forEach(f=>{ if(st[f]!==undefined && st[f]!==null && st[f] !== '') next[targetKey(f)] = st[f]; });
       return next;
@@ -1892,7 +1964,8 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
 }
 
 function TodayView({active, routines, logs, measurements, exById, unit, restDefault, onStartDay, onResume, onNewRoutine, onGoRoutines, onGoLibrary, onGoRecords, onGoCalendar, onMeasure}){
-  const target=nextTrainingTarget(routines, logs);
+  const safeLogs=asArray(logs);
+  const target=nextTrainingTarget(routines, safeLogs);
   const last=latestLog(logs);
   const todayLabel=new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
   const totalWorkouts=logs.length;
@@ -2177,8 +2250,9 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         if(guided && ei!==currentIndex) return null;
         const ex=exById[en.exerciseId]; if(!ex) return null;
         const rec=records[en.exerciseId];
-        const tk=trackOf(ex);
-  const variantOptions=sideOptionsFor(ex).filter(s=>s!==sideOf(ex)); const fields=TRACK[tk].fields;
+        const tk=trackOf(ex); const fields=TRACK[tk].fields;
+        const demo=demoFor(ex);
+        const sets=asArray(en.sets);
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 46px';
         return (
           <div key={ei} className="log-ex">
@@ -2201,23 +2275,23 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
                 : <span>Build every set to <b>8 reps</b> at <b>{w} {unit}</b>, then add weight</span>}</div>; })()}
             <div className="set-table">
               <div className="set-hdr" style={{gridTemplateColumns:cols}}><div>Set</div>{fields.map(f=><div key={f}>{fieldLabel(f,unit)}</div>)}<div>✓</div></div>
-              {en.sets.map((s,si)=>
+              {sets.map((s,si)=>
                 <div key={si} className={'set-row'+(s.done?' done':'')} style={{gridTemplateColumns:cols}}>
                   <div className="setno">{si+1}</div>
                   {fields.map(f=><input key={f} type="number" inputMode={fieldMode(f)}
                     placeholder={s[targetKey(f)]!==undefined && s[targetKey(f)]!=='' ? String(s[targetKey(f)]) : '-'}
                     value={s[f]||''} onChange={e=>upd(ei,si,f,e.target.value)} />)}
                   <button className={'check'+(s.done?' on':'')} onClick={()=>toggleDone(ei,si)}>
-                    {s.done ? I.check : (en.sets.length>1 ? <span onClick={(ev)=>{ev.stopPropagation();delSet(ei,si);}} style={{fontSize:18,lineHeight:1}}>×</span> : '')}
+                    {s.done ? I.check : (sets.length>1 ? <span onClick={(ev)=>{ev.stopPropagation();delSet(ei,si);}} style={{fontSize:18,lineHeight:1}}>×</span> : '')}
                   </button>
                 </div>)}
               <div className="set-foot">
                 <button className="addset" onClick={()=>addSet(ei)}>{I.plus}<span>Add set</span></button>
                 <button className="restbtn" onClick={()=>startRest(ex.name)}>{I.timer}Rest</button>
               </div>
-              {tk==='ws' && en.sets.some(s=>+s.weight>0&&+s.reps>0) &&
+              {tk==='ws' && sets.some(s=>+s.weight>0&&+s.reps>0) &&
                 <div style={{textAlign:'center',fontSize:11.5,color:'var(--muted2)',marginTop:8}}>
-                  Top est. 1RM this session: <b style={{color:'var(--accent)'}}>{Math.max(...en.sets.map(s=>epley(s.weight,s.reps)))} {unit}</b></div>}
+                  Top est. 1RM this session: <b style={{color:'var(--accent)'}}>{Math.max(...sets.map(s=>epley(s.weight,s.reps)))} {unit}</b></div>}
               <input className="ex-note" placeholder="Notes — seat height, pin, grip, how it felt…" value={en.note||''} onChange={e=>updNote(ei,e.target.value)} />
             </div>
           </div>
