@@ -10,7 +10,7 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v32';
+const CACHE_VERSION = 'ironlog-v34';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
@@ -32,8 +32,8 @@ const SHELL = [
   './app-chunks/app.10.js',
   './app-chunks/app.11.js',
   './app-chunks/app.12.js',
+  './app-chunks/app.13.js',
   './ironlog-patch.js',
-  './ironlog-reorder-patch.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -113,9 +113,6 @@ async function appShellWithPatch(req, event) {
   let patched = html;
   if (!patched.includes('ironlog-patch.js')) {
     patched = patched.replace('</body>', '<script src="./ironlog-patch.js" defer></script></body>');
-  }
-  if (!patched.includes('ironlog-reorder-patch.js')) {
-    patched = patched.replace('</body>', '<script src="./ironlog-reorder-patch.js" defer></script></body>');
   }
   if (patched === html) {
     return new Response(html, { status: res.status, statusText: res.statusText, headers: res.headers });

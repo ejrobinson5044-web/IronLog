@@ -547,6 +547,20 @@ function setHasData(track, s){
   const w=+s.weight>0, r=+s.reps>0, t=+s.time>0, d=+s.dist>0;
   switch(track){ case 'r':return r; case 't':return t; case 'd':return d; case 'dt':return d; case 'wt':return w&&t; default:return w&&r; }
 }
+function applyTargetDefaults(track,set){
+  const fields=TRACK[track]?TRACK[track].fields:[];
+  fields.forEach(f=>{
+    const k=targetKey(f);
+    if((set[f]===undefined || set[f]===null || set[f]==='') && set[k]!==undefined && set[k]!==null && set[k] !== '') set[f]=set[k];
+  });
+  return set;
+}
+function defaultSetFor(ex, planned=false){
+  const set={weight:'', reps:'', time:'', dist:'', done:false};
+  const tk=trackOf(ex);
+  if(planned && TRACK[tk] && TRACK[tk].fields.includes('reps')) set.targetReps=8;
+  return set;
+}
 function metricInfo(track, unit){
   const du=distUnit(unit);
   switch(track){
@@ -1689,11 +1703,17 @@ function App(){
     for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.note) return en.note; }
     return '';
   };
-  const blankSets = (count)=> Array.from({length:count}, ()=>({weight:'', reps:'', time:'', dist:'', done:false}));
-  const newEntry = (id, planned=false)=>({ exerciseId:id, sets: lastSetsFor(id) || blankSets(planned?3:1), note: lastNoteFor(id) });
-
+  const blankSet = (ex, planned=false)=>{
+    return defaultSetFor(ex, planned);
+  };
+  const blankSets = (count, ex, planned=false)=> Array.from({length:count}, ()=>blankSet(ex, planned));
+  const newEntry = (id, planned=false)=>{
+    const ex=exById[id];
+    return { exerciseId:id, sets: lastSetsFor(id) || blankSets(planned?3:1, ex, planned), note: lastNoteFor(id) };
+  };
   const startDay = (day, program, label, focusIndex=0)=>{
-    const entries=(day?day.exerciseIds:[]).map(id=>newEntry(id, !!day));
+    const dayIds=asArray(day&&day.exerciseIds).filter(id=>exById[id]);
+    const entries=dayIds.map(id=>newEntry(id, !!day));
     const currentEntryIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+focusIndex||0)));
     setActive({ id:uid(), date:todayISO(), startedAt:null, note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
@@ -1703,8 +1723,25 @@ function App(){
     setTab('train');
   };
   const openDayPreview = (day, program, label)=>{
-    if(!day || !day.exerciseIds || !day.exerciseIds.length) return;
-    setPreviewDay({day, program, label, entries:day.exerciseIds.map(id=>newEntry(id, true))});
+    const dayIds=asArray(day&&day.exerciseIds);
+    if(!day || !dayIds.length) return;
+    setPreviewDay({day, program, label, entries:dayIds.map(id=>newEntry(id, true))});
+  };
+  const reorderPreviewDay = (nextIds)=>{
+    const p=previewDay;
+    if(!p || !p.day || !p.program) return;
+    const ids=asArray(nextIds);
+    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?{...d, exerciseIds:ids}:d);
+    setRoutines(curr=>asArray(curr).map(r=>r&&r.id===p.program.id?{...r, days:updateDays(r.days)}:r));
+    setPreviewDay(curr=>{
+      if(!curr || !curr.day || curr.day.id!==p.day.id) return curr;
+      return {
+        ...curr,
+        day:{...curr.day, exerciseIds:ids},
+        program:curr.program?{...curr.program, days:updateDays(curr.program.days)}:curr.program,
+        entries:ids.map(id=>newEntry(id, true))
+      };
+    });
   };
   const finishWorkout = ()=>{
     // with pre-filled presets, the checkmark means "I actually did this set".
@@ -1728,7 +1765,7 @@ function App(){
   };
   const deleteRoutine = (id)=>{ setRoutines(routines.filter(r=>r.id!==id)); setEditRoutine(undefined); flash('Routine deleted'); };
 
-  const addCustomExercise = (e)=>{ const ex=normalizeExerciseVariant({id:uid(), custom:true, media:'', ...e}); setExercises([ex, ...exercises]); setNewExOpen(false); flash('Exercise added'); return ex; };
+  const addCustomExercise = (e)=>{ const ex=normalizeExerciseVariant({id:uid(), custom:true, media:'', ...e}); setExercises(curr=>[ex, ...asArray(curr)]); setNewExOpen(false); flash('Exercise added'); return ex; };
   const updateExercise = (id, p)=>{ const upd=normalizeExerciseVariant({...exById[id], ...p, edited:true}); setExercises(exercises.map(e=>e.id===id?upd:e)); if(detailEx&&detailEx.id===id) setDetailEx(upd); setEditEx(null); flash('Exercise updated'); };
   const createExerciseVariant = (base, side)=>{
     const name=formatExerciseName(base.name, base.eq, side);
@@ -1829,7 +1866,7 @@ function App(){
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault}
-        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} />}
+        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onReorder={reorderPreviewDay} />}
       {pickerFor==='active' && active &&
         <ExercisePicker exercises={exercises} preselected={asArray(active.entries).map(e=>e.exerciseId)}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
@@ -1925,11 +1962,54 @@ function nextTrainingTarget(routines, logs){
   return {routine,day,label:dayLabel(day,idx,routine.labelMode||'num')};
 }
 
-function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart}){
-  const day=preview.day;
-  const entries=preview.entries||[];
+function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onReorder}){
+  const day=preview.day||{};
+  const entries=asArray(preview.entries);
   const label=preview.label || day.name || 'Routine day';
-  const ids=day.exerciseIds||[];
+  const dayIds=asArray(day.exerciseIds);
+  const [ids,setIds]=useState(()=>dayIds);
+  const [reorderId,setReorderId]=useState(null);
+  const [selectedId,setSelectedId]=useState(null);
+  const holdRef=useRef(null);
+  const holdPointRef=useRef(null);
+  const suppressClickRef=useRef(false);
+  useEffect(()=>{ setIds(dayIds); setReorderId(null); setSelectedId(null); },[day.id, dayIds.join('|')]);
+  useEffect(()=>()=>{ if(holdRef.current) clearTimeout(holdRef.current); },[]);
+  const entryById=useMemo(()=>{
+    const map={};
+    dayIds.forEach((id,i)=>{ map[id]=entries[i]; });
+    return map;
+  },[dayIds.join('|'), entries]);
+  const clearHold=()=>{ if(holdRef.current) clearTimeout(holdRef.current); holdRef.current=null; holdPointRef.current=null; };
+  const armReorder=(id,e)=>{
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    clearHold();
+    holdPointRef.current={x:e.clientX,y:e.clientY};
+    holdRef.current=setTimeout(()=>{
+      suppressClickRef.current=true;
+      setReorderId(id);
+      holdRef.current=null;
+      holdPointRef.current=null;
+      if(typeof navigator!=='undefined' && navigator.vibrate) navigator.vibrate(12);
+    },420);
+  };
+  const trackHold=(e)=>{
+    const p=holdPointRef.current;
+    if(p && (Math.abs(e.clientX-p.x)>10 || Math.abs(e.clientY-p.y)>10)) clearHold();
+  };
+  const stopButton=e=>e.stopPropagation();
+  const move=(i,d)=>{
+    const j=i+d;if(j<0||j>=ids.length)return;
+    const next=[...ids];[next[i],next[j]]=[next[j],next[i]];
+    setIds(next);
+    if(onReorder) onReorder(next);
+  };
+  const selectPreviewExercise=(id)=>{
+    if(suppressClickRef.current){ suppressClickRef.current=false; return; }
+    if(reorderId) return;
+    setSelectedId(curr=>curr===id?null:id);
+  };
+  const availableCount=ids.filter(id=>exById[id]).length;
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
@@ -1939,24 +2019,56 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
           <div className="plan-day-head">
             <div className="guided-meta">{preview.program?preview.program.name:'Routine'}</div>
             <div className="plan-day-title">{label}</div>
-            <div className="plan-day-meta">{ids.length} exercise{ids.length!==1?'s':''} {'\u00b7'} ~{estimateMinutes(ids, logs, restDefault)} min</div>
+            <div className="plan-day-meta">{availableCount} exercise{availableCount!==1?'s':''} Â· ~{estimateMinutes(ids, logs, restDefault)} min</div>
           </div>
           {ids.map((id,i)=>{
-            const ex=exById[id]; if(!ex) return null;
-            const entry=entries[i]||{sets:[]};
+            const ex=exById[id];
+            if(!ex) return (
+              <div key={id} className="ex-row" style={{opacity:.78,marginBottom:8}}>
+                <div className="reorder-handle" aria-hidden="true">{I.grip}</div>
+                <div className="ex-info">
+                  <div className="ex-name">Missing exercise</div>
+                  <div className="ex-sub">This saved slot points to an exercise that no longer exists. Edit the day to replace it.</div>
+                </div>
+              </div>
+            );
+            const entry=entryById[id]||{sets:[]};
+            const ordering=reorderId===id;
+            const selected=selectedId===id;
+            const demo=selected?demoFor(ex):null;
+            const startIndex=ids.slice(0,i).filter(x=>exById[x]).length;
             return (
-              <div key={id+'-'+i} className="ex-row tap" onClick={()=>onStart(i)}>
+              <div key={id}>
+              <div className={'ex-row tap reorder-row'+(ordering?' ordering':'')+(selected?' selected':'')}
+                onClick={()=>selectPreviewExercise(id)}
+                onPointerDown={e=>armReorder(id,e)} onPointerMove={trackHold} onPointerUp={clearHold} onPointerCancel={clearHold} onPointerLeave={clearHold}>
+                <div className="reorder-handle" title="Hold to reorder" aria-hidden="true">{I.grip}</div>
                 <Thumb ex={ex} />
                 <div className="ex-info">
                   <div className="ex-name">{ex.name}</div>
-                  <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>{'\u00b7'}<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>{'\u00b7'} {sideLabel(ex)}</span>}</div>
-                  <div className="target-line"><b>{i+1}</b> {'\u00b7'} {targetSummary(entry, ex, unit)}</div>
+                  <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>Â·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>Â· {sideLabel(ex)}</span>}</div>
+                  <div className="target-line"><b>{i+1}</b> Â· {targetSummary(entry, ex, unit)}</div>
                 </div>
-                <span className="chevron">{I.chevron}</span>
+                {ordering ?
+                  <div className="reorder-actions">
+                    <button type="button" aria-label="Move exercise up" disabled={i===0} onPointerDown={stopButton} onClick={e=>{e.stopPropagation();move(i,-1);}}>{I.up}</button>
+                    <button type="button" aria-label="Move exercise down" disabled={i===ids.length-1} onPointerDown={stopButton} onClick={e=>{e.stopPropagation();move(i,1);}}>{I.down}</button>
+                    <button type="button" className="reorder-done" aria-label="Done reordering" onPointerDown={stopButton} onClick={e=>{e.stopPropagation();setReorderId(null);}}>{I.check}</button>
+                  </div>
+                  :
+                  <span className="chevron">{selected?I.down:I.chevron}</span>}
+              </div>
+              {selected &&
+                <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:12,margin:'-4px 0 10px 40px'}}>
+                  {demo ? <div className="workout-demo" style={{margin:'0 0 10px'}}><AnimatedDemo demo={demo} /></div> :
+                    <div className="target-line" style={{marginBottom:8}}>No demo image saved for this exercise yet.</div>}
+                  <div className="target-line" style={{marginBottom:10}}>Planned: {targetSummary(entry, ex, unit)}</div>
+                  <button className="btn btn-ghost btn-sm" onClick={e=>{e.stopPropagation();onStart(startIndex);}}>Start from this exercise</button>
+                </div>}
               </div>
             );
           })}
-          <button className="btn btn-accent" style={{marginTop:10}} onClick={()=>onStart(0)}>{I.flame}Start from first</button>
+          <button className="btn btn-accent" disabled={!availableCount} style={{marginTop:10,opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start workout</button>
         </div>
       </div>
     </div>
@@ -2194,6 +2306,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const finishSet=(ei,si,eOverride)=>{
     const e=eOverride||clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
+    applyTargetDefaults(tk,set);
     if(!setHasData(tk,set)){ set.done=false; setActive(e); return; }
     if(!e.startedAt) e.startedAt=Date.now();
     const was=set.done; set.done=true;
@@ -2204,6 +2317,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
     const wasDone=set.done;
     set[f]=v;
+    applyTargetDefaults(tk,set);
     if(wasDone && !setHasData(tk,set)){ set.done=false; setActive(e); return; }
     if(!wasDone && setHasData(tk,set)){ finishSet(ei,si,e); return; }
     setActive(e);
@@ -2214,7 +2328,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     finishSet(ei,si,e);
   };
   const addSet=(ei)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); const last=entry.sets[entry.sets.length-1]; entry.sets.push(last?{...last,weight:'',reps:'',time:'',dist:'',done:false}:{weight:'',reps:'',time:'',dist:'',done:false}); setActive(e); };
-  const delSet=(ei,si)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length) entry.sets.push({done:false}); setActive(e); };
+  const delSet=(ei,si)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } setActive(e); };
   const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); setActive(e); };
   const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
@@ -2381,19 +2495,18 @@ function MeasurementsSheet({date, entry, last, unit, onClose, onSave}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>{entry?'Edit Measurements':'Log Measurements'}</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2>{entry?'Edit Measurements':'Log Measurements'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!anyVal} style={{opacity:anyVal?1:.45}} onClick={save}>{I.check}Save</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
-          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>{dlabel}{(!entry&&last)?' · pre-filled from your last entry':''}</div>
+          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>{dlabel}{(!entry&&last)?' Â· pre-filled from your last entry':''}</div>
           <div className="meas-grid">
             {MEAS_FIELDS.map(f=>(
               <div key={f.k} className="meas-field">
                 <label>{f.label}</label>
-                <div className="meas-in"><input type="number" inputMode="decimal" placeholder="—" value={vals[f.k]} onChange={e=>set(f.k,e.target.value)} /><span>{measUnitFor(f,unit)}</span></div>
+                <div className="meas-in"><input type="number" inputMode="decimal" placeholder="â€”" value={vals[f.k]} onChange={e=>set(f.k,e.target.value)} /><span>{measUnitFor(f,unit)}</span></div>
               </div>
             ))}
           </div>
           <div className="field" style={{marginTop:14}}><label>Note (optional)</label><input placeholder="e.g. morning, fasted" value={note} onChange={e=>setNote(e.target.value)} /></div>
-          <button className="btn btn-accent" disabled={!anyVal} style={{opacity:anyVal?1:.45,marginTop:8}} onClick={save}>{I.check}{entry?'Save changes':'Save measurements'}</button>
         </div>
       </div>
     </div>
@@ -2586,13 +2699,13 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side})}>{I.check}{ed?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Name</label>
             <input placeholder="e.g. Smith Machine Squat" value={name} onChange={e=>setName(e.target.value)} autoFocus={!ed} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Tip: name it <b style={{color:'var(--muted)'}}>Equipment + Movement</b> to match the library.</div></div>
           <div className="field"><label>Tracks</label><div className="seg">{Object.keys(TRACK).map(x=><button key={x} className={track===x?'on':''} onClick={()=>setTrack(x)}>{TRACK[x].label}</button>)}</div>
-            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set — weights, bodyweight reps, a hold/time, a run’s distance &amp; time, etc.</div></div>
+            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set â€” weights, bodyweight reps, a hold/time, a runâ€™s distance &amp; time, etc.</div></div>
           <div className="field"><label>Variation</label><div className="seg">
             <button className={side===''?'on':''} onClick={()=>setSide('')}>Standard</button>
             <button className={side==='arm'?'on':''} onClick={()=>setSide('arm')}>One Arm</button>
@@ -2604,20 +2717,17 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
             <button className={sec===''?'on':''} onClick={()=>setSec('')}>None</button>
             {Object.keys(MUSCLE).filter(x=>x!==m).map(x=><button key={x} className={sec===x?'on':''} onClick={()=>setSec(x)}>{x}</button>)}</div></div>
           <div className="field"><label>Form cue / notes (optional)</label>
-            <textarea rows="2" placeholder="Anything you want to remember…" value={cue} onChange={e=>setCue(e.target.value)}></textarea></div>
+            <textarea rows="2" placeholder="Anything you want to rememberâ€¦" value={cue} onChange={e=>setCue(e.target.value)}></textarea></div>
           <div className="field"><label>Image / video URL (optional)</label>
-            <input placeholder="https://…/demo.gif, .jpg or .mp4" value={media} onChange={e=>setMedia(e.target.value)} />
+            <input placeholder="https://â€¦/demo.gif, .jpg or .mp4" value={media} onChange={e=>setMedia(e.target.value)} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Paste a link to your own hosted media and it displays on the exercise.</div></div>
-          <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45}}
-            onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side})}>{I.check}{ed?'Save changes':'Save exercise'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ============================================================
-   ROUTINE EDITOR
+/* ============================================================\n   ROUTINE EDITOR
    ============================================================ */
 const WEEKDAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const isAutoName=(nm)=> /^Day \d+$/i.test(nm||'') || WEEKDAYS.includes(nm);
@@ -2636,21 +2746,22 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateE
   const delDay=(i)=> setDays(days.filter((_,j)=>j!==i));
   const moveDay=(i,dir)=>{ const j=i+dir; if(j<0||j>=days.length) return; const a=clone(days); [a[i],a[j]]=[a[j],a[i]]; setDays(a); };
   const saveDay=(updated)=>{ const a=clone(days); a[dayIdx]=updated; setDays(a); setDayIdx(null); };
+  const saveRoutineEdits=()=>valid&&onSave({id:routine?routine.id:uid(),name:name.trim(),note:note.trim(),labelMode,days});
   return (
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) onClose();}}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>{editing?'Edit Routine':'New Routine'}</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2>{editing?'Edit Routine':'New Routine'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={saveRoutineEdits}>{I.check}{editing?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Routine name</label><input placeholder="e.g. Injury Recovery Program" value={name} onChange={e=>setName(e.target.value)} autoFocus={!editing} /></div>
-          <div className="field"><label>Note (optional)</label><input placeholder="e.g. 7-day split — rebuilding after the knee" value={note} onChange={e=>setNote(e.target.value)} /></div>
+          <div className="field"><label>Note (optional)</label><input placeholder="e.g. 7-day split â€” rebuilding after the knee" value={note} onChange={e=>setNote(e.target.value)} /></div>
           <div className="field"><label>Day labels</label>
             <div className="unit-toggle" style={{display:'inline-flex'}}>
               <button className={labelMode==='num'?'on':''} onClick={()=>setLabelMode('num')}>Numbered</button>
               <button className={labelMode==='week'?'on':''} onClick={()=>setLabelMode('week')}>Weekday</button>
             </div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:7,lineHeight:1.45}}>
-              {labelMode==='week'?'Each slot is a weekday (Sunday → Saturday). ':'Each slot is numbered by order (Day 1, Day 2, …). '}Add an optional name like “Legs” — the position stays fixed, and reordering renumbers automatically.
+              {labelMode==='week'?'Each slot is a weekday (Sunday â†’ Saturday). ':'Each slot is numbered by order (Day 1, Day 2, â€¦). '}Add an optional name like â€œLegsâ€ â€” the position stays fixed, and reordering renumbers automatically.
             </div>
           </div>
           <div className="section-h" style={{margin:'4px 0 10px'}}><span>Days ({days.length})</span>
@@ -2659,20 +2770,18 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateE
             <div key={d.id} className="day-edit">
               <div className="day-edit-top">
                 <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                  <button onClick={()=>moveDay(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▲</button>
-                  <button onClick={()=>moveDay(i,1)} style={{color:i===days.length-1?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▼</button>
+                  <button onClick={()=>moveDay(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>â–²</button>
+                  <button onClick={()=>moveDay(i,1)} style={{color:i===days.length-1?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>â–¼</button>
                 </div>
                 <span className="day-pos">{posLabel(i,labelMode)}</span>
-                <input className="day-name-input" placeholder="Optional name — e.g. Legs, Push" value={d.name||''} onChange={e=>renameDay(i,e.target.value)} />
+                <input className="day-name-input" placeholder="Optional name â€” e.g. Legs, Push" value={d.name||''} onChange={e=>renameDay(i,e.target.value)} />
                 <button className="delset" onClick={()=>delDay(i)}>{I.trash}</button>
               </div>
-              <div className="day-edit-meta">{d.exerciseIds.length} exercise{d.exerciseIds.length!==1?'s':''} · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
+              <div className="day-edit-meta">{d.exerciseIds.length} exercise{d.exerciseIds.length!==1?'s':''} Â· ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
               <button className="btn btn-ghost btn-sm" onClick={()=>setDayIdx(i)}>{I.dumbbell}Edit exercises</button>
             </div>
           ))}
           <button className="btn btn-ghost btn-sm" onClick={addDay} style={{marginTop:4}}>{I.plus}Add a day</button>
-          <button className="btn btn-accent" disabled={!valid} style={{opacity:valid?1:.45,marginTop:16}}
-            onClick={()=>valid&&onSave({id:routine?routine.id:uid(),name:name.trim(),note:note.trim(),labelMode,days})}>{I.check}{editing?'Save changes':'Create routine'}</button>
           {!days.some(d=>d.exerciseIds.length>0) && <div style={{fontSize:11.5,color:'var(--muted2)',textAlign:'center',marginTop:8}}>Tip: you can save now with empty days and add exercises later.</div>}
           {editing && <button className="btn btn-danger btn-sm" style={{marginTop:10}} onClick={()=>onDelete(routine.id)}>{I.trash}Delete routine</button>}
         </div>
@@ -2690,8 +2799,19 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
   const [ids,setIds]=useState(()=>asArray(day.exerciseIds));
   const [picking,setPicking]=useState(false);
   const [reorderId,setReorderId]=useState(null);
+  const [created,setCreated]=useState([]);
   const holdRef=useRef(null);
   const holdPointRef=useRef(null);
+  const localExercises=useMemo(()=>{
+    const map={};
+    [...asArray(created), ...asArray(exercises)].forEach(ex=>{ if(ex&&ex.id&&!map[ex.id]) map[ex.id]=ex; });
+    return Object.values(map);
+  },[created, exercises]);
+  const localExById=useMemo(()=>{
+    const map={...exById};
+    asArray(created).forEach(ex=>{ if(ex&&ex.id) map[ex.id]=ex; });
+    return map;
+  },[exById, created]);
   const clearHold=()=>{ if(holdRef.current) clearTimeout(holdRef.current); holdRef.current=null; holdPointRef.current=null; };
   useEffect(()=>()=>{ if(holdRef.current) clearTimeout(holdRef.current); },[]);
   const armReorder=(id,e)=>{
@@ -2712,11 +2832,17 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
   const stopButton=e=>e.stopPropagation();
   const remove=id=>{ setIds(ids.filter(x=>x!==id)); if(reorderId===id) setReorderId(null); };
   const move=(i,d)=>{const j=i+d;if(j<0||j>=ids.length)return;const a=[...ids];[a[i],a[j]]=[a[j],a[i]];setIds(a);};
+  const saveDayEdits=()=>onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids});
+  const handleCreate=(payload)=>{
+    const ex=onCreate&&onCreate(payload);
+    if(ex&&ex.id) setCreated(curr=>[ex, ...asArray(curr).filter(x=>x&&x.id!==ex.id)]);
+    return ex;
+  };
   return (
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) onClose();}}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>Edit Day</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2>Edit Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={saveDayEdits}>{I.check}Done</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Day name</label><input placeholder="e.g. Push, Pull, Legs, Arms" value={name} onChange={e=>setName(e.target.value)} /></div>
           <div className="section-h" style={{margin:'4px 0 10px'}}><span>Exercises ({ids.length})</span>
@@ -2724,7 +2850,14 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
           {ids.length===0 ?
             <div style={{textAlign:'center',padding:'24px 10px',color:'var(--muted)',fontSize:13.5}}>No exercises yet. Tap <b style={{color:'var(--accent)'}}>+ Add</b> to pull from your library.</div>
             :
-            ids.map((id,i)=>{ const ex=exById[id]; if(!ex) return null;
+            ids.map((id,i)=>{ const ex=localExById[id]; if(!ex) return (
+                <div key={id} className="ex-row" style={{marginBottom:8,opacity:.78}}>
+                  <div className="reorder-handle" aria-hidden="true">{I.grip}</div>
+                  <div className="ex-info"><div className="ex-name">Missing exercise</div>
+                    <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div></div>
+                  <button className="delset" onPointerDown={stopButton} onClick={()=>remove(id)}>{I.trash}</button>
+                </div>
+              );
               const ordering=reorderId===id;
               return (
                 <div key={id} className={'ex-row reorder-row'+(ordering?' ordering':'')} style={{marginBottom:8}}
@@ -2732,7 +2865,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
                   <div className="reorder-handle" title="Hold to reorder" aria-hidden="true">{I.grip}</div>
                   <Thumb ex={ex} cls="" />
                   <div className="ex-info"><div className="ex-name">{ex.name}</div>
-                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>{'\u00b7'}<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div></div>
+                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>Â·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>Â· {sideLabel(ex)}</span>}</div></div>
                   {ordering ?
                     <div className="reorder-actions">
                       <button type="button" aria-label="Move exercise up" disabled={i===0} onPointerDown={stopButton} onClick={()=>move(i,-1)}>{I.up}</button>
@@ -2750,19 +2883,16 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
                 {I.timer}<span style={{color:'var(--muted)'}}>Estimated time</span>
                 <b style={{marginLeft:'auto',fontFamily:'var(--display)',fontSize:16,color:'var(--accent)'}}>~{estimateMinutes(ids, logs, restDefault)} min</b>
               </div>
-              <MuscleBreakdown exerciseIds={ids} exById={exById} />
+              <MuscleBreakdown exerciseIds={ids} exById={localExById} />
             </div>}
-          <button className="btn btn-accent" style={{marginTop:14}}
-            onClick={()=>onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids})}>{I.check}Done</button>
         </div>
       </div>
-      {picking && <ExercisePicker exercises={exercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={onCreate} onConfirm={(sel)=>{setIds([...new Set([...ids,...sel])]);setPicking(false);}} />}
+      {picking && <ExercisePicker exercises={localExercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={handleCreate} onConfirm={(sel)=>{setIds([...new Set([...ids,...sel])]);setPicking(false);}} />}
     </div>
   );
 }
 
-/* ============================================================
-   EXERCISE PICKER
+/* ============================================================\n   EXERCISE PICKER
    ============================================================ */
 function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
   const safeExercises=asArray(exercises).filter(e=>e&&e.id&&e.name);
