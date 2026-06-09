@@ -1,0 +1,33 @@
+const fs = require('fs');
+
+function read(file) { return fs.readFileSync(file, 'utf8'); }
+function write(file, content) { fs.writeFileSync(file, content); }
+function replaceRequired(source, pattern, replacement, label) {
+  const next = source.replace(pattern, replacement);
+  if (next === source) throw new Error('Patch did not apply: ' + label);
+  return next;
+}
+function replaceOptional(source, pattern, replacement) {
+  return source.replace(pattern, replacement);
+}
+
+let index = read('index.html');
+
+index = replaceRequired(
+  index,
+  /function setHasData\(track, s\)\{[\s\S]*?\n\}\nfunction metricInfo\(track, unit\)\{/,
+  "function setHasData(track, s){\n  const w=+s.weight>0, r=+s.reps>0, t=+s.time>0, d=+s.dist>0;\n  switch(track){ case 'r':return r; case 't':return t; case 'd':return d; case 'dt':return d; case 'wt':return w&&t; default:return w&&r; }\n}\nfunction applyTargetDefaults(track,set){\n  const fields=TRACK[track]?TRACK[track].fields:[];\n  fields.forEach(f=>{\n    const k=targetKey(f);\n    if((set[f]===undefined || set[f]===null || set[f]==='') && set[k]!==undefined && set[k]!==null && set[k] !== '') set[f]=set[k];\n  });\n  return set;\n}\nfunction defaultSetFor(ex, planned=false){\n  const set={weight:'', reps:'', time:'', dist:'', done:false};\n  const tk=trackOf(ex);\n  if(planned && TRACK[tk] && TRACK[tk].fields.includes('reps')) set.targetReps=8;\n  return set;\n}\nfunction metricInfo(track, unit){",
+  'default target helpers'
+);
+
+index = replaceRequired(
+  index,
+  /  const blankSets = \(count\)=>[\s\S]*?\n  const finishWorkout = \(\)=>\{/,
+  "  const blankSet = (ex, planned=false)=>{\n    return defaultSetFor(ex, planned);\n  };\n  const blankSets = (count, ex, planned=false)=> Array.from({length:count}, ()=>blankSet(ex, planned));\n  const newEntry = (id, planned=false)=>{\n    const ex=exById[id];\n    return { exerciseId:id, sets: lastSetsFor(id) || blankSets(planned?3:1, ex, planned), note: lastNoteFor(id) };\n  };\n  const startDay = (day, program, label, focusIndex=0)=>{\n    const dayIds=asArray(day&&day.exerciseIds).filter(id=>exById[id]);\n    const entries=dayIds.map(id=>newEntry(id, !!day));\n    const currentEntryIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+focusIndex||0)));\n    setActive({ id:uid(), date:todayISO(), startedAt:null, note:'',\n      routineId: program?program.id:null, dayId: day?day.id:null,\n      mode: day ? 'guided' : 'open', currentEntryIndex,\n      name: day ? (label || day.name || 'Workout') : 'Quick Workout',\n      entries });\n    setTab('train');\n  };\n  const openDayPreview = (day, program, label)=>{\n    const dayIds=asArray(day&&day.exerciseIds);\n    if(!day || !dayIds.length) return;\n    setPreviewDay({day, program, label, entries:dayIds.map(id=>newEntry(id, true))});\n  };\n  const reorderPreviewDay = (nextIds)=>{\n    const p=previewDay;\n    if(!p || !p.day || !p.program) return;\n    const ids=asArray(nextIds);\n    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?{...d, exerciseIds:ids}:d);\n    setRoutines(curr=>asArray(curr).map(r=>r&&r.id===p.program.id?{...r, days:updateDays(r.days)}:r));\n    setPreviewDay(curr=>{\n      if(!curr || !curr.day || curr.day.id!==p.day.id) return curr;\n      return {\n        ...curr,\n        day:{...curr.day, exerciseIds:ids},\n        program:curr.program?{...curr.program, days:updateDays(curr.program.days)}:curr.program,\n        entries:ids.map(id=>newEntry(id, true))\n      };\n    });\n  };\n  const finishWorkout = ()=>{",
+  'planned workout defaults and preview reorder'
+);
+
+index = replaceRequired(
+  index,
+  /function DayPreviewSheet\([\s\S]*?\nfunction TodayView\(/,
+  "function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onReorder}){\n  const day=preview.day||{};\n  const entries=asArray(preview.entries);\n  const label=preview.label || day.name || 'Routine day';\n  const dayIds=asArray(day.exerciseIds);\n  const [ids,setIds]=useState(()=>dayIds);\n  const [reorderId,setReorderId]=useState(null);\n  const [selectedId,setSelectedId]=useState(null);\n  const holdRef=useRef(null);\n  const holdPointRef=useRef(null);\n  const suppressClickRef=useRef(false);\n  useEffect(()=>{ setIds(dayIds); setReorderId(null); setSelectedId(null); },[day.id, dayIds.join('|')]);\n  useEffect(()=>()=>{ if(holdRef.current) clearTimeout(holdRef.current); },[]);\n  const entryById=useMemo(()=>{\n    const map={};\n    dayIds.forEach((id,i)=>{ map[id]=entries[i]; });\n    return map;\n  },[dayIds.join('|'), entries]);\n  const clearHold=()=>{ if(holdRef.current) clearTimeout(holdRef.current); holdRef.current=null; holdPointRef.current=null; };\n  const armReorder=(id,e)=>{\n    if(e.pointerType==='mouse' && e.button!==0) return;\n    clearHold();\n    holdPointRef.current={x:e.clientX,y:e.clientY};\n    holdRef.current=setTimeout(()=>{\n      suppressClickRef.current=true;\n      setReorderId(id);\n      holdRef.current=null;\n      holdPointRef.current=null;
