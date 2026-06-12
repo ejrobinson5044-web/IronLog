@@ -1,17 +1,74 @@
-(function(){
-  const chunks = ["app-chunks/app.00.js","app-chunks/app.01.js","app-chunks/app.02.js","app-chunks/app.03.js","app-chunks/app.04.js","app-chunks/app.05.js","app-chunks/app.06.js","app-chunks/app.07.js","app-chunks/app.08.js","app-chunks/app.09.js","app-chunks/app.10.js","app-chunks/app.11.js","app-chunks/app.12.js","app-chunks/app.13.js"];
-  const root = new URL('.', document.currentScript.src);
-  const error = (message) => {
-    const el = document.getElementById('root') || document.body;
-    el.innerHTML = '<div style="padding:24px;font-family:system-ui,sans-serif;color:#eef0f7;background:#0d0e16;min-height:100vh"><h1 style="font-size:20px">IronLog could not start</h1><p style="color:#a3aab8">' + message + '</p></div>';
-  };
-  Promise.all(chunks.map((file) => fetch(new URL(file, root), { cache: 'no-cache' }).then((res) => {
-    if (!res.ok) throw new Error(file + ' failed with ' + res.status);
-    return res.text();
-  }))).then((parts) => {
-    (0, eval)(parts.join(''));
-  }).catch((err) => {
-    console.error('IronLog bundle load failed', err);
-    error('Refresh once. If it still fails, clear the app cache and open IronLog again.');
-  });
-})();
+const fs = require('fs');
+const path = require('path');
+
+const root = path.resolve(__dirname, '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+
+const checks = [];
+function check(name, pass) {
+  checks.push({ name, pass: !!pass });
+}
+
+const index = read('index.html');
+const patch = read('ironlog-patch.js');
+const sw = read('service-worker.js');
+const v2 = read('index-v2.html');
+const bundle = read('app.bundle.js');
+const loader = read('app-loader.js');
+const manifest = JSON.parse(read('manifest.json'));
+const generatedChunks = [...loader.matchAll(/app-chunks\/app\.\d+\.js/g)].map((match) => match[0]);
+const coreHasBackupSafety = index.includes('BACKUP_KEYS') && index.includes('Backup file does not contain IronLog data');
+const helperHasBackupSafety = patch.includes('normalizeBackup') && patch.includes('BACKUP_KEYS');
+const coreOffersUndoExport = index.includes('Export your current IronLog data first?') && index.includes('Export a backup first?');
+const helperOffersUndoExport = patch.includes('Export your current IronLog data first?') && patch.includes('Export a backup first?');
+
+check('manifest has install metadata', manifest.name && manifest.start_url && manifest.icons && manifest.icons.length >= 2);
+check('backup safety is available', coreHasBackupSafety || helperHasBackupSafety);
+check('import/reset offer undo export', coreOffersUndoExport || helperOffersUndoExport);
+check('Supabase secret keys are blocked', (index.includes('sb_secret_') && index.includes('service_role')) || (patch.includes('sb_secret_') && patch.includes('service_role')));
+check('PWA update event is wired', index.includes('ironlog:update-ready') || patch.includes('SKIP_WAITING'));
+check('deployed helper validates imports', helperHasBackupSafety);
+check('deployed helper avoids duplicate backup UI', patch.includes("labels.includes('Backup')"));
+check('deployed helper keeps safety snapshot', patch.includes('SAFETY_SNAPSHOT_KEY') && patch.includes('restoreSafetySnapshot'));
+check('deployed helper normalizes imported routines', patch.includes('cleanRoutine') && patch.includes('cleanExercise'));
+check('app opens to Today dashboard', index.includes("'train' : 'today'") && index.includes('function TodayView') && index.includes('<span>Today</span>'));
+check('progress keeps calendar access', index.includes('onOpenCalendar') && index.includes('Calendar</button>'));
+check('routine day tap opens day preview', index.includes('function DayPreviewSheet') && index.includes('onOpenDay(d, r, dayLabel') && index.includes('onStart={(idx=0)=>') && index.includes('Start workout'));
+check('planned routines use guided flow', index.includes("mode: day ? 'guided' : 'open'") && index.includes('currentEntryIndex') && index.includes('className="guided-head"'));
+check('routine defaults use 3 sets of 8 reps', index.includes('blankSets(planned?3:1, ex, planned)') && index.includes('set.targetReps=8') && index.includes('defaultSetFor(ex, planned)'));
+check('set completion is explicit and advances the guided flow', index.includes('function TrainView') && index.includes('advanceAfterSet') && index.includes('applyTargetDefaults(tk,set)') && index.includes("'Next: '+nx.name") && index.includes('typing never auto-completes a set') && !index.includes('if(!wasDone && setHasData(tk,set)){ finishSet'));
+check('workout timer starts after first logged set', index.includes('startedAt:null') && index.includes('if(!active.startedAt){ setElapsed(0); return; }') && index.includes('if(!e.startedAt) e.startedAt=Date.now();'));
+check('guided workout shows exercise demo and targets', index.includes('workout-demo') && index.includes('function targetSummary') && index.includes('targetSummary(en, ex, unit)') && index.includes('<AnimatedDemo demo={demo} />'));
+check('guided exercise click avoids blank screen crashes', index.includes('if(!ex) return false;') && index.includes('const validEntries=entries.filter') && index.includes('This routine day has exercises that no longer exist') && index.includes('if(!demo) return null;') && index.includes('const isVideo=demo.type==='));
+check('exercise picker and detail resist black screens', index.includes('class AppErrorBoundary') && index.includes('<AppErrorBoundary><App/></AppErrorBoundary>') && index.includes('key={detailEx.id}') && index.includes('const safeSessions=rec && Array.isArray(rec.sessions)') && index.includes('const safeExercises=asArray(exercises)') && index.includes('if(!active){ setPickerFor(null); return; }'));
+check('saved data is sanitized before render', index.includes('repairStoredIronLog') && index.includes("cleanLogs(store.get('logs', []))") && index.includes("cleanMeasurements(store.get('measurements', []))") && index.includes("cleanActive(store.get('active', null))") && index.includes('const safeLogs=asArray(logs)') && index.includes('const sets=asArray(en.sets)'));
+check('routine day exercises support drag reorder', index.includes('function useDragReorder') && index.includes('reorder-handle') && index.includes('handleProps(') && index.includes('rowProps(') && index.includes("'.sheet-body'"));
+check('plan day preview can save reordered exercises', index.includes('onReorder={reorderPreviewDay}') && index.includes('function DayPreviewSheet') && index.includes('onDrop:(next)=>{ if(onReorder) onReorder(next); }') && index.includes('selectPreviewExercise'));
+check('live workouts can be reordered mid-session', index.includes('function WorkoutReorderSheet') && index.includes('onApply={applyReorder}') && index.includes('Reorder exercises'));
+check('temporary reorder helper is removed', !fs.existsSync(path.join(root, 'ironlog-reorder-patch.js')) && !sw.includes('ironlog-reorder-patch.js'));
+check('unilateral exercise variants are supported', index.includes('SIDE_OPTIONS') && index.includes('formatExerciseName') && index.includes('sideRepLabel') && index.includes('onVariant={createExerciseVariant}') && index.includes('Reps / '));
+check('single-arm and single-leg library names are normalized', index.includes('Cable One Arm Triceps Extension') && index.includes('Bodyweight One Leg Glute Bridge') && !index.includes('"Cable Single-Arm Triceps Extension"') && !index.includes('"Bodyweight Single-Leg Glute Bridge"'));
+check('backup cleaner preserves unilateral side', patch.includes("side = ex.side === 'arm' || ex.side === 'leg'") && patch.includes("side,") && patch.includes('One Arm') && patch.includes('One Leg'));
+check('backup cleaner preserves paused workout timer', patch.includes('startedAt: item.startedAt == null ? null'));
+check('weight plate equipment option exists', index.includes("'Weight Plate':{c:") && index.includes('Object.keys(EQUIP)'));
+check('compiled v2 shell removes browser Babel', v2.includes('app-loader.js') && !v2.includes('text/babel') && !v2.includes('babel.min.js'));
+check('compiled bundle contains app mount', bundle.includes('ReactDOM.createRoot') || bundle.includes('createRoot'));
+check('compiled loader references chunks', generatedChunks.length > 0 && loader.includes('eval'));
+check('service worker caches helper', sw.includes('./ironlog-patch.js'));
+check('service worker caches v2 shell', sw.includes('./index-v2.html') && sw.includes('./app-loader.js'));
+check('service worker caches generated chunks', generatedChunks.every((file) => sw.includes(`./${file}`)));
+check('service worker serves v2 shell', sw.includes("new URL('./index-v2.html'"));
+check('service worker version bumped', /ironlog-v\d+/.test(sw));
+check('service worker injects helper once', (sw.includes('html.includes') || sw.includes('patched.includes')) && sw.includes('ironlog-patch.js'));
+
+const failed = checks.filter((item) => !item.pass);
+checks.forEach((item) => {
+  console.log(`${item.pass ? 'PASS' : 'FAIL'} ${item.name}`);
+});
+
+if (failed.length) {
+  console.error(`\n${failed.length} smoke check(s) failed.`);
+  process.exit(1);
+}
+
+console.log('\nAll IronLog smoke checks passed.');

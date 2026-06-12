@@ -158,9 +158,11 @@
   .ex-row.tap:active{background:rgba(23,16,33,.92)}
   .reorder-row{position:relative;user-select:none;touch-action:pan-y}
   .reorder-row.ordering{background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(13,9,20,.94));border-color:rgba(168,85,247,.48);box-shadow:0 0 28px rgba(168,85,247,.22),inset 0 1px 0 rgba(255,255,255,.07);transform:translateY(-1px)}
-  .reorder-handle{width:28px;height:46px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;color:var(--muted2);background:rgba(36,22,49,.45);border:1px solid transparent}
+  .reorder-handle{width:28px;height:46px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;color:var(--muted2);background:rgba(36,22,49,.45);border:1px solid transparent;touch-action:none;cursor:grab}
   .reorder-row.ordering .reorder-handle{color:var(--accent);background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.25)}
   .reorder-handle svg{width:18px;height:18px}
+  .reorder-row.dragging{z-index:5;border-color:var(--accent);background:var(--surface3);box-shadow:0 10px 26px rgba(0,0,0,.45),0 0 0 1px rgba(168,85,247,.35);transform:scale(1.02)}
+  .reorder-row.dragging .reorder-handle{color:var(--accent);background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.25);cursor:grabbing}
   .reorder-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   .reorder-actions button{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(36,22,49,.88);border:1px solid rgba(168,85,247,.22);color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
   .reorder-actions button:disabled{opacity:.35;color:var(--muted2)}
@@ -647,7 +649,7 @@ function cleanActive(active){
 }
 const clone = o => JSON.parse(JSON.stringify(o));
 
-const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
+const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},'Smith Machine':{c:'#4f8ef7'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
   Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},'Weight Plate':{c:'#c084fc'},Landmine:{c:'#e8915a'},Leverage:{c:'#00b8a9'},'Pit Shark':{c:'#d65db1'},Other:{c:'#9095ad'}};
 const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff','Front Delts':'#ff9f45','Side Delts':'#ffc04d','Rear Delts':'#e07b3c',Biceps:'#9d7bff',Triceps:'#b794ff',
   Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8'};
@@ -780,6 +782,16 @@ const GIFS = {
   "Barbell Step-Up": ["Barbell_Step_Ups/0.jpg", "Barbell_Step_Ups/1.jpg"],
   "Barbell Box Squat": ["Box_Squat/0.jpg", "Box_Squat/1.jpg"],
   "Smith Machine Squat": ["Smith_Machine_Squat/0.jpg", "Smith_Machine_Squat/1.jpg"],
+  "Smith Machine Incline Bench Press": ["Smith_Machine_Incline_Bench_Press/0.jpg", "Smith_Machine_Incline_Bench_Press/1.jpg"],
+  "Smith Machine Decline Press": ["Smith_Machine_Decline_Press/0.jpg", "Smith_Machine_Decline_Press/1.jpg"],
+  "Smith Machine Shoulder Press": ["Smith_Machine_Overhead_Shoulder_Press/0.jpg", "Smith_Machine_Overhead_Shoulder_Press/1.jpg"],
+  "Smith Machine Bent-Over Row": ["Smith_Machine_Bent_Over_Row/0.jpg", "Smith_Machine_Bent_Over_Row/1.jpg"],
+  "Smith Machine Romanian Deadlift": ["Smith_Machine_Stiff-Legged_Deadlift/0.jpg", "Smith_Machine_Stiff-Legged_Deadlift/1.jpg"],
+  "Smith Machine Split Squat": ["Smith_Single-Leg_Split_Squat/0.jpg", "Smith_Single-Leg_Split_Squat/1.jpg"],
+  "Smith Machine Hip Thrust": ["Smith_Machine_Hip_Raise/0.jpg", "Smith_Machine_Hip_Raise/1.jpg"],
+  "Smith Machine Calf Raise": ["Smith_Machine_Calf_Raise/0.jpg", "Smith_Machine_Calf_Raise/1.jpg"],
+  "Smith Machine Reverse Calf Raise": ["Smith_Machine_Reverse_Calf_Raises/0.jpg", "Smith_Machine_Reverse_Calf_Raises/1.jpg"],
+  "Smith Machine Upright Row": ["Smith_Machine_Upright_Row/0.jpg", "Smith_Machine_Upright_Row/1.jpg"],
   "Bodyweight Squat": ["Bodyweight_Squat/0.jpg", "Bodyweight_Squat/1.jpg"],
   "Machine Lying Leg Curl": ["Lying_Leg_Curls/0.jpg", "Lying_Leg_Curls/1.jpg"],
   "Machine Standing Leg Curl": ["Standing_Leg_Curl/0.jpg", "Standing_Leg_Curl/1.jpg"],
@@ -997,6 +1009,18 @@ const MUS = {
   "Smith Machine Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
   "Smith Machine Close-Grip Bench": [["Triceps", "Triceps"], ["Chest", "Chest"], ["Front Delts", "Front Delts"]],
   "Smith Machine Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Smith Machine Incline Bench Press": [["Chest", "Chest"], ["Front Delts", "Front Delts"], ["Triceps", "Triceps"]],
+  "Smith Machine Decline Press": [["Chest", "Chest"], ["Triceps", "Triceps"], ["Front Delts", "Front Delts"]],
+  "Smith Machine Shoulder Press": [["Front Delts", "Front Delts"], ["Triceps", "Triceps"], ["Side Delts", "Side Delts"]],
+  "Smith Machine Bent-Over Row": [["Middle Back", "Back"], ["Biceps", "Biceps"], ["Lats", "Back"]],
+  "Smith Machine Romanian Deadlift": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Lower Back", "Back"]],
+  "Smith Machine Front Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Abdominals", "Core"]],
+  "Smith Machine Split Squat": [["Quadriceps", "Quads"], ["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Smith Machine Reverse Lunge": [["Glutes", "Glutes"], ["Quadriceps", "Quads"], ["Hamstrings", "Hamstrings"]],
+  "Smith Machine Hip Thrust": [["Glutes", "Glutes"], ["Hamstrings", "Hamstrings"]],
+  "Smith Machine Good Morning": [["Hamstrings", "Hamstrings"], ["Glutes", "Glutes"], ["Lower Back", "Back"]],
+  "Smith Machine Drag Curl": [["Biceps", "Biceps"], ["Forearms", "Forearms"]],
+  "Smith Machine Upright Row": [["Side Delts", "Side Delts"], ["Traps", "Back"], ["Biceps", "Biceps"]],
   "Wrist Roller": [["Forearms", "Forearms"], ["Front Delts", "Front Delts"]],
 };
 // resolve a demo for any exercise: custom media wins, else CC0 frames, else none
@@ -1086,7 +1110,7 @@ const SEED = [
   {name:"Cable Low Fly", eq:"Cable", m:"Chest", cue:"Low pulleys up and together \u2014 hits the upper chest."},
   {name:"Cable Incline Fly", eq:"Cable", m:"Chest", cue:"Fly on an incline bench with cables for constant tension."},
   {name:"Dumbbell Pullover", eq:"Dumbbell", m:"Chest", sec:"Back", cue:"One dumbbell, arc behind the head, big rib-cage stretch."},
-  {name:"Smith Machine Bench Press", eq:"Machine", m:"Chest", sec:"Triceps", cue:"Fixed bar path \u2014 good for pressing without a spotter."},
+  {name:"Smith Machine Bench Press", eq:"Smith Machine", m:"Chest", sec:"Triceps", cue:"Fixed bar path \u2014 good for pressing without a spotter."},
   {name:"Bodyweight Incline Push-Up", eq:"Bodyweight", m:"Chest", sec:"Triceps", cue:"Hands elevated \u2014 easier push-up, hits lower chest."},
   {name:"Bodyweight Decline Push-Up", eq:"Bodyweight", m:"Chest", sec:"Front Delts", cue:"Feet elevated \u2014 harder, shifts load to upper chest."},
   {name:"Barbell T-Bar Row", eq:"Barbell", m:"Back", sec:"Biceps", cue:"Chest-up hinge, row the bar to your stomach."},
@@ -1125,7 +1149,7 @@ const SEED = [
   {name:"Cable Overhead Triceps Extension", eq:"Cable", m:"Triceps", cue:"Rope overhead, extend up \u2014 long-head stretch."},
   {name:"Cable One Arm Triceps Extension", eq:"Cable", m:"Triceps", side:"arm", cue:"One arm pushdown \u2014 fix imbalances, full lockout."},
   {name:"Bodyweight Triceps Dip", eq:"Bodyweight", m:"Triceps", sec:"Chest", cue:"Stay upright, elbows back \u2014 triceps emphasis."},
-  {name:"Smith Machine Close-Grip Bench", eq:"Machine", m:"Triceps", sec:"Chest", cue:"Fixed-bar close-grip press \u2014 triceps without a spotter."},
+  {name:"Smith Machine Close-Grip Bench", eq:"Smith Machine", m:"Triceps", sec:"Chest", cue:"Fixed-bar close-grip press \u2014 triceps without a spotter."},
   {name:"Dumbbell Bulgarian Split Squat", eq:"Dumbbell", m:"Quads", sec:"Glutes", cue:"Rear foot elevated, drop straight down, drive the front heel."},
   {name:"Dumbbell Goblet Squat", eq:"Dumbbell", m:"Quads", sec:"Glutes", cue:"Hold a dumbbell at the chest, squat deep and upright."},
   {name:"Machine Hack Squat", eq:"Machine", m:"Quads", sec:"Glutes", cue:"Back on the pad, feet forward, drive through the whole foot."},
@@ -1133,7 +1157,22 @@ const SEED = [
   {name:"Dumbbell Step-Up", eq:"Dumbbell", m:"Quads", sec:"Glutes", cue:"Drive through the top foot, control the way down."},
   {name:"Barbell Step-Up", eq:"Barbell", m:"Quads", sec:"Glutes", cue:"Bar on the back, step up tall, minimal push from the back leg."},
   {name:"Barbell Box Squat", eq:"Barbell", m:"Quads", sec:"Glutes", cue:"Sit back to a box, pause, drive up. Teaches depth + power."},
-  {name:"Smith Machine Squat", eq:"Machine", m:"Quads", sec:"Glutes", cue:"Fixed-bar squat \u2014 lets you sit back without balance demands."},
+  {name:"Smith Machine Squat", eq:"Smith Machine", m:"Quads", sec:"Glutes", cue:"Fixed-bar squat \u2014 lets you sit back without balance demands."},
+  {name:"Smith Machine Incline Bench Press", eq:"Smith Machine", m:"Chest", sec:"Front Delts", cue:"Upper-chest press on rails \u2014 bench at ~30\u00b0."},
+  {name:"Smith Machine Decline Press", eq:"Smith Machine", m:"Chest", sec:"Triceps", cue:"Lower-chest bias \u2014 press down the fixed path."},
+  {name:"Smith Machine Shoulder Press", eq:"Smith Machine", m:"Front Delts", sec:"Triceps", cue:"Seated overhead press \u2014 bar just in front of the face."},
+  {name:"Smith Machine Bent-Over Row", eq:"Smith Machine", m:"Back", sec:"Biceps", cue:"Hinge and row the fixed bar to the lower ribs."},
+  {name:"Smith Machine Romanian Deadlift", eq:"Smith Machine", m:"Hamstrings", sec:"Glutes", cue:"Soft knees, push the hips back, bar slides down the rails."},
+  {name:"Smith Machine Front Squat", eq:"Smith Machine", m:"Quads", sec:"Core", cue:"Bar on the front rack \u2014 elbows high, upright torso."},
+  {name:"Smith Machine Split Squat", eq:"Smith Machine", m:"Quads", sec:"Glutes", cue:"Stagger the stance, drop the back knee straight down."},
+  {name:"Smith Machine Reverse Lunge", eq:"Smith Machine", m:"Glutes", sec:"Quads", cue:"Step back under the fixed bar, sit into the front hip."},
+  {name:"Smith Machine Hip Thrust", eq:"Smith Machine", m:"Glutes", sec:"Hamstrings", cue:"Shoulders on a bench, drive the bar up with the hips."},
+  {name:"Smith Machine Calf Raise", eq:"Smith Machine", m:"Calves", cue:"Toes on a block, full stretch, pause at the top."},
+  {name:"Smith Machine Reverse Calf Raise", eq:"Smith Machine", m:"Calves", cue:"Heels on a block, lift the toes \u2014 shins and ankle balance."},
+  {name:"Smith Machine Shrug", eq:"Smith Machine", m:"Back", sec:"Forearms", cue:"Shrug straight up the rails, pause hard at the top."},
+  {name:"Smith Machine Good Morning", eq:"Smith Machine", m:"Hamstrings", sec:"Back", cue:"Light load \u2014 hinge from the hips with a locked back."},
+  {name:"Smith Machine Drag Curl", eq:"Smith Machine", m:"Biceps", sec:"Forearms", cue:"Drag the bar up the rails close to the body \u2014 elbows back."},
+  {name:"Smith Machine Upright Row", eq:"Smith Machine", m:"Side Delts", sec:"Biceps", cue:"Pull to mid-chest, elbows no higher than the shoulders."},
   {name:"Bodyweight Squat", eq:"Bodyweight", m:"Quads", sec:"Glutes", cue:"Sit between the hips to depth, chest tall. Warm-up staple."},
   {name:"Machine Lying Leg Curl", eq:"Machine", m:"Hamstrings", cue:"Face down, curl heels to glutes, no hip lift."},
   {name:"Machine Standing Leg Curl", eq:"Machine", m:"Hamstrings", cue:"One leg at a time, strict curl, full squeeze."},
@@ -1500,7 +1539,8 @@ class AppErrorBoundary extends React.Component{
             <h3>IronLog hit a display issue</h3>
             <p>The app is still safe. Repair saved workout data and reload the screen.</p>
             <div style={{marginTop:20}}>
-              <button className="btn btn-accent" onClick={repairStoredIronLog}>{I.refresh}Repair and reload</button>\n              <button className="btn btn-ghost btn-sm" style={{marginTop:10}} onClick={()=>location.reload()}>{I.refresh}Reload only</button>
+              <button className="btn btn-accent" onClick={repairStoredIronLog}>{I.refresh}Repair and reload</button>
+              <button className="btn btn-ghost btn-sm" style={{marginTop:10}} onClick={()=>location.reload()}>{I.refresh}Reload only</button>
             </div>
           </div>
         </div>
@@ -1962,51 +2002,126 @@ function nextTrainingTarget(routines, logs){
   return {routine,day,label:dayLabel(day,idx,routine.labelMode||'num')};
 }
 
+/* ============================================================
+   DRAG TO REORDER (shared)
+   Grab the grip to drag instantly, or press-and-hold anywhere on
+   the row (~0.3s) to lift it, then slide up/down. Rows swap live
+   as the finger crosses their midpoints. Works with touch + mouse.
+   ============================================================ */
+function useDragReorder({ids, onMove, onDrop, holdMs=300}){
+  const [dragId,setDragId]=useState(null);
+  const dragRef=useRef(null);          // {id, pointerId, lastY}
+  const rowEls=useRef({});             // id -> element
+  const holdTimer=useRef(null);
+  const holdStart=useRef(null);        // {x,y,id,pointerId}
+  const scrollRaf=useRef(null);
+  const suppressClick=useRef(false);
+  const idsRef=useRef(ids); idsRef.current=ids;
+  const cbRef=useRef({onMove,onDrop}); cbRef.current={onMove,onDrop};
+
+  const clearHold=()=>{ if(holdTimer.current){clearTimeout(holdTimer.current); holdTimer.current=null;} holdStart.current=null; };
+
+  const begin=(id, clientY, pointerId)=>{
+    if(dragRef.current) return;
+    dragRef.current={id, pointerId, lastY:clientY};
+    setDragId(id);
+    suppressClick.current=true;
+    if(typeof navigator!=='undefined' && navigator.vibrate){ try{navigator.vibrate(12);}catch(_){} }
+  };
+
+  const maybeSwap=(clientY)=>{
+    const d=dragRef.current; if(!d) return;
+    const list=idsRef.current; const i=list.indexOf(d.id); if(i<0) return;
+    if(i>0){ const el=rowEls.current[list[i-1]];
+      if(el){ const r=el.getBoundingClientRect(); if(clientY < r.top + r.height/2){ cbRef.current.onMove(i,i-1); return; } } }
+    if(i<list.length-1){ const el=rowEls.current[list[i+1]];
+      if(el){ const r=el.getBoundingClientRect(); if(clientY > r.top + r.height/2){ cbRef.current.onMove(i,i+1); } } }
+  };
+
+  // window listeners + scroll lock + edge auto-scroll, active only while dragging
+  useEffect(()=>{
+    if(!dragId) return;
+    const move=(e)=>{ const d=dragRef.current; if(!d) return; d.lastY=e.clientY; maybeSwap(e.clientY); };
+    const end=()=>{ endDrag(); };
+    const blockScroll=(e)=>{ if(dragRef.current) e.preventDefault(); };
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',end);
+    window.addEventListener('pointercancel',end);
+    window.addEventListener('touchmove',blockScroll,{passive:false});
+    // edge auto-scroll: keep swapping while the finger parks near the top/bottom
+    const tick=()=>{
+      const d=dragRef.current; if(!d) return;
+      const el=rowEls.current[d.id];
+      const sc=el && (el.closest('.sheet-body')||el.closest('.scroll'));
+      if(sc){ const r=sc.getBoundingClientRect();
+        if(d.lastY < r.top+60) sc.scrollTop-=9;
+        else if(d.lastY > r.bottom-60) sc.scrollTop+=9;
+        maybeSwap(d.lastY); }
+      scrollRaf.current=requestAnimationFrame(tick);
+    };
+    scrollRaf.current=requestAnimationFrame(tick);
+    return ()=>{
+      window.removeEventListener('pointermove',move);
+      window.removeEventListener('pointerup',end);
+      window.removeEventListener('pointercancel',end);
+      window.removeEventListener('touchmove',blockScroll);
+      if(scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
+    };
+  },[dragId]);
+
+  const endDrag=()=>{
+    if(!dragRef.current) return;
+    dragRef.current=null;
+    setDragId(null);
+    if(scrollRaf.current){ cancelAnimationFrame(scrollRaf.current); scrollRaf.current=null; }
+    if(cbRef.current.onDrop) cbRef.current.onDrop(idsRef.current);
+    setTimeout(()=>{ suppressClick.current=false; },350);
+  };
+
+  /* grip handle: drag starts the moment you touch it */
+  const handleProps=(id)=>({
+    onPointerDown:(e)=>{ if(e.pointerType==='mouse' && e.button!==0) return;
+      e.stopPropagation(); clearHold(); begin(id, e.clientY, e.pointerId); }
+  });
+
+  /* row body: press-and-hold to lift, small movement cancels into a normal scroll/tap */
+  const rowProps=(id)=>({
+    ref:(el)=>{ if(el) rowEls.current[id]=el; else delete rowEls.current[id]; },
+    onPointerDown:(e)=>{ if(e.pointerType==='mouse' && e.button!==0) return;
+      if(dragRef.current) return;
+      holdStart.current={x:e.clientX, y:e.clientY, id, pointerId:e.pointerId};
+      if(holdTimer.current) clearTimeout(holdTimer.current);
+      holdTimer.current=setTimeout(()=>{ holdTimer.current=null; const h=holdStart.current; holdStart.current=null; if(h) begin(h.id, h.y, h.pointerId); }, holdMs);
+    },
+    onPointerMove:(e)=>{ const h=holdStart.current; if(h && (Math.abs(e.clientX-h.x)>10 || Math.abs(e.clientY-h.y)>10)) clearHold(); },
+    onPointerUp:clearHold,
+    onPointerCancel:clearHold,
+    onClickCapture:(e)=>{ if(suppressClick.current){ e.preventDefault(); e.stopPropagation(); suppressClick.current=false; } }
+  });
+
+  return {dragId, handleProps, rowProps};
+}
+const reorderMove=(setIds)=>(from,to)=>setIds(a=>{ const b=[...a]; const [x]=b.splice(from,1); b.splice(to,0,x); return b; });
+
 function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onReorder}){
   const day=preview.day||{};
   const entries=asArray(preview.entries);
   const label=preview.label || day.name || 'Routine day';
   const dayIds=asArray(day.exerciseIds);
   const [ids,setIds]=useState(()=>dayIds);
-  const [reorderId,setReorderId]=useState(null);
   const [selectedId,setSelectedId]=useState(null);
-  const holdRef=useRef(null);
-  const holdPointRef=useRef(null);
-  const suppressClickRef=useRef(false);
-  useEffect(()=>{ setIds(dayIds); setReorderId(null); setSelectedId(null); },[day.id, dayIds.join('|')]);
-  useEffect(()=>()=>{ if(holdRef.current) clearTimeout(holdRef.current); },[]);
+  useEffect(()=>{ setIds(dayIds); setSelectedId(null); },[day.id, dayIds.join('|')]);
   const entryById=useMemo(()=>{
     const map={};
     dayIds.forEach((id,i)=>{ map[id]=entries[i]; });
     return map;
   },[dayIds.join('|'), entries]);
-  const clearHold=()=>{ if(holdRef.current) clearTimeout(holdRef.current); holdRef.current=null; holdPointRef.current=null; };
-  const armReorder=(id,e)=>{
-    if(e.pointerType==='mouse' && e.button!==0) return;
-    clearHold();
-    holdPointRef.current={x:e.clientX,y:e.clientY};
-    holdRef.current=setTimeout(()=>{
-      suppressClickRef.current=true;
-      setReorderId(id);
-      holdRef.current=null;
-      holdPointRef.current=null;
-      if(typeof navigator!=='undefined' && navigator.vibrate) navigator.vibrate(12);
-    },420);
-  };
-  const trackHold=(e)=>{
-    const p=holdPointRef.current;
-    if(p && (Math.abs(e.clientX-p.x)>10 || Math.abs(e.clientY-p.y)>10)) clearHold();
-  };
-  const stopButton=e=>e.stopPropagation();
-  const move=(i,d)=>{
-    const j=i+d;if(j<0||j>=ids.length)return;
-    const next=[...ids];[next[i],next[j]]=[next[j],next[i]];
-    setIds(next);
-    if(onReorder) onReorder(next);
-  };
+  const {dragId, handleProps, rowProps}=useDragReorder({
+    ids, onMove:reorderMove(setIds),
+    onDrop:(next)=>{ if(onReorder) onReorder(next); }
+  });
   const selectPreviewExercise=(id)=>{
-    if(suppressClickRef.current){ suppressClickRef.current=false; return; }
-    if(reorderId) return;
+    if(dragId) return;
     setSelectedId(curr=>curr===id?null:id);
   };
   const availableCount=ids.filter(id=>exById[id]).length;
@@ -2019,13 +2134,13 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
           <div className="plan-day-head">
             <div className="guided-meta">{preview.program?preview.program.name:'Routine'}</div>
             <div className="plan-day-title">{label}</div>
-            <div className="plan-day-meta">{availableCount} exercise{availableCount!==1?'s':''} Â· ~{estimateMinutes(ids, logs, restDefault)} min</div>
+            <div className="plan-day-meta">{availableCount} exercise{availableCount!==1?'s':''} · ~{estimateMinutes(ids, logs, restDefault)} min</div>
           </div>
           {ids.map((id,i)=>{
             const ex=exById[id];
             if(!ex) return (
-              <div key={id} className="ex-row" style={{opacity:.78,marginBottom:8}}>
-                <div className="reorder-handle" aria-hidden="true">{I.grip}</div>
+              <div key={id} className="ex-row reorder-row" style={{opacity:.78,marginBottom:8}} {...rowProps(id)}>
+                <div className="reorder-handle" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                 <div className="ex-info">
                   <div className="ex-name">Missing exercise</div>
                   <div className="ex-sub">This saved slot points to an exercise that no longer exists. Edit the day to replace it.</div>
@@ -2033,30 +2148,22 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
               </div>
             );
             const entry=entryById[id]||{sets:[]};
-            const ordering=reorderId===id;
+            const dragging=dragId===id;
             const selected=selectedId===id;
             const demo=selected?demoFor(ex):null;
             const startIndex=ids.slice(0,i).filter(x=>exById[x]).length;
             return (
               <div key={id}>
-              <div className={'ex-row tap reorder-row'+(ordering?' ordering':'')+(selected?' selected':'')}
-                onClick={()=>selectPreviewExercise(id)}
-                onPointerDown={e=>armReorder(id,e)} onPointerMove={trackHold} onPointerUp={clearHold} onPointerCancel={clearHold} onPointerLeave={clearHold}>
-                <div className="reorder-handle" title="Hold to reorder" aria-hidden="true">{I.grip}</div>
+              <div className={'ex-row tap reorder-row'+(dragging?' dragging':'')+(selected?' selected':'')}
+                onClick={()=>selectPreviewExercise(id)} {...rowProps(id)}>
+                <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                 <Thumb ex={ex} />
                 <div className="ex-info">
                   <div className="ex-name">{ex.name}</div>
-                  <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>Â·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>Â· {sideLabel(ex)}</span>}</div>
-                  <div className="target-line"><b>{i+1}</b> Â· {targetSummary(entry, ex, unit)}</div>
+                  <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div>
+                  <div className="target-line"><b>{i+1}</b> · {targetSummary(entry, ex, unit)}</div>
                 </div>
-                {ordering ?
-                  <div className="reorder-actions">
-                    <button type="button" aria-label="Move exercise up" disabled={i===0} onPointerDown={stopButton} onClick={e=>{e.stopPropagation();move(i,-1);}}>{I.up}</button>
-                    <button type="button" aria-label="Move exercise down" disabled={i===ids.length-1} onPointerDown={stopButton} onClick={e=>{e.stopPropagation();move(i,1);}}>{I.down}</button>
-                    <button type="button" className="reorder-done" aria-label="Done reordering" onPointerDown={stopButton} onClick={e=>{e.stopPropagation();setReorderId(null);}}>{I.check}</button>
-                  </div>
-                  :
-                  <span className="chevron">{selected?I.down:I.chevron}</span>}
+                <span className="chevron">{selected?I.down:I.chevron}</span>
               </div>
               {selected &&
                 <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:12,margin:'-4px 0 10px 40px'}}>
@@ -2242,6 +2349,40 @@ function LibraryView({exercises, onOpen, onNew}){
 /* ============================================================
    TRAIN
    ============================================================ */
+/* compact drag list for re-sequencing a live workout's exercises */
+function WorkoutReorderSheet({entries, exById, onClose, onApply}){
+  const [ids,setIds]=useState(()=>asArray(entries).map(en=>en&&en.exerciseId).filter(Boolean));
+  const {dragId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh'}}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Reorder Exercises</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={()=>onApply(ids)}>{I.check}Done</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
+        <div className="sheet-body">
+          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>Drag the grip — or press and hold a row — to move it. Tap <b style={{color:'var(--accent)'}}>Done</b> to apply the new order to this workout.</div>
+          {ids.map((id)=>{
+            const en=asArray(entries).find(x=>x&&x.exerciseId===id);
+            const ex=exById[id];
+            const sets=asArray(en&&en.sets);
+            const doneCount=sets.filter(s=>s&&s.done).length;
+            const dragging=dragId===id;
+            return (
+              <div key={id} className={'ex-row reorder-row'+(dragging?' dragging':'')} style={{marginBottom:8,opacity:ex?1:.78}} {...rowProps(id)}>
+                <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
+                {ex && <Thumb ex={ex} />}
+                <div className="ex-info">
+                  <div className="ex-name">{ex?ex.name:'Missing exercise'}</div>
+                  <div className="ex-sub">{doneCount}/{sets.length} set{sets.length!==1?'s':''} done</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TrainView({active, exById, unit, records, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest}){
   const [elapsed,setElapsed]=useState(0);
   useEffect(()=>{
@@ -2272,10 +2413,20 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const guided=(active.mode==='guided'||!!active.routineId) && entries.length>0;
   const completeExercises=entries.filter(entryComplete).length;
   const allExercisesDone=entries.length>0 && completeExercises===entries.length;
-  const firstOpen=entries.findIndex(en=>!entryComplete(en));
   const storedIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+active.currentEntryIndex||0)));
-  const currentIndex=guided ? (firstOpen===-1 ? storedIndex : (entryComplete(entries[storedIndex]) ? firstOpen : storedIndex)) : -1;
+  const currentIndex=guided ? storedIndex : -1;
   const progressPct=entries.length ? (completeExercises/entries.length)*100 : 0;
+  const [showReorder,setShowReorder]=useState(false);
+  const cardRefs=useRef({});
+  const applyReorder=(ids)=>{
+    const byId={}; entries.forEach(en=>{ if(en&&en.exerciseId) byId[en.exerciseId]=en; });
+    const next=asArray(ids).map(id=>byId[id]).filter(Boolean);
+    if(!next.length){ setShowReorder(false); return; }
+    const curEntry=guided ? entries[currentIndex] : null;
+    const ni=curEntry ? Math.max(0, next.findIndex(en=>en.exerciseId===curEntry.exerciseId)) : Math.max(0, Math.min(next.length-1, storedIndex));
+    setActive({...active, entries:next, currentEntryIndex:ni});
+    setShowReorder(false);
+  };
 
   const setFocusIndex=(idx)=>{
     if(!guided) return;
@@ -2283,7 +2434,14 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     setActive({...active, currentEntryIndex:next});
   };
   const advanceAfterSet=(e,ei,label)=>{
-    if(!guided){ setActive(e); startRest(label||'Rest'); return; }
+    if(!guided){
+      setActive(e); startRest(label||'Rest');
+      if(entryComplete(e.entries[ei])){
+        const next=asArray(e.entries).findIndex((en,idx)=>idx>ei && !entryComplete(en));
+        if(next>=0) setTimeout(()=>{ const el=cardRefs.current[next]; if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'}); },180);
+      }
+      return;
+    }
     if(!entryComplete(e.entries[ei])){ setActive(e); startRest(label||'Rest'); return; }
     const next=asArray(e.entries).findIndex((en,idx)=>idx>ei && !entryComplete(en));
     if(next>=0){
@@ -2315,11 +2473,10 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const upd=(ei,si,f,v)=>{
     const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
-    const wasDone=set.done;
     set[f]=v;
-    applyTargetDefaults(tk,set);
-    if(wasDone && !setHasData(tk,set)){ set.done=false; setActive(e); return; }
-    if(!wasDone && setHasData(tk,set)){ finishSet(ei,si,e); return; }
+    // typing never auto-completes a set — the checkmark is the only "I did this" signal.
+    // The one exception: a checked set that loses its data flips back to unchecked.
+    if(set.done && !setHasData(tk,set)) set.done=false;
     setActive(e);
   };
   const toggleDone=(ei,si)=>{
@@ -2352,7 +2509,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
           <div className="guided-track"><div className="guided-fill" style={{width:progressPct+'%'}}></div></div>
           <div className="guided-controls">
             <button className="mini-btn" disabled={currentIndex<=0} onClick={()=>setFocusIndex(currentIndex-1)}>Prev</button>
-            <div className="guided-count">{allExercisesDone?'Ready to finish':'Current lift'}</div>
+            <button className="mini-btn" onClick={()=>setShowReorder(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5}}>{I.grip}Reorder</button>
             <button className="mini-btn" disabled={currentIndex>=entries.length-1} onClick={()=>setFocusIndex(currentIndex+1)}>Next</button>
           </div>
         </div>}
@@ -2362,14 +2519,26 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       {guided && entries.length>0 && !validEntries.length && <div className="empty" style={{padding:'30px 20px'}}><p>This routine day has exercises that no longer exist. Add them again from the library.</p></div>}
       {entries.map((en,ei)=>{
         if(guided && ei!==currentIndex) return null;
-        const ex=exById[en.exerciseId]; if(!ex) return null;
+        const ex=exById[en.exerciseId];
+        if(!ex){
+          if(!(guided && ei===currentIndex)) return null;
+          return (
+            <div key={ei} className="log-ex">
+              <div className="log-ex-head">
+                <div style={{flex:1,minWidth:0}}><div className="log-ex-name">Missing exercise</div>
+                  <div className="log-prev">This slot's exercise was deleted from your library. Remove it or jump past it with Next.</div></div>
+                <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
+              </div>
+            </div>
+          );
+        }
         const rec=records[en.exerciseId];
         const tk=trackOf(ex); const fields=TRACK[tk].fields;
         const demo=demoFor(ex);
         const sets=asArray(en.sets);
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 46px';
         return (
-          <div key={ei} className="log-ex">
+          <div key={ei} className="log-ex" ref={el=>{ if(el) cardRefs.current[ei]=el; else delete cardRefs.current[ei]; }}>
             <div className="log-ex-head">
               <Thumb ex={ex} />
               <div style={{flex:1,minWidth:0}}><div className="log-ex-name">{ex.name}</div>
@@ -2411,8 +2580,12 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
           </div>
         );
       })}
+      {!guided && entries.length>1 &&
+        <button className="btn btn-ghost" onClick={()=>setShowReorder(true)} style={{marginTop:4}}>{I.grip}Reorder exercises</button>}
       <button className="btn btn-ghost" onClick={onAddExercise} style={{marginTop:4}}>{I.plus}Add exercise</button>
       <button className="btn btn-danger btn-sm" onClick={onDiscard} style={{marginTop:10}}>{I.trash}Discard workout</button>
+      {showReorder && <WorkoutReorderSheet entries={entries} exById={exById}
+        onClose={()=>setShowReorder(false)} onApply={applyReorder} />}
     </div>
   );
 }
@@ -2497,12 +2670,12 @@ function MeasurementsSheet({date, entry, last, unit, onClose, onSave}){
         <div className="sheet-grip"></div>
         <div className="sheet-head"><h2>{entry?'Edit Measurements':'Log Measurements'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!anyVal} style={{opacity:anyVal?1:.45}} onClick={save}>{I.check}Save</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
-          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>{dlabel}{(!entry&&last)?' Â· pre-filled from your last entry':''}</div>
+          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>{dlabel}{(!entry&&last)?' · pre-filled from your last entry':''}</div>
           <div className="meas-grid">
             {MEAS_FIELDS.map(f=>(
               <div key={f.k} className="meas-field">
                 <label>{f.label}</label>
-                <div className="meas-in"><input type="number" inputMode="decimal" placeholder="â€”" value={vals[f.k]} onChange={e=>set(f.k,e.target.value)} /><span>{measUnitFor(f,unit)}</span></div>
+                <div className="meas-in"><input type="number" inputMode="decimal" placeholder="—" value={vals[f.k]} onChange={e=>set(f.k,e.target.value)} /><span>{measUnitFor(f,unit)}</span></div>
               </div>
             ))}
           </div>
@@ -2705,7 +2878,7 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
             <input placeholder="e.g. Smith Machine Squat" value={name} onChange={e=>setName(e.target.value)} autoFocus={!ed} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Tip: name it <b style={{color:'var(--muted)'}}>Equipment + Movement</b> to match the library.</div></div>
           <div className="field"><label>Tracks</label><div className="seg">{Object.keys(TRACK).map(x=><button key={x} className={track===x?'on':''} onClick={()=>setTrack(x)}>{TRACK[x].label}</button>)}</div>
-            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set â€” weights, bodyweight reps, a hold/time, a runâ€™s distance &amp; time, etc.</div></div>
+            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set — weights, bodyweight reps, a hold/time, a run’s distance &amp; time, etc.</div></div>
           <div className="field"><label>Variation</label><div className="seg">
             <button className={side===''?'on':''} onClick={()=>setSide('')}>Standard</button>
             <button className={side==='arm'?'on':''} onClick={()=>setSide('arm')}>One Arm</button>
@@ -2717,9 +2890,9 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
             <button className={sec===''?'on':''} onClick={()=>setSec('')}>None</button>
             {Object.keys(MUSCLE).filter(x=>x!==m).map(x=><button key={x} className={sec===x?'on':''} onClick={()=>setSec(x)}>{x}</button>)}</div></div>
           <div className="field"><label>Form cue / notes (optional)</label>
-            <textarea rows="2" placeholder="Anything you want to rememberâ€¦" value={cue} onChange={e=>setCue(e.target.value)}></textarea></div>
+            <textarea rows="2" placeholder="Anything you want to remember…" value={cue} onChange={e=>setCue(e.target.value)}></textarea></div>
           <div className="field"><label>Image / video URL (optional)</label>
-            <input placeholder="https://â€¦/demo.gif, .jpg or .mp4" value={media} onChange={e=>setMedia(e.target.value)} />
+            <input placeholder="https://…/demo.gif, .jpg or .mp4" value={media} onChange={e=>setMedia(e.target.value)} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Paste a link to your own hosted media and it displays on the exercise.</div></div>
         </div>
       </div>
@@ -2754,14 +2927,14 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateE
         <div className="sheet-head"><h2>{editing?'Edit Routine':'New Routine'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={saveRoutineEdits}>{I.check}{editing?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Routine name</label><input placeholder="e.g. Injury Recovery Program" value={name} onChange={e=>setName(e.target.value)} autoFocus={!editing} /></div>
-          <div className="field"><label>Note (optional)</label><input placeholder="e.g. 7-day split â€” rebuilding after the knee" value={note} onChange={e=>setNote(e.target.value)} /></div>
+          <div className="field"><label>Note (optional)</label><input placeholder="e.g. 7-day split — rebuilding after the knee" value={note} onChange={e=>setNote(e.target.value)} /></div>
           <div className="field"><label>Day labels</label>
             <div className="unit-toggle" style={{display:'inline-flex'}}>
               <button className={labelMode==='num'?'on':''} onClick={()=>setLabelMode('num')}>Numbered</button>
               <button className={labelMode==='week'?'on':''} onClick={()=>setLabelMode('week')}>Weekday</button>
             </div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:7,lineHeight:1.45}}>
-              {labelMode==='week'?'Each slot is a weekday (Sunday â†’ Saturday). ':'Each slot is numbered by order (Day 1, Day 2, â€¦). '}Add an optional name like â€œLegsâ€ â€” the position stays fixed, and reordering renumbers automatically.
+              {labelMode==='week'?'Each slot is a weekday (Sunday → Saturday). ':'Each slot is numbered by order (Day 1, Day 2, …). '}Add an optional name like “Legs” — the position stays fixed, and reordering renumbers automatically.
             </div>
           </div>
           <div className="section-h" style={{margin:'4px 0 10px'}}><span>Days ({days.length})</span>
@@ -2770,14 +2943,14 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateE
             <div key={d.id} className="day-edit">
               <div className="day-edit-top">
                 <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                  <button onClick={()=>moveDay(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>â–²</button>
-                  <button onClick={()=>moveDay(i,1)} style={{color:i===days.length-1?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>â–¼</button>
+                  <button onClick={()=>moveDay(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▲</button>
+                  <button onClick={()=>moveDay(i,1)} style={{color:i===days.length-1?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▼</button>
                 </div>
                 <span className="day-pos">{posLabel(i,labelMode)}</span>
-                <input className="day-name-input" placeholder="Optional name â€” e.g. Legs, Push" value={d.name||''} onChange={e=>renameDay(i,e.target.value)} />
+                <input className="day-name-input" placeholder="Optional name — e.g. Legs, Push" value={d.name||''} onChange={e=>renameDay(i,e.target.value)} />
                 <button className="delset" onClick={()=>delDay(i)}>{I.trash}</button>
               </div>
-              <div className="day-edit-meta">{d.exerciseIds.length} exercise{d.exerciseIds.length!==1?'s':''} Â· ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
+              <div className="day-edit-meta">{d.exerciseIds.length} exercise{d.exerciseIds.length!==1?'s':''} · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
               <button className="btn btn-ghost btn-sm" onClick={()=>setDayIdx(i)}>{I.dumbbell}Edit exercises</button>
             </div>
           ))}
@@ -2798,10 +2971,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
   const [name,setName]=useState(day.name||'');
   const [ids,setIds]=useState(()=>asArray(day.exerciseIds));
   const [picking,setPicking]=useState(false);
-  const [reorderId,setReorderId]=useState(null);
   const [created,setCreated]=useState([]);
-  const holdRef=useRef(null);
-  const holdPointRef=useRef(null);
   const localExercises=useMemo(()=>{
     const map={};
     [...asArray(created), ...asArray(exercises)].forEach(ex=>{ if(ex&&ex.id&&!map[ex.id]) map[ex.id]=ex; });
@@ -2812,26 +2982,9 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
     asArray(created).forEach(ex=>{ if(ex&&ex.id) map[ex.id]=ex; });
     return map;
   },[exById, created]);
-  const clearHold=()=>{ if(holdRef.current) clearTimeout(holdRef.current); holdRef.current=null; holdPointRef.current=null; };
-  useEffect(()=>()=>{ if(holdRef.current) clearTimeout(holdRef.current); },[]);
-  const armReorder=(id,e)=>{
-    if(e.pointerType==='mouse' && e.button!==0) return;
-    clearHold();
-    holdPointRef.current={x:e.clientX,y:e.clientY};
-    holdRef.current=setTimeout(()=>{
-      setReorderId(id);
-      holdRef.current=null;
-      holdPointRef.current=null;
-      if(typeof navigator!=='undefined' && navigator.vibrate) navigator.vibrate(12);
-    },420);
-  };
-  const trackHold=(e)=>{
-    const p=holdPointRef.current;
-    if(p && (Math.abs(e.clientX-p.x)>10 || Math.abs(e.clientY-p.y)>10)) clearHold();
-  };
+  const {dragId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
   const stopButton=e=>e.stopPropagation();
-  const remove=id=>{ setIds(ids.filter(x=>x!==id)); if(reorderId===id) setReorderId(null); };
-  const move=(i,d)=>{const j=i+d;if(j<0||j>=ids.length)return;const a=[...ids];[a[i],a[j]]=[a[j],a[i]];setIds(a);};
+  const remove=id=>{ setIds(ids.filter(x=>x!==id)); };
   const saveDayEdits=()=>onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids});
   const handleCreate=(payload)=>{
     const ex=onCreate&&onCreate(payload);
@@ -2851,29 +3004,21 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
             <div style={{textAlign:'center',padding:'24px 10px',color:'var(--muted)',fontSize:13.5}}>No exercises yet. Tap <b style={{color:'var(--accent)'}}>+ Add</b> to pull from your library.</div>
             :
             ids.map((id,i)=>{ const ex=localExById[id]; if(!ex) return (
-                <div key={id} className="ex-row" style={{marginBottom:8,opacity:.78}}>
-                  <div className="reorder-handle" aria-hidden="true">{I.grip}</div>
+                <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')} style={{marginBottom:8,opacity:.78}} {...rowProps(id)}>
+                  <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                   <div className="ex-info"><div className="ex-name">Missing exercise</div>
                     <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div></div>
                   <button className="delset" onPointerDown={stopButton} onClick={()=>remove(id)}>{I.trash}</button>
                 </div>
               );
-              const ordering=reorderId===id;
+              const dragging=dragId===id;
               return (
-                <div key={id} className={'ex-row reorder-row'+(ordering?' ordering':'')} style={{marginBottom:8}}
-                  onPointerDown={e=>armReorder(id,e)} onPointerMove={trackHold} onPointerUp={clearHold} onPointerCancel={clearHold} onPointerLeave={clearHold}>
-                  <div className="reorder-handle" title="Hold to reorder" aria-hidden="true">{I.grip}</div>
+                <div key={id} className={'ex-row reorder-row'+(dragging?' dragging':'')} style={{marginBottom:8}} {...rowProps(id)}>
+                  <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                   <Thumb ex={ex} cls="" />
                   <div className="ex-info"><div className="ex-name">{ex.name}</div>
-                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>Â·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>Â· {sideLabel(ex)}</span>}</div></div>
-                  {ordering ?
-                    <div className="reorder-actions">
-                      <button type="button" aria-label="Move exercise up" disabled={i===0} onPointerDown={stopButton} onClick={()=>move(i,-1)}>{I.up}</button>
-                      <button type="button" aria-label="Move exercise down" disabled={i===ids.length-1} onPointerDown={stopButton} onClick={()=>move(i,1)}>{I.down}</button>
-                      <button type="button" className="reorder-done" aria-label="Done reordering" onPointerDown={stopButton} onClick={()=>setReorderId(null)}>{I.check}</button>
-                    </div>
-                    :
-                    <button className="delset" onPointerDown={stopButton} onClick={()=>remove(id)}>{I.trash}</button>}
+                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div></div>
+                  <button className="delset" onPointerDown={stopButton} onClick={()=>remove(id)}>{I.trash}</button>
                 </div>
               ); })}
           {ids.length>0 &&
