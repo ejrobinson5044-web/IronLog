@@ -1816,6 +1816,20 @@ function App(){
     }).filter(en=>en.sets.length>0)};
     if(c.entries.length){ setLogs([c, ...logs]); flash('Workout saved 🔥'); }
     else flash('Nothing logged — discarded');
+    // If this workout came from a routine day, write any exercise-order/swap
+    // changes back to that day so Plan stays in sync.
+    if(active.routineId && active.dayId){
+      const liveIds=asArray(active.entries).map(en=>en.exerciseId).filter(Boolean);
+      if(liveIds.length){
+        setRoutines(curr=>asArray(curr).map(r=>{
+          if(!r || r.id!==active.routineId) return r;
+          return {...r, days:asArray(r.days).map(d=>{
+            if(!d || d.id!==active.dayId) return d;
+            return {...d, exerciseIds:liveIds};
+          })};
+        }));
+      }
+    }
     setActive(null); setRest(null); setTab('records');
   };
   const discardWorkout = ()=>{ setActive(null); setRest(null); setTab('today'); };
@@ -3122,6 +3136,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
   const {dragId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
   const stopButton=e=>e.stopPropagation();
   const remove=id=>{ setIds(ids.filter(x=>x!==id)); };
+  const delBtnProps=(id)=>({ onClick:(e)=>{ e.stopPropagation(); remove(id); } });
   const saveDayEdits=()=>onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids});
   const handleCreate=(payload)=>{
     const ex=onCreate&&onCreate(payload);
@@ -3145,7 +3160,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
                   <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                   <div className="ex-info"><div className="ex-name">Missing exercise</div>
                     <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div></div>
-                  <button className="delset" onPointerDown={stopButton} onClick={()=>remove(id)}>{I.trash}</button>
+                  <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
                 </div>
               );
               const dragging=dragId===id;
@@ -3155,7 +3170,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
                   <Thumb ex={ex} cls="" />
                   <div className="ex-info"><div className="ex-name">{ex.name}</div>
                     <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div></div>
-                  <button className="delset" onPointerDown={stopButton} onClick={()=>remove(id)}>{I.trash}</button>
+                  <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
                 </div>
               ); })}
           {ids.length>0 &&
