@@ -60,6 +60,9 @@ check('service worker caches generated chunks', generatedChunks.every((file) => 
 check('service worker serves v2 shell', sw.includes("new URL('./index-v2.html'"));
 check('service worker version bumped', /ironlog-v\d+/.test(sw));
 check('service worker injects helper once', (sw.includes('html.includes') || sw.includes('patched.includes')) && sw.includes('ironlog-patch.js'));
+check('supersets: link/unlink + grouped flow', index.includes('const groupsOf') && index.includes('linkWithNext') && index.includes('unlinkGroup') && index.includes('superset-wrap') && index.includes('Superset: '));
+check('swap: similar-exercise sheet with movement ranking', index.includes('function SwapSheet') && index.includes('function rankAlternates') && index.includes('movementName') && index.includes('setSwapFor'));
+check('targets prefill as editable values', index.includes('const liveEntry') && index.includes('en.sets=asArray(en.sets).map(s=>applyTargetDefaults'));
 
 const failed = checks.filter((item) => !item.pass);
 checks.forEach((item) => {

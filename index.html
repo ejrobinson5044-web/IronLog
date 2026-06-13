@@ -241,6 +241,17 @@
   .seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 
   .log-ex{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+  .superset-wrap{border:1px solid var(--accent-dim);border-radius:var(--radius);margin-bottom:14px;padding:0 0 2px;background:linear-gradient(180deg,rgba(168,85,247,.08),transparent 80px)}
+  .superset-wrap .log-ex{margin:0 8px 8px;border-color:var(--border2)}
+  .superset-wrap .log-ex:first-of-type{margin-top:8px}
+  .superset-banner{display:flex;align-items:center;gap:7px;padding:10px 14px 8px;font-family:var(--display);font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}
+  .superset-banner svg{width:15px;height:15px}
+  .superset-banner .ss-hint{margin-left:auto;font-family:var(--font);font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted2);font-size:11px}
+  .ss-tag{display:inline-grid;place-items:center;min-width:22px;height:18px;padding:0 5px;margin-right:7px;border-radius:6px;background:var(--accent-dim);color:var(--accent-ink);font-family:var(--display);font-size:11px;font-weight:800;vertical-align:middle}
+  .log-ex-actions{display:flex;align-items:center;gap:2px;flex-shrink:0}
+  .iconbtn{color:var(--muted2);padding:6px;border-radius:9px;display:grid;place-items:center}
+  .iconbtn:active{background:var(--surface3);color:var(--accent)}
+  .iconbtn svg{width:19px;height:19px}
   .log-ex-head{display:flex;align-items:center;gap:11px;padding:13px 14px;background:var(--surface2)}
   .log-ex-head .ex-thumb{width:40px;height:40px}
   .log-ex-head .ex-thumb svg{width:22px;height:22px}
@@ -1319,6 +1330,9 @@ const I = {
   timer:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6M12 5V2"/></svg>,
   cloud:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 16.3"/><path d="M12 12v9M8 17l4 4 4-4"/></svg>,
   refresh:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>,
+  swap:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4 3 8l4 4M3 8h13a4 4 0 0 1 4 4M17 20l4-4-4-4M21 16H8a4 4 0 0 1-4-4"/></svg>,
+  link:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12h6M10 8H8a4 4 0 0 0 0 8h2M14 8h2a4 4 0 0 1 0 8h-2"/></svg>,
+  unlink:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18.84 12.25 1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72M5.17 11.75l-1.72 1.71a4 4 0 0 0 5.66 5.66l1.71-1.72M2 2l20 20"/></svg>,
 };
 
 /* ---- thumbnail (real photo if available, else icon) ---- */
@@ -1751,9 +1765,17 @@ function App(){
     const ex=exById[id];
     return { exerciseId:id, sets: lastSetsFor(id) || blankSets(planned?3:1, ex, planned), note: lastNoteFor(id) };
   };
+  // For a LIVE workout: prefill each set's target into the actual editable field,
+  // so the number (last weight, 8 reps, etc.) is sitting in the box ready to tweak.
+  const liveEntry = (id, planned=false)=>{
+    const en=newEntry(id, planned);
+    const tk=trackOf(exById[id]);
+    en.sets=asArray(en.sets).map(s=>applyTargetDefaults(tk, {...s}));
+    return en;
+  };
   const startDay = (day, program, label, focusIndex=0)=>{
     const dayIds=asArray(day&&day.exerciseIds).filter(id=>exById[id]);
-    const entries=dayIds.map(id=>newEntry(id, !!day));
+    const entries=dayIds.map(id=>liveEntry(id, !!day));
     const currentEntryIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+focusIndex||0)));
     setActive({ id:uid(), date:todayISO(), startedAt:null, note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
@@ -1873,7 +1895,7 @@ function App(){
         {tab==='library' &&
           <LibraryView exercises={exercises} onOpen={setDetailEx} onNew={()=>setNewExOpen(true)} />}
         {tab==='train' &&
-          <TrainView active={active} exById={exById} unit={unit} records={records}
+          <TrainView active={active} exById={exById} unit={unit} records={records} exercises={exercises}
             setActive={setActive} onFinish={finishWorkout} onDiscard={discardWorkout}
             onStartQuick={()=>startDay(null,null)} onAddExercise={()=>setPickerFor('active')} startRest={startRest} />}
         {tab==='records' &&
@@ -1913,7 +1935,7 @@ function App(){
           onConfirm={(ids)=>{ if(!active){ setPickerFor(null); return; }
             const currentEntries=asArray(active.entries);
             const ex=currentEntries.map(e=>e.exerciseId);
-            const add=ids.filter(id=>!ex.includes(id)).map(id=>newEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
+            const add=ids.filter(id=>!ex.includes(id)).map(id=>liveEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
             setActive({...active, entries:[...currentEntries, ...add]}); setPickerFor(null); }} />}
       {settingsOpen &&
         <SettingsSheet onClose={()=>setSettingsOpen(false)}
@@ -2383,9 +2405,67 @@ function WorkoutReorderSheet({entries, exById, onClose, onApply}){
   );
 }
 
-function TrainView({active, exById, unit, records, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest}){
+/* strip equipment words so "Smith Machine Bench Press" and "Bench Press" match on movement */
+const _EQ_STRIP=['smith machine','smith','machine','barbell','dumbbell','cable','kettlebell','resistance band','band','bodyweight','weight plate','landmine','leverage','pit shark','one arm','one leg','single-arm','single-leg','single arm','single leg'];
+function movementName(name){
+  let n=' '+String(name||'').toLowerCase()+' ';
+  _EQ_STRIP.forEach(w=>{ n=n.split(w).join(' '); });
+  return n.replace(/\s+/g,' ').trim();
+}
+function rankAlternates(cur, exercises){
+  if(!cur) return [];
+  const curMove=movementName(cur.name); const curTrack=trackOf(cur);
+  return asArray(exercises).filter(e=>e&&e.id&&e.name&&e.id!==cur.id).map(e=>{
+    let score=0;
+    if(movementName(e.name)===curMove && curMove) score+=200;     // same movement, different gear
+    if(e.m===cur.m) score+=100;                                    // same primary muscle
+    if(trackOf(e)===curTrack) score+=40;                           // logs the same way
+    if(e.sec && (e.sec===cur.sec || e.sec===cur.m || e.m===cur.sec)) score+=15;
+    if(e.eq!==cur.eq) score+=8;                                    // prefer a different machine/bench
+    return {e,score};
+  }).filter(x=>x.score>=40).sort((a,b)=>b.score-a.score);
+}
+function SwapSheet({current, exercises, onClose, onSwap}){
+  const [q,setQ]=useState('');
+  const ranked=useMemo(()=>rankAlternates(current, exercises),[current, exercises]);
+  const ql=q.trim().toLowerCase();
+  const list = ql
+    ? asArray(exercises).filter(e=>e&&e.id&&e.name&&e.id!==(current&&current.id)&&e.name.toLowerCase().includes(ql)).slice(0,40)
+    : ranked.map(r=>r.e).slice(0,12);
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh'}}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Swap exercise</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:10}}>
+            {current ? <span>Bench taken? Rotate <b style={{color:'var(--text)'}}>{current.name}</b> for a similar move — your sets carry over.</span> : 'Pick a replacement.'}
+          </div>
+          <div className="field" style={{marginBottom:12}}>
+            <input placeholder="Search all exercises…" value={q} onChange={e=>setQ(e.target.value)} />
+          </div>
+          {!ql && <div className="section-h" style={{margin:'2px 0 8px'}}>Similar exercises</div>}
+          {list.length===0 && <div style={{textAlign:'center',padding:'20px',color:'var(--muted)',fontSize:13}}>No matches{ql?' for that search':''}.</div>}
+          {list.map(e=>(
+            <div key={e.id} className="ex-row tap" onClick={()=>onSwap(e.id)} style={{marginBottom:8}}>
+              <Thumb ex={e} />
+              <div className="ex-info">
+                <div className="ex-name">{e.name}</div>
+                <div className="ex-sub"><span style={{color:EQUIP[e.eq]?EQUIP[e.eq].c:'#888'}}>{e.eq}</span>·<span style={{color:MUSCLE[e.m]||'#888'}}>{e.m}</span>{!ql && current && trackOf(e)===trackOf(current) && <span style={{color:'var(--good)'}}>· logs the same</span>}</div>
+              </div>
+              <span className="chevron">{I.swap}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrainView({active, exById, unit, records, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises}){
   const [elapsed,setElapsed]=useState(0);
   const [showReorder,setShowReorder]=useState(false);
+  const [swapFor,setSwapFor]=useState(null);
   const cardRefs=useRef({});
   useEffect(()=>{
     if(!active) return;
@@ -2428,6 +2508,40 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     setShowReorder(false);
   };
 
+  /* ---- supersets: adjacent entries sharing a group id ---- */
+  const groupsOf=(ens)=>{
+    const arr=asArray(ens); const out=[]; let i=0;
+    while(i<arr.length){
+      const g=arr[i] && arr[i].group;
+      if(g){ const grp=[i]; let j=i+1; while(j<arr.length && arr[j] && arr[j].group===g){ grp.push(j); j++; } out.push(grp); i=j; }
+      else { out.push([i]); i++; }
+    }
+    return out;
+  };
+  const groups=groupsOf(entries);
+  const groupOf=(ei)=>groups.find(g=>g.indexOf(ei)>=0) || [ei];
+  const groupComplete=(grp)=>grp.length>0 && grp.every(idx=>entryComplete(entries[idx]));
+  const currentGroup=guided ? groupOf(currentIndex) : [];
+  const curGroupPos=groups.findIndex(g=>g.indexOf(currentIndex)>=0);
+  const gotoGroup=(pos)=>{ const p=Math.max(0,Math.min(groups.length-1,pos)); setActive({...active, currentEntryIndex:groups[p][0]}); };
+  // label map: A1/A2, B1/B2 for multi-exercise groups
+  const ssLabel={}; let _L=0;
+  groups.forEach(g=>{ if(g.length>1){ const L=String.fromCharCode(65+_L); _L++; g.forEach((idx,k)=>{ ssLabel[idx]={tag:L+(k+1), first:k===0, last:k===g.length-1, count:g.length}; }); } });
+  const linkWithNext=(ei)=>{
+    const e=clone(active); const ens=asArray(e.entries);
+    if(ei<0 || ei>=ens.length-1) return;
+    const gid=ens[ei].group || ens[ei+1].group || ('ss'+uid());
+    ens[ei].group=gid; ens[ei+1].group=gid;
+    setActive(e);
+  };
+  const unlinkGroup=(ei)=>{
+    const e=clone(active); const ens=asArray(e.entries);
+    const g=ens[ei] && ens[ei].group; if(!g) return;
+    ens.forEach(en=>{ if(en && en.group===g) delete en.group; });
+    setActive(e);
+  };
+  const doSwap=(ei,newId)=>{ const e=clone(active); const en=asArray(e.entries)[ei]; if(!en || !exById[newId]) return; en.exerciseId=newId; setActive(e); };
+
   const setFocusIndex=(idx)=>{
     if(!guided) return;
     const next=Math.max(0, Math.min(entries.length-1, idx));
@@ -2443,13 +2557,17 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       return;
     }
     if(!entryComplete(e.entries[ei])){ setActive(e); startRest(label||'Rest'); return; }
-    const next=asArray(e.entries).findIndex((en,idx)=>idx>ei && !entryComplete(en));
-    if(next>=0){
-      e.currentEntryIndex=next;
-      setActive(e);
-      const nx=exById[e.entries[next].exerciseId];
-      startRest(nx ? 'Next: '+nx.name : 'Next exercise');
-      return;
+    const eg=groupsOf(e.entries);
+    const myGroup=eg.find(g=>g.indexOf(ei)>=0) || [ei];
+    const groupDone=myGroup.every(idx=>entryComplete(e.entries[idx]));
+    if(!groupDone){
+      const nextInGroup=myGroup.find(idx=>!entryComplete(e.entries[idx]));
+      if(nextInGroup!==undefined){ e.currentEntryIndex=nextInGroup; setActive(e); const nx=exById[e.entries[nextInGroup].exerciseId]; startRest(nx?'Superset: '+nx.name:'Next in superset'); return; }
+    }
+    const myPos=eg.findIndex(g=>g.indexOf(ei)>=0);
+    for(let p=myPos+1;p<eg.length;p++){
+      const tgt=eg[p].find(idx=>!entryComplete(e.entries[idx]));
+      if(tgt!==undefined){ e.currentEntryIndex=tgt; setActive(e); const nx=exById[e.entries[tgt].exerciseId]; startRest(nx?'Next: '+nx.name:'Next exercise'); return; }
     }
     const anyOpen=asArray(e.entries).findIndex(en=>!entryComplete(en));
     if(anyOpen>=0){
@@ -2484,7 +2602,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     if(set.done){ set.done=false; setActive(e); return; }
     finishSet(ei,si,e);
   };
-  const addSet=(ei)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); const last=entry.sets[entry.sets.length-1]; entry.sets.push(last?{...last,weight:'',reps:'',time:'',dist:'',done:false}:{weight:'',reps:'',time:'',dist:'',done:false}); setActive(e); };
+  const addSet=(ei)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); const last=entry.sets[entry.sets.length-1]; entry.sets.push(last?{...last,done:false}:defaultSetFor(exById[entry.exerciseId])); setActive(e); };
   const delSet=(ei,si)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } setActive(e); };
   const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); setActive(e); };
   const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
@@ -2508,26 +2626,34 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
           </div>
           <div className="guided-track"><div className="guided-fill" style={{width:progressPct+'%'}}></div></div>
           <div className="guided-controls">
-            <button className="mini-btn" disabled={currentIndex<=0} onClick={()=>setFocusIndex(currentIndex-1)}>Prev</button>
+            <button className="mini-btn" disabled={curGroupPos<=0} onClick={()=>gotoGroup(curGroupPos-1)}>Prev</button>
             <button className="mini-btn" onClick={()=>setShowReorder(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5}}>{I.grip}Reorder</button>
-            <button className="mini-btn" disabled={currentIndex>=entries.length-1} onClick={()=>setFocusIndex(currentIndex+1)}>Next</button>
+            <button className="mini-btn" disabled={curGroupPos>=groups.length-1} onClick={()=>gotoGroup(curGroupPos+1)}>Next</button>
           </div>
         </div>}
       {guided && allExercisesDone && <div className="guided-done">Routine day complete. Finish when notes look right.</div>}
       <textarea className="session-note" rows="2" placeholder="Session notes — how you feel, sleep, bodyweight, energy…" value={active.note||''} onChange={e=>updSessionNote(e.target.value)} />
       {entries.length===0 && <div className="empty" style={{padding:'30px 20px'}}><p>Empty session - add your first exercise below.</p></div>}
       {guided && entries.length>0 && !validEntries.length && <div className="empty" style={{padding:'30px 20px'}}><p>This routine day has exercises that no longer exist. Add them again from the library.</p></div>}
-      {entries.map((en,ei)=>{
-        if(guided && ei!==currentIndex) return null;
+      {groups.map((grp,gi)=>{
+        if(guided && grp.indexOf(currentIndex)<0) return null;
+        const isSS=grp.length>1;
+        return (
+        <div key={'g'+gi} className={isSS?'superset-wrap':''}>
+          {isSS && <div className="superset-banner">{I.link} Superset · {grp.length} exercises <span className="ss-hint">back-to-back, rest after the round</span></div>}
+          {grp.map((ei)=>{
+        const en=entries[ei];
         const ex=exById[en.exerciseId];
         if(!ex){
-          if(!(guided && ei===currentIndex)) return null;
           return (
-            <div key={ei} className="log-ex">
+            <div key={ei} className={'log-ex'+(isSS?' ss-item':'')}>
               <div className="log-ex-head">
-                <div style={{flex:1,minWidth:0}}><div className="log-ex-name">Missing exercise</div>
-                  <div className="log-prev">This slot's exercise was deleted from your library. Remove it or jump past it with Next.</div></div>
-                <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
+                <div style={{flex:1,minWidth:0}}><div className="log-ex-name">{ssLabel[ei]&&<span className="ss-tag">{ssLabel[ei].tag}</span>}Missing exercise</div>
+                  <div className="log-prev">This slot's exercise was deleted from your library. Swap it or remove it.</div></div>
+                <div className="log-ex-actions">
+                  <button className="iconbtn" title="Swap for a similar exercise" onClick={()=>setSwapFor(ei)}>{I.swap}</button>
+                  <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
+                </div>
               </div>
             </div>
           );
@@ -2538,13 +2664,19 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         const sets=asArray(en.sets);
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 46px';
         return (
-          <div key={ei} className="log-ex" ref={el=>{ if(el) cardRefs.current[ei]=el; else delete cardRefs.current[ei]; }}>
+          <div key={ei} className={'log-ex'+(isSS?' ss-item':'')} ref={el=>{ if(el) cardRefs.current[ei]=el; else delete cardRefs.current[ei]; }}>
             <div className="log-ex-head">
               <Thumb ex={ex} />
-              <div style={{flex:1,minWidth:0}}><div className="log-ex-name">{ex.name}</div>
+              <div style={{flex:1,minWidth:0}}><div className="log-ex-name">{ssLabel[ei]&&<span className="ss-tag">{ssLabel[ei].tag}</span>}{ex.name}</div>
                 <div className="log-prev">{rec?`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`:'No history yet — set the baseline'}</div>
                 <div className="target-line">{targetSummary(en, ex, unit)}</div></div>
-              <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
+              <div className="log-ex-actions">
+                <button className="iconbtn" title="Swap for a similar exercise" onClick={()=>setSwapFor(ei)}>{I.swap}</button>
+                {ssLabel[ei]
+                  ? (ssLabel[ei].first && <button className="iconbtn" title="Unlink superset" onClick={()=>unlinkGroup(ei)}>{I.unlink}</button>)
+                  : (ei<entries.length-1 && <button className="iconbtn" title="Superset with next exercise" onClick={()=>linkWithNext(ei)}>{I.link}</button>)}
+                <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
+              </div>
             </div>
             {guided && demo && <div className="workout-demo"><AnimatedDemo demo={demo} /></div>}
             {(tk==='ws'||tk==='r') && (()=>{ const last=rec&&rec.sessions&&rec.sessions.length?rec.sessions[rec.sessions.length-1]:null;
@@ -2579,6 +2711,9 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
             </div>
           </div>
         );
+          })}
+        </div>
+        );
       })}
       {!guided && entries.length>1 &&
         <button className="btn btn-ghost" onClick={()=>setShowReorder(true)} style={{marginTop:4}}>{I.grip}Reorder exercises</button>}
@@ -2586,6 +2721,8 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       <button className="btn btn-danger btn-sm" onClick={onDiscard} style={{marginTop:10}}>{I.trash}Discard workout</button>
       {showReorder && <WorkoutReorderSheet entries={entries} exById={exById}
         onClose={()=>setShowReorder(false)} onApply={applyReorder} />}
+      {swapFor!=null && <SwapSheet current={exById[(entries[swapFor]||{}).exerciseId]} exercises={exercises}
+        onClose={()=>setSwapFor(null)} onSwap={(id)=>{ doSwap(swapFor,id); setSwapFor(null); }} />}
     </div>
   );
 }
