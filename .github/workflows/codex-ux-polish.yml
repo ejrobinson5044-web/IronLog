@@ -38,6 +38,11 @@ jobs:
           print(f'patch payload chars: {len(s)}')
           PY
           base64 --decode /tmp/codex-ux-source.patch.gz.b64 | gzip -d > /tmp/codex-ux-source.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/codex-ux-source.patch')
+          path.write_bytes(path.read_bytes().replace(b'\r\n', b'\n'))
+          PY
           git apply --whitespace=nowarn /tmp/codex-ux-source.patch
           rm -f .github/workflows/codex-ux-polish.yml
 
