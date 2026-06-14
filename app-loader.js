@@ -1,5 +1,5 @@
 (function(){
-  const chunks = ["app-chunks/app.00.js","app-chunks/app.01.js","app-chunks/app.02.js","app-chunks/app.03.js","app-chunks/app.04.js","app-chunks/app.05.js","app-chunks/app.06.js","app-chunks/app.07.js","app-chunks/app.08.js","app-chunks/app.09.js","app-chunks/app.10.js","app-chunks/app.11.js","app-chunks/app.12.js","app-chunks/app.13.js","app-chunks/app.14.js"];
+  const chunks = ["app-chunks/app.00.js","app-chunks/app.01.js","app-chunks/app.02.js","app-chunks/app.03.js","app-chunks/app.04.js","app-chunks/app.05.js","app-chunks/app.06.js","app-chunks/app.07.js","app-chunks/app.08.js","app-chunks/app.09.js","app-chunks/app.10.js","app-chunks/app.11.js","app-chunks/app.12.js","app-chunks/app.13.js","app-chunks/app.14.js","app-chunks/app.15.js"];
   const root = new URL('.', document.currentScript.src);
   const error = (message) => {
     const el = document.getElementById('root') || document.body;

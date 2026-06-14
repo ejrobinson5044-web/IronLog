@@ -10,7 +10,7 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v42';
+const CACHE_VERSION = 'ironlog-v43';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
@@ -34,6 +34,7 @@ const SHELL = [
   './app-chunks/app.12.js',
   './app-chunks/app.13.js',
   './app-chunks/app.14.js',
+  './app-chunks/app.15.js',
   './ironlog-patch.js',
   './manifest.json',
   './icon-192.png',

@@ -46,12 +46,12 @@
   ::-webkit-scrollbar{width:0;height:0}
 
   .app{max-width:480px;margin:0 auto;height:100%;display:flex;flex-direction:column;
-    background:linear-gradient(180deg,#09060d 0%,#050407 44%,#030205 100%);
-    position:relative;border-left:1px solid rgba(168,85,247,.12);border-right:1px solid rgba(168,85,247,.12);
-    box-shadow:0 0 80px rgba(0,0,0,.72);overflow:hidden}
+    background:linear-gradient(180deg,#0b0611 0%,#050407 42%,#020104 100%);
+    position:relative;border-left:1px solid rgba(168,85,247,.18);border-right:1px solid rgba(168,85,247,.18);
+    box-shadow:0 0 86px rgba(0,0,0,.74),0 0 34px rgba(109,40,217,.13);overflow:hidden}
   .app::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
     background:
-      linear-gradient(180deg,rgba(168,85,247,.08),transparent 28%,rgba(109,40,217,.06) 68%,transparent),
+      linear-gradient(180deg,rgba(168,85,247,.12),transparent 28%,rgba(109,40,217,.1) 68%,transparent),
       repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 34px),
       repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 34px);
     opacity:.34;mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.58) 42%,transparent 100%)}
@@ -85,12 +85,12 @@
   .nav button.on{color:var(--accent);background:linear-gradient(180deg,rgba(168,85,247,.16),rgba(109,40,217,.08));box-shadow:inset 0 0 0 1px rgba(168,85,247,.16)}
   .nav svg{width:23px;height:23px}
 
-  .card{background:linear-gradient(180deg,rgba(13,9,20,.94),rgba(12,18,28,.92));border:1px solid rgba(168,85,247,.12);border-radius:var(--radius);padding:16px;transition:.15s;box-shadow:0 12px 28px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.04)}
+  .card{background:linear-gradient(180deg,rgba(13,9,20,.96),rgba(5,4,9,.94));border:1px solid rgba(168,85,247,.16);border-radius:var(--radius);padding:16px;transition:.15s;box-shadow:0 14px 34px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.04)}
   .today-hero{position:relative;overflow:hidden;border:1px solid rgba(168,85,247,.2);border-radius:var(--radius-lg);
     padding:18px;margin:8px 0 14px;background:
       linear-gradient(135deg,rgba(168,85,247,.18),rgba(109,40,217,.12) 46%,rgba(232,121,249,.08)),
-      linear-gradient(180deg,rgba(13,9,20,.98),rgba(8,12,20,.94));
-    box-shadow:0 18px 48px rgba(0,0,0,.38),0 0 34px rgba(168,85,247,.12),inset 0 1px 0 rgba(255,255,255,.08)}
+      linear-gradient(180deg,rgba(13,9,20,.98),rgba(4,3,8,.96));
+    box-shadow:0 18px 52px rgba(0,0,0,.46),0 0 38px rgba(168,85,247,.18),inset 0 1px 0 rgba(255,255,255,.08)}
   .today-hero::before{content:"";position:absolute;inset:0;pointer-events:none;
     background:linear-gradient(110deg,transparent 0 35%,rgba(255,255,255,.12) 45%,transparent 58%),
       repeating-linear-gradient(180deg,rgba(255,255,255,.04) 0 1px,transparent 1px 8px);
@@ -151,6 +151,16 @@
   .start-btn{background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;padding:9px 16px;
     border-radius:999px;white-space:nowrap;font-family:var(--display)}
   .start-btn:active{background:var(--accent-dim)}
+  .plan-command{display:flex;align-items:center;gap:12px;margin:8px 0 14px;background:linear-gradient(135deg,rgba(168,85,247,.16),rgba(13,9,20,.92));border:1px solid rgba(168,85,247,.22);border-radius:var(--radius);padding:13px 14px;box-shadow:0 12px 30px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05)}
+  .plan-command .focus-icon{width:38px;height:38px;border-radius:11px}
+  .plan-command .day-start{padding:9px 14px}
+  .plan-day-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .plan-day-stats span{background:rgba(5,4,8,.5);border:1px solid rgba(168,85,247,.14);border-radius:9px;padding:9px 7px;text-align:center;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+  .plan-day-stats b{display:block;color:var(--text);font-family:var(--display);font-size:15px;letter-spacing:0;margin-bottom:2px}
+  .day-launch{position:sticky;bottom:-18px;z-index:6;background:linear-gradient(180deg,rgba(13,9,20,.66),var(--surface) 34%);border-top:1px solid rgba(168,85,247,.16);padding:14px 18px 18px;margin:12px -18px -18px;backdrop-filter:blur(14px)}
+  .day-launch-meta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;font-weight:800;margin-bottom:9px}
+  .day-launch-meta b{color:var(--text);font-family:var(--display)}
+  .preview-detail{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin:-4px 0 4px 40px}
   .pill{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap}
 
   .ex-row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:var(--radius-sm);
@@ -286,17 +296,18 @@
     display:grid;place-items:center;color:var(--muted2);transition:.12s;margin:0 auto}
   .check.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
   .check svg{width:17px;height:17px}
-  .set-foot{display:flex;gap:8px;margin-top:4px}
+  .set-foot{display:flex;gap:8px;margin-top:4px;align-items:center}
   .addset{flex:1;padding:9px;border-radius:9px;background:var(--surface2);border:1px dashed var(--border2);color:var(--muted);
-    font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px}
+    font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px}
   .addset:active{background:var(--surface3)}
+  .addset svg{width:15px;height:15px;flex-shrink:0}
   .restbtn{padding:9px 14px;border-radius:9px;background:var(--surface3);border:1px solid var(--border2);color:var(--accent);
     font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px;font-family:var(--display)}
   .restbtn svg{width:15px;height:15px}
   .delset{color:var(--muted);padding:8px;flex-shrink:0;display:grid;place-items:center}
   .delset svg{width:18px;height:18px}
 
-  .workout-bar{background:linear-gradient(135deg,rgba(168,85,247,.16),rgba(109,40,217,.12)),linear-gradient(180deg,rgba(36,22,49,.94),rgba(13,9,20,.94));border:1px solid rgba(168,85,247,.32);
+  .workout-bar{background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(109,40,217,.13)),linear-gradient(180deg,rgba(36,22,49,.96),rgba(13,9,20,.96));border:1px solid rgba(168,85,247,.34);
     border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 28px rgba(168,85,247,.12)}
   .wb-time{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--accent)}
   .wb-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
@@ -310,6 +321,12 @@
   .mini-btn{height:34px;border-radius:9px;background:rgba(36,22,49,.82);border:1px solid rgba(168,85,247,.14);color:var(--text);font-size:12px;font-weight:800;font-family:var(--display)}
   .mini-btn:disabled{opacity:.35}
   .guided-count{text-align:center;font-size:12px;color:var(--muted);font-weight:800}
+  .guided-current{margin-top:12px;background:linear-gradient(180deg,rgba(5,4,8,.64),rgba(23,16,33,.58));border:1px solid rgba(168,85,247,.16);border-radius:var(--radius-sm);padding:12px}
+  .guided-current-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .guided-current-title{font-family:var(--display);font-weight:800;font-size:17px;line-height:1.18}
+  .guided-current-meta{font-size:12px;color:var(--muted);margin-top:4px}
+  .guided-next{margin-top:10px;padding-top:10px;border-top:1px solid rgba(168,85,247,.12);font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .guided-next b{color:var(--text);font-family:var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .guided-done{background:linear-gradient(135deg,rgba(99,230,190,.12),rgba(168,85,247,.1));border:1px solid rgba(99,230,190,.22);border-radius:var(--radius);padding:13px 14px;margin-bottom:13px;color:var(--text);font-weight:800;text-align:center}
   .plan-day-head{background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(13,9,20,.94));border:1px solid rgba(168,85,247,.2);border-radius:var(--radius);padding:14px;margin-bottom:13px}
   .plan-day-title{font-family:var(--display);font-size:19px;font-weight:800;letter-spacing:-.01em}
@@ -318,6 +335,10 @@
   .target-line b{color:var(--accent);font-weight:800}
   .workout-demo{padding:12px 14px 0}
   .workout-demo .demo-hero{height:190px;margin-bottom:2px}
+  .workout-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px}
+  .workout-actions .btn{padding:11px 10px;font-size:13px}
+  .set-entry-hint{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted2);font-size:11.5px;font-weight:800;margin-top:8px;text-transform:uppercase;letter-spacing:.04em}
+  .set-entry-hint svg{width:14px;height:14px;color:var(--accent)}
 
   /* ---- REST TIMER bar ---- */
   .rest-bar{position:absolute;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:34;background:linear-gradient(135deg,var(--accent-deep),var(--accent-dim));
@@ -403,7 +424,7 @@
   @keyframes toastin{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
   .toast svg{width:18px;height:18px;flex-shrink:0}
 
-  .selected-count{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 18px;margin:0 -18px -18px}
+  .selected-count{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);padding:14px 18px;margin:0 -18px -18px;backdrop-filter:blur(14px)}
   .added-badge{width:28px;height:28px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0}
   .added-badge svg{width:16px;height:16px}
   .add-circle{width:28px;height:28px;border-radius:999px;border:1.5px solid var(--border2);color:var(--muted2);display:grid;place-items:center;flex-shrink:0;transition:.12s}
@@ -1829,13 +1850,12 @@ function App(){
     updatePreviewDay(nextIds, nextGroups);
   };
   const finishWorkout = ()=>{
-    // with pre-filled presets, the checkmark means "I actually did this set".
-    // If any set is checked, save only checked sets; otherwise fall back to whatever was typed.
+    // Save completed sets first; if none are checked, keep any typed sets.
     const anyDone = active.entries.some(en=>en.sets.some(s=>s.done));
     const c = {...active, startedAt: active.startedAt || Date.now(), endedAt: Date.now(), entries: active.entries.map(en=>{
       const tk = trackOf(exById[en.exerciseId]);
       const keep = anyDone ? (s=>s.done && setHasData(tk,s)) : (s=>setHasData(tk,s));
-      return {...en, sets: en.sets.filter(keep)};
+      return {...en, sets: en.sets.filter(keep).map(({_touchedFields, ...set})=>set)};
     }).filter(en=>en.sets.length>0)};
     if(c.entries.length){ setLogs([c, ...logs]); flash('Workout saved 🔥'); }
     else flash('Nothing logged — discarded');
@@ -2213,15 +2233,21 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
     setSelectedId(curr=>curr===id?null:id);
   };
   const availableCount=ids.filter(id=>exById[id]).length;
+  const supersetCount=[...new Set(Object.values(groups||{}).filter(Boolean))].length;
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>Plan Day</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="plan-day-head">
             <div className="guided-meta">{preview.program?preview.program.name:'Routine'}</div>
             <div className="plan-day-title">{label}</div>
+            <div className="plan-day-stats">
+              <span><b>{availableCount}</b>Lifts</span>
+              <span><b>~{estimateMinutes(ids, logs, restDefault)}</b>Min</span>
+              <span><b>{supersetCount}</b>Supersets</span>
+            </div>
             <div className="plan-day-meta">{availableCount} exercise{availableCount!==1?'s':''} · ~{estimateMinutes(ids, logs, restDefault)} min</div>
           </div>
           {ids.map((id,i)=>{
@@ -2259,7 +2285,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
                 <span className="chevron">{selected?I.down:I.chevron}</span>
               </div>
               {selected &&
-                <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:12,margin:'-4px 0 4px 40px'}}>
+                <div className="preview-detail">
                   {demo ? <div className="workout-demo" style={{margin:'0 0 10px'}}><AnimatedDemo demo={demo} /></div> :
                     <div className="target-line" style={{marginBottom:8}}>No demo image saved for this exercise yet.</div>}
                   <div className="target-line" style={{marginBottom:10}}>Planned: {targetSummary(entry, ex, unit)}</div>
@@ -2281,7 +2307,10 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
               </div>
             );
           })}
-          <button className="btn btn-accent" disabled={!availableCount} style={{marginTop:10,opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start workout</button>
+          <div className="day-launch">
+            <div className="day-launch-meta"><span>{label}</span><b>{availableCount} lift{availableCount!==1?'s':''} · ~{estimateMinutes(ids, logs, restDefault)} min</b></div>
+            <button className="btn btn-accent" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start workout</button>
+          </div>
         </div>
       </div>
       {/* hold-action sheet */}
@@ -2394,6 +2423,7 @@ function TodayView({active, routines, logs, measurements, exById, unit, restDefa
 
 
 function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, onOpenDay, onNew, onEdit, onResume}){
+  const target=nextTrainingTarget(routines, logs);
   return (
     <div>
       {active &&
@@ -2402,7 +2432,17 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
             <div style={{fontWeight:700,fontFamily:'var(--display)',fontSize:16,marginTop:2}}>{active.name}</div></div>
           <span className="start-btn">Resume →</span>
         </div>}
-      <div className="section-h">Your Routines</div>
+      {!active && target &&
+        <div className="plan-command" onClick={()=>onOpenDay(target.day,target.routine,target.label)} style={{cursor:'pointer'}}>
+          <div className="focus-icon">{I.flame}</div>
+          <div className="focus-main">
+            <div className="focus-kicker">Next up</div>
+            <div className="focus-title">{target.label}</div>
+            <div className="focus-meta">{target.routine.name} · {target.day.exerciseIds.length} ex · ~{estimateMinutes(target.day.exerciseIds, logs, restDefault)} min</div>
+          </div>
+          <button className="day-start" onClick={e=>{e.stopPropagation();onStartDay(target.day,target.routine,target.label);}}>Start</button>
+        </div>}
+      <div className="section-h"><span>Your Routines</span><button className="mini-link" onClick={onNew}>{I.plus}New</button></div>
       {routines.length===0 ?
         <div className="empty"><div className="ic">{I.list}</div><h3>No routines yet</h3>
           <p>A routine is your program — build one with days like Push, Pull, and Legs, each with its own exercises. Tap + to start.</p>
@@ -2585,6 +2625,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const [showReorder,setShowReorder]=useState(false);
   const [swapFor,setSwapFor]=useState(null);
   const cardRefs=useRef({});
+  const autoTimers=useRef({});
   useEffect(()=>{
     if(!active) return;
     if(!active.startedAt){ setElapsed(0); return; }
@@ -2592,6 +2633,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     setElapsed(Math.floor((Date.now()-active.startedAt)/1000));
     return ()=>clearInterval(t);
   },[active&&active.startedAt]);
+  useEffect(()=>()=>{ Object.values(autoTimers.current).forEach(clearTimeout); autoTimers.current={}; },[]);
 
   if(!active) return (
     <div className="empty" style={{paddingTop:70}}><div className="ic">{I.flame}</div><h3>No active workout</h3>
@@ -2616,6 +2658,12 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const storedIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+active.currentEntryIndex||0)));
   const currentIndex=guided ? storedIndex : -1;
   const progressPct=entries.length ? (completeExercises/entries.length)*100 : 0;
+  const currentEntry=guided && entries[currentIndex] ? entries[currentIndex] : null;
+  const currentExercise=currentEntry ? exById[currentEntry.exerciseId] : null;
+  const currentSets=asArray(currentEntry&&currentEntry.sets);
+  const currentDone=currentSets.filter(s=>s&&s.done&&setHasData(trackOf(currentExercise),s)).length;
+  const nextOpenIndex=guided ? entries.findIndex((en,idx)=>idx>currentIndex && !entryComplete(en)) : -1;
+  const nextExercise=nextOpenIndex>=0 ? exById[(entries[nextOpenIndex]||{}).exerciseId] : null;
   const applyReorder=(ids)=>{
     const byId={}; entries.forEach(en=>{ if(en&&en.exerciseId) byId[en.exerciseId]=en; });
     const next=asArray(ids).map(id=>byId[id]).filter(Boolean);
@@ -2665,6 +2713,24 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     const next=Math.max(0, Math.min(entries.length-1, idx));
     setActive({...active, currentEntryIndex:next});
   };
+  const autoKey=(ei,si)=>ei+':'+si;
+  const clearAutoTimer=(ei,si)=>{
+    const key=autoKey(ei,si);
+    if(autoTimers.current[key]){ clearTimeout(autoTimers.current[key]); delete autoTimers.current[key]; }
+  };
+  const fieldsTouched=(set, fields)=>{
+    const touched=asArray(set&&set._touchedFields);
+    return fields.every(f=>{
+      if(touched.includes(f)) return true;
+      const target=set&&set[targetKey(f)];
+      return set && set[f]!==undefined && set[f]!==null && set[f]!=='' && target!==undefined && target!==null && target!=='';
+    });
+  };
+  const markTouched=(set, field)=>{
+    const touched=new Set(asArray(set._touchedFields));
+    touched.add(field);
+    set._touchedFields=[...touched];
+  };
   const advanceAfterSet=(e,ei,label)=>{
     if(!guided){
       setActive(e); startRest(label||'Rest');
@@ -2700,28 +2766,41 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const finishSet=(ei,si,eOverride)=>{
     const e=eOverride||clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
+    clearAutoTimer(ei,si);
     applyTargetDefaults(tk,set);
     if(!setHasData(tk,set)){ set.done=false; setActive(e); return; }
     if(!e.startedAt) e.startedAt=Date.now();
     const was=set.done; set.done=true;
+    delete set._touchedFields;
     if(!was) advanceAfterSet(e,ei,ex?ex.name:'Rest'); else setActive(e);
   };
   const upd=(ei,si,f,v)=>{
     const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
+    const fields=TRACK[tk].fields;
     set[f]=v;
-    // typing never auto-completes a set — the checkmark is the only "I did this" signal.
-    // The one exception: a checked set that loses its data flips back to unchecked.
+    markTouched(set,f);
+    // Auto-complete only after every required field has been touched.
     if(set.done && !setHasData(tk,set)) set.done=false;
+    clearAutoTimer(ei,si);
+    const autoReady=!set.done && setHasData(tk,set) && fieldsTouched(set, fields);
     setActive(e);
+    if(autoReady){
+      const key=autoKey(ei,si);
+      autoTimers.current[key]=setTimeout(()=>{
+        delete autoTimers.current[key];
+        finishSet(ei,si,e);
+      },850);
+    }
   };
   const toggleDone=(ei,si)=>{
     const e=clone(active); const set=asArray(e.entries)[ei]&&asArray(e.entries[ei].sets)[si]; if(!set) return;
+    clearAutoTimer(ei,si);
     if(set.done){ set.done=false; setActive(e); return; }
     finishSet(ei,si,e);
   };
   const addSet=(ei)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); const last=entry.sets[entry.sets.length-1]; entry.sets.push(last?{...last,done:false}:defaultSetFor(exById[entry.exerciseId])); setActive(e); };
-  const delSet=(ei,si)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } setActive(e); };
+  const delSet=(ei,si)=>{ clearAutoTimer(ei,si); const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } setActive(e); };
   const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); setActive(e); };
   const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
@@ -2743,12 +2822,28 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
             <div className="guided-meta">{completeExercises}/{entries.length}</div>
           </div>
           <div className="guided-track"><div className="guided-fill" style={{width:progressPct+'%'}}></div></div>
+          {!allExercisesDone &&
+            <div className="guided-current">
+              <div className="guided-current-top">
+                <div style={{minWidth:0}}>
+                  <div className="guided-meta">Now</div>
+                  <div className="guided-current-title">{currentExercise?currentExercise.name:'Missing exercise'}</div>
+                  <div className="guided-current-meta">{currentDone}/{currentSets.length||0} sets · {currentEntry&&currentExercise?targetSummary(currentEntry,currentExercise,unit):'No target'}</div>
+                </div>
+                {currentExercise && <Thumb ex={currentExercise} />}
+              </div>
+              <div className="guided-next"><span>Next</span><b>{nextExercise?nextExercise.name:(allExercisesDone?'Finish workout':'Finish this lift')}</b></div>
+            </div>}
           <div className="guided-controls">
             <button className="mini-btn" disabled={curGroupPos<=0} onClick={()=>gotoGroup(curGroupPos-1)}>Prev</button>
             <button className="mini-btn" onClick={()=>setShowReorder(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5}}>{I.grip}Reorder</button>
             <button className="mini-btn" disabled={curGroupPos>=groups.length-1} onClick={()=>gotoGroup(curGroupPos+1)}>Next</button>
           </div>
         </div>}
+      <div className="workout-actions">
+        <button className="btn btn-ghost" onClick={onAddExercise}>{I.plus}Add exercise</button>
+        <button className="btn btn-ghost" disabled={entries.length<2} style={{opacity:entries.length>1?1:.45}} onClick={()=>setShowReorder(true)}>{I.grip}Reorder</button>
+      </div>
       {guided && allExercisesDone && <div className="guided-done">Routine day complete. Finish when notes look right.</div>}
       <textarea className="session-note" rows="2" placeholder="Session notes — how you feel, sleep, bodyweight, energy…" value={active.note||''} onChange={e=>updSessionNote(e.target.value)} />
       {entries.length===0 && <div className="empty" style={{padding:'30px 20px'}}><p>Empty session - add your first exercise below.</p></div>}
@@ -2807,7 +2902,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
                 ? <span>All sets hit 8+ — <b>add weight: {w+inc}×8</b></span>
                 : <span>Build every set to <b>8 reps</b> at <b>{w} {unit}</b>, then add weight</span>}</div>; })()}
             <div className="set-table">
-              <div className="set-hdr" style={{gridTemplateColumns:cols}}><div>Set</div>{fields.map(f=><div key={f}>{fieldLabel(f,unit)}</div>)}<div>✓</div></div>
+              <div className="set-hdr" style={{gridTemplateColumns:cols}}><div>Set</div>{fields.map(f=><div key={f}>{fieldLabel(f,unit,ex)}</div>)}<div>Done</div></div>
               {sets.map((s,si)=>
                 <div key={si} className={'set-row'+(s.done?' done':'')} style={{gridTemplateColumns:cols}}>
                   <div className="setno">{si+1}</div>
@@ -2820,8 +2915,9 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
                 </div>)}
               <div className="set-foot">
                 <button className="addset" onClick={()=>addSet(ei)}>{I.plus}<span>Add set</span></button>
-                <button className="restbtn" onClick={()=>startRest(ex.name)}>{I.timer}Rest</button>
+                {!guided && <button className="restbtn" onClick={()=>startRest(ex.name)}>{I.timer}Rest</button>}
               </div>
+              {guided && <div className="set-entry-hint">{I.timer}<span>Auto rest after set</span></div>}
               {tk==='ws' && sets.some(s=>+s.weight>0&&+s.reps>0) &&
                 <div style={{textAlign:'center',fontSize:11.5,color:'var(--muted2)',marginTop:8}}>
                   Top est. 1RM this session: <b style={{color:'var(--accent)'}}>{Math.max(...sets.map(s=>epley(s.weight,s.reps)))} {unit}</b></div>}
@@ -2833,9 +2929,6 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         </div>
         );
       })}
-      {!guided && entries.length>1 &&
-        <button className="btn btn-ghost" onClick={()=>setShowReorder(true)} style={{marginTop:4}}>{I.grip}Reorder exercises</button>}
-      <button className="btn btn-ghost" onClick={onAddExercise} style={{marginTop:4}}>{I.plus}Add exercise</button>
       <button className="btn btn-danger btn-sm" onClick={onDiscard} style={{marginTop:10}}>{I.trash}Discard workout</button>
       {showReorder && <WorkoutReorderSheet entries={entries} exById={exById}
         onClose={()=>setShowReorder(false)} onApply={applyReorder} />}
@@ -3301,7 +3394,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
   const [q,setQ]=useState(''); const [eq,setEq]=useState('All'); const [mus,setMus]=useState('All');
   const [sel,setSel]=useState(()=>new Set(selectedIds));
   const [creating,setCreating]=useState(false);
-  const toggle=id=>{const s=new Set(sel);s.has(id)?s.delete(id):s.add(id);setSel(s);};
+  const toggle=id=>{ if(selectedIds.includes(id)) return; const s=new Set(sel);s.has(id)?s.delete(id):s.add(id);setSel(s); };
   const filtered=safeExercises.filter(e=>{
     if(q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
     if(eq!=='All' && e.eq!==eq) return false;
@@ -3314,7 +3407,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>Add Exercises</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-head"><h2>Add Exercises</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!addedCount} style={{opacity:addedCount?1:.45}} onClick={()=>addedCount&&onConfirm([...sel])}>{I.check}Add {addedCount||''}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body" style={{paddingTop:12}}>
           <div className="search-wrap" style={{marginTop:0}}>{I.search}<input className="search" placeholder="Search…" value={q} onChange={e=>setQ(e.target.value)} /></div>
           {onCreate && <button className="create-ex-btn" onClick={()=>setCreating(true)}>{I.plus}<span>Can’t find it? Create a new exercise</span></button>}
@@ -3327,7 +3420,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
             </div>}
           {filtered.map(e=>{ const on=sel.has(e.id), already=selectedIds.includes(e.id);
             return (
-              <div key={e.id} className="ex-row tap" onClick={()=>toggle(e.id)} style={on?{borderColor:'var(--accent)',background:'rgba(168,85,247,.07)'}:{}}>
+              <div key={e.id} className="ex-row tap" onClick={()=>toggle(e.id)} style={on?{borderColor:'var(--accent)',background:'rgba(168,85,247,.07)',opacity:already?0.82:1}:{}}>
                 <Thumb ex={e} />
                 <div className="ex-info"><div className="ex-name">{e.name}</div>
                   <div className="ex-sub"><span style={{color:EQUIP[e.eq]?EQUIP[e.eq].c:'#888'}}>{e.eq}</span>·<span style={{color:MUSCLE[e.m]||'#888'}}>{e.m}</span>{sideOf(e)&&<span style={{color:'var(--accent)'}}>· {sideLabel(e)}</span>}{already&&on?<span style={{color:'var(--muted2)'}}>· in routine</span>:''}</div></div>
@@ -3335,7 +3428,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
               </div>
             ); })}
           <div className="selected-count">
-            <button className="btn btn-accent" onClick={()=>onConfirm([...sel])}>{I.check}Add {addedCount>0?addedCount+' ':''}exercise{addedCount!==1?'s':''}</button>
+            <button className="btn btn-accent" disabled={!addedCount} style={{opacity:addedCount?1:.45}} onClick={()=>addedCount&&onConfirm([...sel])}>{I.check}Add {addedCount>0?addedCount+' ':''}exercise{addedCount!==1?'s':''}</button>
           </div>
         </div>
       </div>
