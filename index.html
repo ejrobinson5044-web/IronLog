@@ -225,6 +225,14 @@
   @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
   .sheet-grip{width:38px;height:4px;border-radius:999px;background:var(--border2);margin:10px auto 4px}
   .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 14px;border-bottom:1px solid var(--border)}
+  .action-sheet{border-radius:var(--radius) var(--radius) 0 0;padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+  .action-sheet-head{display:flex;align-items:center;gap:12px;padding:6px 18px 14px;border-bottom:1px solid var(--border);margin-bottom:4px}
+  .action-row{display:flex;align-items:center;gap:14px;width:100%;padding:15px 20px;font-size:15px;font-weight:600;color:var(--text);text-align:left;border-bottom:1px solid rgba(255,255,255,.04)}
+  .action-row svg{width:20px;height:20px;flex-shrink:0;color:var(--muted)}
+  .action-row:active{background:var(--surface3)}
+  .action-hint{margin-left:auto;font-size:11px;font-weight:500;color:var(--muted2);flex-shrink:0}
+  .action-danger{color:#f87171}
+  .action-danger svg{color:#f87171}
   .sheet-head h2{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.01em}
   .sheet-body{overflow-y:auto;padding:18px;flex:1}
   .x-btn{width:32px;height:32px;border-radius:999px;background:var(--surface2);display:grid;place-items:center;color:var(--muted)}
@@ -1805,6 +1813,10 @@ function App(){
       };
     });
   };
+  const deleteFromPreviewDay=(exId)=>{
+    if(!previewDay||!previewDay.day) return;
+    reorderPreviewDay(asArray(previewDay.day.exerciseIds).filter(id=>id!==exId));
+  };
   const finishWorkout = ()=>{
     // with pre-filled presets, the checkmark means "I actually did this set".
     // If any set is checked, save only checked sets; otherwise fall back to whatever was typed.
@@ -1942,7 +1954,7 @@ function App(){
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault}
-        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onReorder={reorderPreviewDay} />}
+        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onReorder={reorderPreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
       {pickerFor==='active' && active &&
         <ExercisePicker exercises={exercises} preselected={asArray(active.entries).map(e=>e.exerciseId)}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
@@ -2044,7 +2056,7 @@ function nextTrainingTarget(routines, logs){
    the row (~0.3s) to lift it, then slide up/down. Rows swap live
    as the finger crosses their midpoints. Works with touch + mouse.
    ============================================================ */
-function useDragReorder({ids, onMove, onDrop, holdMs=300}){
+function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
   const [dragId,setDragId]=useState(null);
   const dragRef=useRef(null);          // {id, pointerId, lastY}
   const rowEls=useRef({});             // id -> element
@@ -2127,7 +2139,7 @@ function useDragReorder({ids, onMove, onDrop, holdMs=300}){
       if(dragRef.current) return;
       holdStart.current={x:e.clientX, y:e.clientY, id, pointerId:e.pointerId};
       if(holdTimer.current) clearTimeout(holdTimer.current);
-      holdTimer.current=setTimeout(()=>{ holdTimer.current=null; const h=holdStart.current; holdStart.current=null; if(h) begin(h.id, h.y, h.pointerId); }, holdMs);
+      holdTimer.current=setTimeout(()=>{ holdTimer.current=null; const h=holdStart.current; holdStart.current=null; if(!h) return; if(cbRef.current.onHold){ cbRef.current.onHold(h.id); } else { begin(h.id, h.y, h.pointerId); } }, holdMs);
     },
     onPointerMove:(e)=>{ const h=holdStart.current; if(h && (Math.abs(e.clientX-h.x)>10 || Math.abs(e.clientY-h.y)>10)) clearHold(); },
     onPointerUp:clearHold,
@@ -2139,13 +2151,15 @@ function useDragReorder({ids, onMove, onDrop, holdMs=300}){
 }
 const reorderMove=(setIds)=>(from,to)=>setIds(a=>{ const b=[...a]; const [x]=b.splice(from,1); b.splice(to,0,x); return b; });
 
-function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onReorder}){
+function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onReorder, onDeleteEx, exercises, onSaveExercise}){
   const day=preview.day||{};
   const entries=asArray(preview.entries);
   const label=preview.label || day.name || 'Routine day';
   const dayIds=asArray(day.exerciseIds);
   const [ids,setIds]=useState(()=>dayIds);
   const [selectedId,setSelectedId]=useState(null);
+  const [actionFor,setActionFor]=useState(null); // id of exercise awaiting action
+  const [editEx,setEditEx]=useState(null);        // exercise being edited
   useEffect(()=>{ setIds(dayIds); setSelectedId(null); },[day.id, dayIds.join('|')]);
   const entryById=useMemo(()=>{
     const map={};
@@ -2154,7 +2168,8 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
   },[dayIds.join('|'), entries]);
   const {dragId, handleProps, rowProps}=useDragReorder({
     ids, onMove:reorderMove(setIds),
-    onDrop:(next)=>{ if(onReorder) onReorder(next); }
+    onDrop:(next)=>{ if(onReorder) onReorder(next); },
+    onHold:(id)=>{ setSelectedId(null); setActionFor(id); }
   });
   const selectPreviewExercise=(id)=>{
     if(dragId) return;
@@ -2214,6 +2229,38 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
           <button className="btn btn-accent" disabled={!availableCount} style={{marginTop:10,opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start workout</button>
         </div>
       </div>
+      {/* hold-action sheet */}
+      {actionFor && (()=>{
+        const ax=exById[actionFor];
+        return (
+          <div className="overlay" onClick={()=>setActionFor(null)}>
+            <div className="sheet action-sheet" onClick={e=>e.stopPropagation()}>
+              <div className="sheet-grip"></div>
+              {ax && <div className="action-sheet-head">
+                <Thumb ex={ax} />
+                <div style={{flex:1,minWidth:0}}>
+                  <div className="ex-name" style={{fontWeight:700}}>{ax.name}</div>
+                  <div className="ex-sub"><span style={{color:EQUIP[ax.eq]?EQUIP[ax.eq].c:'#888'}}>{ax.eq}</span> · <span style={{color:MUSCLE[ax.m]||'#888'}}>{ax.m}</span></div>
+                </div>
+              </div>}
+              <button className="action-row" onClick={()=>{ setActionFor(null); if(ax) setEditEx(ax); }}>
+                {I.gear}<span>Edit exercise</span><span className="action-hint">Name, muscle, type…</span>
+              </button>
+              <button className="action-row" onClick={()=>{ setActionFor(null); }}>
+                {I.grip}<span>Move</span><span className="action-hint">Grab the grip to drag, or hold any row</span>
+              </button>
+              <button className="action-row action-danger" onClick={()=>{ setActionFor(null); if(onDeleteEx) onDeleteEx(actionFor); }}>
+                {I.trash}<span>Remove from day</span><span className="action-hint">Stays in your exercise library</span>
+              </button>
+              <button className="action-row" style={{color:'var(--muted)',marginTop:4}} onClick={()=>setActionFor(null)}>
+                {I.x}<span>Cancel</span>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+      {/* inline exercise edit */}
+      {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(payload)=>{ if(onSaveExercise) onSaveExercise({...editEx,...payload,edited:true}); setEditEx(null); }} />}
     </div>
   );
 }
