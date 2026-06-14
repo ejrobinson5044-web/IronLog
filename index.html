@@ -225,7 +225,12 @@
   @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
   .sheet-grip{width:38px;height:4px;border-radius:999px;background:var(--border2);margin:10px auto 4px}
   .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 14px;border-bottom:1px solid var(--border)}
-  .action-sheet{border-radius:var(--radius) var(--radius) 0 0;padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+  .ss-connector{display:flex;align-items:center;gap:0;margin:0 0 6px 52px;height:28px}
+  .ss-connector-line{flex:0 0 1px;width:1px;height:100%;background:var(--border2);margin:0 0 0 13px}
+  .ss-connector-btn{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface2);border:1px solid var(--border);white-space:nowrap;flex-shrink:0}
+  .ss-connector-btn svg{width:13px;height:13px}
+  .ss-connector-btn:active{background:var(--surface3)}
+  .ss-connector-linked{color:var(--accent);border-color:var(--accent-dim);background:rgba(168,85,247,.1)}
   .action-sheet-head{display:flex;align-items:center;gap:12px;padding:6px 18px 14px;border-bottom:1px solid var(--border);margin-bottom:4px}
   .action-row{display:flex;align-items:center;gap:14px;width:100%;padding:15px 20px;font-size:15px;font-weight:600;color:var(--text);text-align:left;border-bottom:1px solid rgba(255,255,255,.04)}
   .action-row svg{width:20px;height:20px;flex-shrink:0;color:var(--muted)}
@@ -1783,7 +1788,8 @@ function App(){
   };
   const startDay = (day, program, label, focusIndex=0)=>{
     const dayIds=asArray(day&&day.exerciseIds).filter(id=>exById[id]);
-    const entries=dayIds.map(id=>liveEntry(id, !!day));
+    const dayGroups=(day&&day.groups)||{};
+    const entries=dayIds.map(id=>{ const en=liveEntry(id, !!day); if(dayGroups[id]) en.group=dayGroups[id]; return en; });
     const currentEntryIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+focusIndex||0)));
     setActive({ id:uid(), date:todayISO(), startedAt:null, note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
@@ -1797,17 +1803,18 @@ function App(){
     if(!day || !dayIds.length) return;
     setPreviewDay({day, program, label, entries:dayIds.map(id=>newEntry(id, true))});
   };
-  const reorderPreviewDay = (nextIds)=>{
+  const updatePreviewDay = (nextIds, nextGroups)=>{
     const p=previewDay;
     if(!p || !p.day || !p.program) return;
     const ids=asArray(nextIds);
-    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?{...d, exerciseIds:ids}:d);
+    const groups=nextGroups||p.day.groups||{};
+    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?{...d, exerciseIds:ids, groups}:d);
     setRoutines(curr=>asArray(curr).map(r=>r&&r.id===p.program.id?{...r, days:updateDays(r.days)}:r));
     setPreviewDay(curr=>{
       if(!curr || !curr.day || curr.day.id!==p.day.id) return curr;
       return {
         ...curr,
-        day:{...curr.day, exerciseIds:ids},
+        day:{...curr.day, exerciseIds:ids, groups},
         program:curr.program?{...curr.program, days:updateDays(curr.program.days)}:curr.program,
         entries:ids.map(id=>newEntry(id, true))
       };
@@ -1815,7 +1822,10 @@ function App(){
   };
   const deleteFromPreviewDay=(exId)=>{
     if(!previewDay||!previewDay.day) return;
-    reorderPreviewDay(asArray(previewDay.day.exerciseIds).filter(id=>id!==exId));
+    const nextIds=asArray(previewDay.day.exerciseIds).filter(id=>id!==exId);
+    const nextGroups={...(previewDay.day.groups||{})};
+    delete nextGroups[exId];
+    updatePreviewDay(nextIds, nextGroups);
   };
   const finishWorkout = ()=>{
     // with pre-filled presets, the checkmark means "I actually did this set".
@@ -1832,12 +1842,14 @@ function App(){
     // changes back to that day so Plan stays in sync.
     if(active.routineId && active.dayId){
       const liveIds=asArray(active.entries).map(en=>en.exerciseId).filter(Boolean);
+      const liveGroups={};
+      asArray(active.entries).forEach(en=>{ if(en&&en.exerciseId&&en.group) liveGroups[en.exerciseId]=en.group; });
       if(liveIds.length){
         setRoutines(curr=>asArray(curr).map(r=>{
           if(!r || r.id!==active.routineId) return r;
           return {...r, days:asArray(r.days).map(d=>{
             if(!d || d.id!==active.dayId) return d;
-            return {...d, exerciseIds:liveIds};
+            return {...d, exerciseIds:liveIds, groups:liveGroups};
           })};
         }));
       }
@@ -1954,7 +1966,7 @@ function App(){
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault}
-        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onReorder={reorderPreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
+        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onUpdateDay={updatePreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
       {pickerFor==='active' && active &&
         <ExercisePicker exercises={exercises} preselected={asArray(active.entries).map(e=>e.exerciseId)}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
@@ -2161,16 +2173,30 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
 }
 const reorderMove=(setIds)=>(from,to)=>setIds(a=>{ const b=[...a]; const [x]=b.splice(from,1); b.splice(to,0,x); return b; });
 
-function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onReorder, onDeleteEx, exercises, onSaveExercise}){
+function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onUpdateDay, onDeleteEx, exercises, onSaveExercise}){
   const day=preview.day||{};
   const entries=asArray(preview.entries);
   const label=preview.label || day.name || 'Routine day';
   const dayIds=asArray(day.exerciseIds);
   const [ids,setIds]=useState(()=>dayIds);
+  const [groups,setGroups]=useState(()=>day.groups||{});
   const [selectedId,setSelectedId]=useState(null);
-  const [actionFor,setActionFor]=useState(null); // id of exercise awaiting action
-  const [editEx,setEditEx]=useState(null);        // exercise being edited
-  useEffect(()=>{ setIds(dayIds); setSelectedId(null); },[day.id, dayIds.join('|')]);
+  const [actionFor,setActionFor]=useState(null);
+  const [editEx,setEditEx]=useState(null);
+  useEffect(()=>{ setIds(dayIds); setGroups(day.groups||{}); setSelectedId(null); },[day.id, dayIds.join('|')]);
+  const persistDay=(nextIds, nextGroups)=>{ if(onUpdateDay) onUpdateDay(nextIds, nextGroups); };
+  const linkPair=(idA, idB)=>{
+    const g=groups[idA]||groups[idB]||('ss'+uid());
+    const next={...groups, [idA]:g, [idB]:g};
+    setGroups(next); persistDay(ids, next);
+  };
+  const unlinkId=(id)=>{
+    const g=groups[id]; if(!g) return;
+    const next={...groups};
+    // remove all members of this group
+    Object.keys(next).forEach(k=>{ if(next[k]===g) delete next[k]; });
+    setGroups(next); persistDay(ids, next);
+  };
   const entryById=useMemo(()=>{
     const map={};
     dayIds.forEach((id,i)=>{ map[id]=entries[i]; });
@@ -2178,7 +2204,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
   },[dayIds.join('|'), entries]);
   const {dragId, handleProps, rowProps, startDrag}=useDragReorder({
     ids, onMove:reorderMove(setIds),
-    onDrop:(next)=>{ if(onReorder) onReorder(next); },
+    onDrop:(next)=>{ persistDay(next, groups); },
     onHold:(id)=>{ setSelectedId(null); setActionFor(id); }
   });
   const selectPreviewExercise=(id)=>{
@@ -2213,26 +2239,44 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
             const selected=selectedId===id;
             const demo=selected?demoFor(ex):null;
             const startIndex=ids.slice(0,i).filter(x=>exById[x]).length;
+            const myGroup=groups[id];
+            const nextId=ids[i+1];
+            const nextGroup=nextId&&groups[nextId];
+            const linked=myGroup && nextGroup && myGroup===nextGroup;
+            const canLink=i<ids.length-1 && exById[nextId];
             return (
               <div key={id}>
-              <div className={'ex-row tap reorder-row'+(dragging?' dragging':'')+(selected?' selected':'')}
+              <div className={'ex-row tap reorder-row'+(dragging?' dragging':'')+' ' +(selected?' selected':'')}
                 onClick={()=>selectPreviewExercise(id)} {...rowProps(id)}>
                 <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                 <Thumb ex={ex} />
                 <div className="ex-info">
-                  <div className="ex-name">{ex.name}</div>
+                  <div className="ex-name">{myGroup && <span className="ss-tag" style={{marginRight:6}}>SS</span>}{ex.name}</div>
                   <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div>
                   <div className="target-line"><b>{i+1}</b> · {targetSummary(entry, ex, unit)}</div>
                 </div>
                 <span className="chevron">{selected?I.down:I.chevron}</span>
               </div>
               {selected &&
-                <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:12,margin:'-4px 0 10px 40px'}}>
+                <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:12,margin:'-4px 0 4px 40px'}}>
                   {demo ? <div className="workout-demo" style={{margin:'0 0 10px'}}><AnimatedDemo demo={demo} /></div> :
                     <div className="target-line" style={{marginBottom:8}}>No demo image saved for this exercise yet.</div>}
                   <div className="target-line" style={{marginBottom:10}}>Planned: {targetSummary(entry, ex, unit)}</div>
                   <button className="btn btn-ghost btn-sm" onClick={e=>{e.stopPropagation();onStart(startIndex);}}>Start from this exercise</button>
                 </div>}
+              {canLink && (
+                <div className="ss-connector">
+                  <div className="ss-connector-line"></div>
+                  {linked
+                    ? <button className="ss-connector-btn ss-connector-linked" onClick={e=>{e.stopPropagation();unlinkId(id);}}>
+                        {I.unlink}<span>Linked · tap to unlink</span>
+                      </button>
+                    : <button className="ss-connector-btn" onClick={e=>{e.stopPropagation();linkPair(id,nextId);}}>
+                        {I.link}<span>Superset with next</span>
+                      </button>}
+                  <div className="ss-connector-line"></div>
+                </div>
+              )}
               </div>
             );
           })}
@@ -2446,13 +2490,14 @@ function LibraryView({exercises, onOpen, onNew}){
 function WorkoutReorderSheet({entries, exById, onClose, onApply}){
   const [ids,setIds]=useState(()=>asArray(entries).map(en=>en&&en.exerciseId).filter(Boolean));
   const {dragId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
+  const removeId=(id)=>setIds(curr=>curr.filter(x=>x!==id));
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh'}}>
         <div className="sheet-grip"></div>
         <div className="sheet-head"><h2>Reorder Exercises</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={()=>onApply(ids)}>{I.check}Done</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
-          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>Drag the grip — or press and hold a row — to move it. Tap <b style={{color:'var(--accent)'}}>Done</b> to apply the new order to this workout.</div>
+          <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:12}}>Drag the grip to move. Tap <b style={{color:'var(--accent)'}}>Done</b> to apply. Trash removes an exercise from this workout.</div>
           {ids.map((id)=>{
             const en=asArray(entries).find(x=>x&&x.exerciseId===id);
             const ex=exById[id];
@@ -2467,6 +2512,7 @@ function WorkoutReorderSheet({entries, exById, onClose, onApply}){
                   <div className="ex-name">{ex?ex.name:'Missing exercise'}</div>
                   <div className="ex-sub">{doneCount}/{sets.length} set{sets.length!==1?'s':''} done</div>
                 </div>
+                <button className="delset" onClick={e=>{e.stopPropagation();removeId(id);}} title="Remove from workout">{I.trash}</button>
               </div>
             );
           })}

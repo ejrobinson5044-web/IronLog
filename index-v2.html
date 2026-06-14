@@ -220,7 +220,12 @@
   @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
   .sheet-grip{width:38px;height:4px;border-radius:999px;background:var(--border2);margin:10px auto 4px}
   .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 14px;border-bottom:1px solid var(--border)}
-  .action-sheet{border-radius:var(--radius) var(--radius) 0 0;padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+  .ss-connector{display:flex;align-items:center;gap:0;margin:0 0 6px 52px;height:28px}
+  .ss-connector-line{flex:0 0 1px;width:1px;height:100%;background:var(--border2);margin:0 0 0 13px}
+  .ss-connector-btn{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface2);border:1px solid var(--border);white-space:nowrap;flex-shrink:0}
+  .ss-connector-btn svg{width:13px;height:13px}
+  .ss-connector-btn:active{background:var(--surface3)}
+  .ss-connector-linked{color:var(--accent);border-color:var(--accent-dim);background:rgba(168,85,247,.1)}
   .action-sheet-head{display:flex;align-items:center;gap:12px;padding:6px 18px 14px;border-bottom:1px solid var(--border);margin-bottom:4px}
   .action-row{display:flex;align-items:center;gap:14px;width:100%;padding:15px 20px;font-size:15px;font-weight:600;color:var(--text);text-align:left;border-bottom:1px solid rgba(255,255,255,.04)}
   .action-row svg{width:20px;height:20px;flex-shrink:0;color:var(--muted)}
