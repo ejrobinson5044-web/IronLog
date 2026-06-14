@@ -2065,7 +2065,7 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
   const scrollRaf=useRef(null);
   const suppressClick=useRef(false);
   const idsRef=useRef(ids); idsRef.current=ids;
-  const cbRef=useRef({onMove,onDrop}); cbRef.current={onMove,onDrop};
+  const cbRef=useRef({onMove,onDrop,onHold}); cbRef.current={onMove,onDrop,onHold};
 
   const clearHold=()=>{ if(holdTimer.current){clearTimeout(holdTimer.current); holdTimer.current=null;} holdStart.current=null; };
 
@@ -2147,7 +2147,17 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
     onClickCapture:(e)=>{ if(suppressClick.current){ e.preventDefault(); e.stopPropagation(); suppressClick.current=false; } }
   });
 
-  return {dragId, handleProps, rowProps};
+  /* programmatic drag start: called from a tap (e.g. "Move" action button).
+     Uses the element's current bounding rect as the starting position, then
+     the user's next finger/pointer movement steers it normally. */
+  const startDrag=(id)=>{
+    if(dragRef.current) return;
+    const el=rowEls.current[id];
+    const startY=el ? (el.getBoundingClientRect().top + el.getBoundingClientRect().height/2) : 0;
+    begin(id, startY, null);
+  };
+
+  return {dragId, handleProps, rowProps, startDrag};
 }
 const reorderMove=(setIds)=>(from,to)=>setIds(a=>{ const b=[...a]; const [x]=b.splice(from,1); b.splice(to,0,x); return b; });
 
@@ -2166,7 +2176,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
     dayIds.forEach((id,i)=>{ map[id]=entries[i]; });
     return map;
   },[dayIds.join('|'), entries]);
-  const {dragId, handleProps, rowProps}=useDragReorder({
+  const {dragId, handleProps, rowProps, startDrag}=useDragReorder({
     ids, onMove:reorderMove(setIds),
     onDrop:(next)=>{ if(onReorder) onReorder(next); },
     onHold:(id)=>{ setSelectedId(null); setActionFor(id); }
@@ -2246,8 +2256,8 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
               <button className="action-row" onClick={()=>{ setActionFor(null); if(ax) setEditEx(ax); }}>
                 {I.gear}<span>Edit exercise</span><span className="action-hint">Name, muscle, type…</span>
               </button>
-              <button className="action-row" onClick={()=>{ setActionFor(null); }}>
-                {I.grip}<span>Move</span><span className="action-hint">Grab the grip to drag, or hold any row</span>
+              <button className="action-row" onClick={()=>{ const id=actionFor; setActionFor(null); requestAnimationFrame(()=>startDrag(id)); }}>
+                {I.grip}<span>Move</span><span className="action-hint">Slide your finger to place it</span>
               </button>
               <button className="action-row action-danger" onClick={()=>{ setActionFor(null); if(onDeleteEx) onDeleteEx(actionFor); }}>
                 {I.trash}<span>Remove from day</span><span className="action-hint">Stays in your exercise library</span>
