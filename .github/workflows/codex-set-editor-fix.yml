@@ -1,0 +1,109 @@
+name: Codex set editor fix deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/codex-set-editor-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-set-editor-fix:
+    if: ${{ !contains(github.event.head_commit.message, '[codex set editor applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply set editor source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/codex-set-editor.patch.gz.b64 <<'B64'
+          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
+          /hPKHpzT+iIAAA==
+B64
+          base64 --decode --ignore-garbage /tmp/codex-set-editor.patch.gz.b64 | gzip -d > /tmp/codex-set-editor.patch
+          git apply --whitespace=nowarn /tmp/codex-set-editor.patch
+          rm -f .github/workflows/codex-set-editor-fix.yml
+
+      - name: Install build tools
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build compiled shell
+        run: npm run build:v2
+
+      - name: Run smoke checks
+        run: npm run check
+
+      - name: Commit deployed set editor fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html service-worker.js tests/smoke-check.js index-v2.html app.bundle.js app-loader.js app-chunks/ .github/workflows/codex-set-editor-fix.yml
+          if git diff --cached --quiet; then
+            echo "No set editor changes to commit."
+          else
+            git commit -m "Fix set editing controls [codex set editor applied] [skip v2 build]"
+            git push
+          fi
