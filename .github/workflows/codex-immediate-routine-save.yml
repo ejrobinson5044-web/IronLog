@@ -1,0 +1,75 @@
+name: Codex immediate routine save deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/codex-immediate-routine-save.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-immediate-routine-save:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply immediate routine save fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          index_path = Path('index.html')
+          index = index_path.read_text(encoding='utf-8')
+          old = """    setActive(e);
+              if(autoReady){"""
+          new = """    setActive(e);
+              if(guided && onRoutineUpdate) onRoutineUpdate(e);
+              if(autoReady){"""
+          if new not in index:
+              if old not in index:
+                  raise SystemExit('Could not find set edit save insertion point')
+              index = index.replace(old, new, 1)
+          index_path.write_text(index, encoding='utf-8')
+
+          smoke_path = Path('tests/smoke-check.js')
+          smoke = smoke_path.read_text(encoding='utf-8')
+          old_check = """check('live routine edits persist to day template', index.includes('persistRoutineDayShape') && index.includes('routineShapeFromEntries') && index.includes('targets:shape.targets') && index.includes('onRoutineUpdate={persistRoutineDayShape}') && index.includes('saveActive(e, true)'));"""
+          new_check = """check('live routine edits persist to day template', index.includes('persistRoutineDayShape') && index.includes('routineShapeFromEntries') && index.includes('targets:shape.targets') && index.includes('onRoutineUpdate={persistRoutineDayShape}') && index.includes('saveActive(e, true)') && /setActive\\(e\\);\\s+if\\(guided && onRoutineUpdate\\) onRoutineUpdate\\(e\\);\\s+if\\(autoReady\\)/.test(index));"""
+          if new_check not in smoke:
+              if old_check not in smoke:
+                  raise SystemExit('Could not find smoke check replacement point')
+              smoke = smoke.replace(old_check, new_check, 1)
+          smoke_path.write_text(smoke, encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build app
+        run: npm run build:v2
+
+      - name: Run checks
+        run: npm run check
+
+      - name: Commit and push applied update
+        shell: bash
+        run: |
+          git config user.name "codex-bot"
+          git config user.email "codex-bot@users.noreply.github.com"
+          rm -f .github/workflows/codex-immediate-routine-save.yml
+          git add index.html tests/smoke-check.js app.bundle.js index-v2.html app-loader.js app-chunks/ .github/workflows/codex-immediate-routine-save.yml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Persist live set edits to routines [codex immediate routine save] [skip v2 build]"
+          git push
