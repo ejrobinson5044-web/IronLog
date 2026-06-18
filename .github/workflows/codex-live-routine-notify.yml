@@ -1,0 +1,52 @@
+name: Codex live routine deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/codex-live-routine-notify.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-live-routine-notify:
+    if: ${{ !contains(github.event.head_commit.message, '[codex live routine applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply Codex source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode --ignore-garbage .github/codex-live-routine-notify.patch.gz.b64 | gzip -d > /tmp/codex-live-routine-notify.patch
+          git apply --whitespace=nowarn /tmp/codex-live-routine-notify.patch
+          rm -f .github/codex-live-routine-notify.patch.gz.b64 .github/workflows/codex-live-routine-notify.yml
+
+      - name: Install build tools
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build compiled shell
+        run: npm run build:v2
+
+      - name: Run smoke checks
+        run: npm run check
+
+      - name: Commit deployed update
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html service-worker.js ironlog-patch.js tests/smoke-check.js index-v2.html app.bundle.js app-loader.js app-chunks/ .github/codex-live-routine-notify.patch.gz.b64 .github/workflows/codex-live-routine-notify.yml
+          if git diff --cached --quiet; then
+            echo "No live routine changes to commit."
+          else
+            git commit -m "Persist live routine edits and rest alerts [codex live routine applied] [skip v2 build]"
+            git push
+          fi
