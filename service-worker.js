@@ -10,7 +10,7 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v44';
+const CACHE_VERSION = 'ironlog-v45';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
@@ -66,7 +66,51 @@ self.addEventListener('install', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
   }
+  if (event.data && event.data.type === 'SCHEDULE_REST_NOTIFICATION') {
+    scheduleRestNotification(event.data.rest || {});
+    return;
+  }
+  if (event.data && event.data.type === 'CANCEL_REST_NOTIFICATION') {
+    clearRestNotification();
+  }
+});
+
+let restNotificationTimer = null;
+function clearRestNotification() {
+  if (restNotificationTimer) clearTimeout(restNotificationTimer);
+  restNotificationTimer = null;
+}
+function scheduleRestNotification(rest) {
+  clearRestNotification();
+  const delay = Math.max(0, Number(rest.endsAt || 0) - Date.now());
+  restNotificationTimer = setTimeout(() => {
+    restNotificationTimer = null;
+    self.registration.showNotification('Rest complete', {
+      body: rest.label ? `${rest.label}: next set is ready.` : 'Next set is ready.',
+      tag: 'ironlog-rest',
+      renotify: true,
+      icon: './icon-192.png',
+      badge: './favicon-32.png',
+      data: { url: './?rest=complete' }
+    }).catch(() => {});
+  }, delay);
+}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data && event.notification.data.url || './', self.location.href).href;
+  event.waitUntil((async () => {
+    const openClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of openClients) {
+      if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+        await client.focus();
+        return;
+      }
+    }
+    if (clients.openWindow) await clients.openWindow(targetUrl);
+  })());
 });
 
 /* ---- ACTIVATE: delete caches from older versions ---- */

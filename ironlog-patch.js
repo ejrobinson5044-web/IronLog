@@ -121,11 +121,34 @@
 
   function cleanDay(item) {
     const day = item && typeof item === 'object' ? item : {};
+    const exerciseIds = asArray(day.exerciseIds).map((id) => String(id)).filter(Boolean);
+    const groups = {};
+    if (day.groups && typeof day.groups === 'object') {
+      exerciseIds.forEach((id) => {
+        if (day.groups[id]) groups[id] = String(day.groups[id]);
+      });
+    }
+    const targets = {};
+    if (day.targets && typeof day.targets === 'object') {
+      exerciseIds.forEach((id) => {
+        const rows = asArray(day.targets[id]).map((set) => cleanSet(set)).map((set) => {
+          const out = {};
+          ['weight', 'reps', 'time', 'dist'].forEach((field) => {
+            const key = 'target' + field.charAt(0).toUpperCase() + field.slice(1);
+            if (set[key] !== '') out[key] = set[key];
+          });
+          return out;
+        }).filter((set) => Object.keys(set).length);
+        if (rows.length) targets[id] = rows;
+      });
+    }
     return {
       ...day,
       id: String(day.id || Math.random().toString(36).slice(2, 9)),
       name: String(day.name || ''),
-      exerciseIds: asArray(day.exerciseIds).map((id) => String(id)).filter(Boolean)
+      exerciseIds,
+      groups,
+      targets
     };
   }
 

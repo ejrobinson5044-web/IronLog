@@ -276,6 +276,7 @@
   .iconbtn:active{background:var(--surface3);color:var(--accent)}
   .iconbtn svg{width:19px;height:19px}
   .log-ex-head{display:flex;align-items:center;gap:11px;padding:13px 14px;background:var(--surface2)}
+  .log-ex-head.compact{padding:9px 14px;background:rgba(23,16,33,.58);border-bottom:1px solid var(--border)}
   .log-ex-head .ex-thumb{width:40px;height:40px}
   .log-ex-head .ex-thumb svg{width:22px;height:22px}
   .log-ex-name{flex:1;font-weight:700;font-size:14.5px}
@@ -1338,11 +1339,11 @@ function migrateExercises(saved){
 /* Routines are now PROGRAMS that contain days. Wrap any old flat routine (exerciseIds) into one day. */
 function migrateRoutines(saved){
   if(!Array.isArray(saved)) return [];
-  const fixDay=(d)=>({ id:d.id||uid(), name: isAutoName(d.name)?'':(d.name||''), exerciseIds:Array.isArray(d.exerciseIds)?d.exerciseIds:[] });
+  const fixDay=(d)=>({ id:d.id||uid(), name: isAutoName(d.name)?'':(d.name||''), exerciseIds:Array.isArray(d.exerciseIds)?d.exerciseIds:[], groups:d.groups||{}, targets:d.targets||{} });
   return saved.map(r=>{
     if(Array.isArray(r.days)) return { labelMode:'num', ...r, days:r.days.map(fixDay) };
     return { id:r.id||uid(), name:r.name||'Routine', note:r.note||'', labelMode:'num',
-      days:[{id:uid(), name:'', exerciseIds:Array.isArray(r.exerciseIds)?r.exerciseIds:[]}] };
+      days:[{id:uid(), name:'', exerciseIds:Array.isArray(r.exerciseIds)?r.exerciseIds:[], groups:r.groups||{}, targets:r.targets||{}}] };
   });
 }
 
@@ -1623,10 +1624,28 @@ function beep(){
 }
 function primeAudio(){ try{ _actx = _actx || new (window.AudioContext||window.webkitAudioContext)(); if(_actx.state==='suspended') _actx.resume(); }catch(e){} }
 
+function notificationSupport(){
+  return typeof window!=='undefined' && 'Notification' in window && 'serviceWorker' in navigator;
+}
+function postServiceWorkerMessage(message){
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready.then(reg=>{
+    const target = reg.active || navigator.serviceWorker.controller;
+    if(target) target.postMessage(message);
+  }).catch(()=>{});
+}
+async function requestRestNotificationPermission(){
+  if(!notificationSupport()) return 'unsupported';
+  if(Notification.permission==='granted') return 'granted';
+  if(Notification.permission==='denied') return 'denied';
+  try{ return await Notification.requestPermission(); }
+  catch(_){ return Notification.permission || 'default'; }
+}
+
 /* ============================================================
    REST TIMER bar
    ============================================================ */
-function RestBar({rest, onAdjust, onSkip, onDone}){
+function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
   const [now,setNow]=useState(Date.now());
   const firedRef=useRef(false);
   useEffect(()=>{ firedRef.current=false; },[rest.endsAt, rest.startedAt]);
@@ -1637,7 +1656,7 @@ function RestBar({rest, onAdjust, onSkip, onDone}){
   const remainMs=Math.max(0, rest.endsAt-now);
   const remain=Math.ceil(remainMs/1000);
   useEffect(()=>{
-    if(remainMs<=0 && !firedRef.current){ firedRef.current=true; beep(); setTimeout(onDone, 900); }
+    if(remainMs<=0 && !firedRef.current){ firedRef.current=true; beep(); if(onComplete) onComplete(rest); setTimeout(onDone, 900); }
   });
   const mm=Math.floor(remain/60), ss=remain%60;
   const pct=Math.max(0, Math.min(100, (remainMs/(rest.total*1000))*100));
@@ -1668,12 +1687,14 @@ function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
   const [restDefault, setRestDefault] = useState(()=>store.get('restDefault',90));
+  const [notifyRest, setNotifyRest] = useState(()=>!!store.get('notifyRest',false));
+  const [notificationPermission, setNotificationPermission] = useState(()=>notificationSupport()?Notification.permission:'unsupported');
   const [exercises, setExercises] = useState(()=>migrateExercises(store.get('exercises', null)));
   const [routines, setRoutines] = useState(()=>migrateRoutines(store.get('routines', [])));
   const [logs, setLogs] = useState(()=>cleanLogs(store.get('logs', [])));
   const [measurements, setMeasurements] = useState(()=>cleanMeasurements(store.get('measurements', [])));
   const [active, setActive] = useState(()=>cleanActive(store.get('active', null)));
-  const [rest, setRest] = useState(null); // {endsAt,total,label,startedAt}
+  const [rest, setRest] = useState(null); // {id,endsAt,total,label,startedAt}
   const [toast, setToast] = useState(null);
 
   // modals
@@ -1698,6 +1719,7 @@ function App(){
 
   useEffect(()=>store.set('unit',unit),[unit]);
   useEffect(()=>store.set('restDefault',restDefault),[restDefault]);
+  useEffect(()=>store.set('notifyRest',notifyRest),[notifyRest]);
   useEffect(()=>store.set('exercises',exercises),[exercises]);
   useEffect(()=>store.set('routines',routines),[routines]);
   useEffect(()=>store.set('logs',logs),[logs]);
@@ -1776,11 +1798,46 @@ function App(){
   },[exercises, routines, logs, measurements, unit, restDefault, session]);
 
   /* ----- rest timer controls ----- */
+  const scheduleRestNotification=(next)=>{
+    if(!notifyRest || !next || !notificationSupport() || Notification.permission!=='granted') return;
+    postServiceWorkerMessage({type:'SCHEDULE_REST_NOTIFICATION', rest:{
+      id:next.id, endsAt:next.endsAt, total:next.total, label:next.label||'Rest'
+    }});
+  };
+  const cancelRestNotification=()=>postServiceWorkerMessage({type:'CANCEL_REST_NOTIFICATION'});
   const startRest = (label)=>{
     primeAudio();
-    setRest({ endsAt: Date.now()+restDefault*1000, total: restDefault, label: label||'Rest', startedAt: Date.now() });
+    const next={ id:'rest-'+uid(), endsAt: Date.now()+restDefault*1000, total: restDefault, label: label||'Rest', startedAt: Date.now() };
+    cancelRestNotification();
+    setRest(next);
+    scheduleRestNotification(next);
   };
-  const adjustRest = (sec)=> setRest(r=> r ? {...r, endsAt: Math.max(Date.now(), r.endsAt+sec*1000), total: Math.max(5, r.total+sec)} : r);
+  const adjustRest = (sec)=> setRest(r=> {
+    if(!r) return r;
+    const next={...r, endsAt: Math.max(Date.now(), r.endsAt+sec*1000), total: Math.max(5, r.total+sec)};
+    scheduleRestNotification(next);
+    return next;
+  });
+  const clearRest = ()=>{
+    cancelRestNotification();
+    setRest(null);
+  };
+  const enableRestNotifications=async()=>{
+    const result=await requestRestNotificationPermission();
+    setNotificationPermission(result);
+    const allowed=result==='granted';
+    setNotifyRest(allowed);
+    if(allowed){
+      flash('Rest alerts enabled');
+      if(rest) postServiceWorkerMessage({type:'SCHEDULE_REST_NOTIFICATION', rest:{
+        id:rest.id, endsAt:rest.endsAt, total:rest.total, label:rest.label||'Rest'
+      }});
+    } else if(result==='denied') {
+      flash('Notifications blocked in browser settings');
+    } else if(result==='unsupported') {
+      flash('Phone alerts unavailable here');
+    }
+  };
 
   /* ----- workout ----- */
   // pull the most recent logged sets / note for an exercise (newest log first)
@@ -1800,22 +1857,69 @@ function App(){
     return defaultSetFor(ex, planned);
   };
   const blankSets = (count, ex, planned=false)=> Array.from({length:count}, ()=>blankSet(ex, planned));
-  const newEntry = (id, planned=false)=>{
+  const planSetsFor=(id, day)=>{
+    const plan=day && day.targets && day.targets[id];
+    const sets=asArray(plan);
+    if(!sets.length) return null;
+    return sets.map(st=>{
+      const next={weight:'', reps:'', time:'', dist:'', done:false};
+      ['weight','reps','time','dist'].forEach(f=>{
+        const k=targetKey(f);
+        const v = st && st[k]!==undefined && st[k]!==null && st[k]!=='' ? st[k] : (st && st[f]);
+        if(v!==undefined && v!==null && v!=='') next[k]=v;
+      });
+      return next;
+    });
+  };
+  const newEntry = (id, planned=false, day=null)=>{
     const ex=exById[id];
-    return { exerciseId:id, sets: lastSetsFor(id) || blankSets(planned?3:1, ex, planned), note: lastNoteFor(id) };
+    return { exerciseId:id, sets: planSetsFor(id, day) || lastSetsFor(id) || blankSets(planned?3:1, ex, planned), note: lastNoteFor(id) };
   };
   // For a LIVE workout: prefill each set's target into the actual editable field,
   // so the number (last weight, 8 reps, etc.) is sitting in the box ready to tweak.
-  const liveEntry = (id, planned=false)=>{
-    const en=newEntry(id, planned);
+  const liveEntry = (id, planned=false, day=null)=>{
+    const en=newEntry(id, planned, day);
     const tk=trackOf(exById[id]);
     en.sets=asArray(en.sets).map(s=>applyTargetDefaults(tk, {...s}));
     return en;
   };
+  const routineShapeFromEntries=(entries)=>{
+    const exerciseIds=[]; const groups={}; const targets={};
+    asArray(entries).forEach(en=>{
+      if(!en || !en.exerciseId) return;
+      exerciseIds.push(en.exerciseId);
+      if(en.group) groups[en.exerciseId]=en.group;
+      const ex=exById[en.exerciseId]; const tk=trackOf(ex);
+      const fields=TRACK[tk] ? TRACK[tk].fields : [];
+      const sets=asArray(en.sets).map(s=>{
+        const out={};
+        fields.forEach(f=>{
+          const k=targetKey(f);
+          const v = s && s[f]!==undefined && s[f]!==null && s[f]!=='' ? s[f] : (s && s[k]);
+          if(v!==undefined && v!==null && v!=='') out[k]=v;
+        });
+        return out;
+      }).filter(s=>Object.keys(s).length);
+      if(sets.length) targets[en.exerciseId]=sets;
+    });
+    return {exerciseIds, groups, targets};
+  };
+  const persistRoutineDayShape=(workout)=>{
+    if(!workout || !workout.routineId || !workout.dayId) return;
+    const shape=routineShapeFromEntries(workout.entries);
+    if(!shape.exerciseIds.length) return;
+    setRoutines(curr=>asArray(curr).map(r=>{
+      if(!r || r.id!==workout.routineId) return r;
+      return {...r, days:asArray(r.days).map(d=>{
+        if(!d || d.id!==workout.dayId) return d;
+        return {...d, exerciseIds:shape.exerciseIds, groups:shape.groups, targets:shape.targets};
+      })};
+    }));
+  };
   const startDay = (day, program, label, focusIndex=0)=>{
     const dayIds=asArray(day&&day.exerciseIds).filter(id=>exById[id]);
     const dayGroups=(day&&day.groups)||{};
-    const entries=dayIds.map(id=>{ const en=liveEntry(id, !!day); if(dayGroups[id]) en.group=dayGroups[id]; return en; });
+    const entries=dayIds.map(id=>{ const en=liveEntry(id, !!day, day); if(dayGroups[id]) en.group=dayGroups[id]; return en; });
     const currentEntryIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+focusIndex||0)));
     setActive({ id:uid(), date:todayISO(), startedAt:null, note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
@@ -1827,22 +1931,25 @@ function App(){
   const openDayPreview = (day, program, label)=>{
     const dayIds=asArray(day&&day.exerciseIds);
     if(!day || !dayIds.length) return;
-    setPreviewDay({day, program, label, entries:dayIds.map(id=>newEntry(id, true))});
+    setPreviewDay({day, program, label, entries:dayIds.map(id=>newEntry(id, true, day))});
   };
   const updatePreviewDay = (nextIds, nextGroups)=>{
     const p=previewDay;
     if(!p || !p.day || !p.program) return;
     const ids=asArray(nextIds);
     const groups=nextGroups||p.day.groups||{};
-    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?{...d, exerciseIds:ids, groups}:d);
+    const targets={};
+    ids.forEach(id=>{ if(p.day.targets && p.day.targets[id]) targets[id]=p.day.targets[id]; });
+    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?{...d, exerciseIds:ids, groups, targets}:d);
     setRoutines(curr=>asArray(curr).map(r=>r&&r.id===p.program.id?{...r, days:updateDays(r.days)}:r));
     setPreviewDay(curr=>{
       if(!curr || !curr.day || curr.day.id!==p.day.id) return curr;
+      const nextDay={...curr.day, exerciseIds:ids, groups, targets};
       return {
         ...curr,
-        day:{...curr.day, exerciseIds:ids, groups},
+        day:nextDay,
         program:curr.program?{...curr.program, days:updateDays(curr.program.days)}:curr.program,
-        entries:ids.map(id=>newEntry(id, true))
+        entries:ids.map(id=>newEntry(id, true, nextDay))
       };
     });
   };
@@ -1863,25 +1970,12 @@ function App(){
     }).filter(en=>en.sets.length>0)};
     if(c.entries.length){ setLogs([c, ...logs]); flash('Workout saved 🔥'); }
     else flash('Nothing logged — discarded');
-    // If this workout came from a routine day, write any exercise-order/swap
-    // changes back to that day so Plan stays in sync.
-    if(active.routineId && active.dayId){
-      const liveIds=asArray(active.entries).map(en=>en.exerciseId).filter(Boolean);
-      const liveGroups={};
-      asArray(active.entries).forEach(en=>{ if(en&&en.exerciseId&&en.group) liveGroups[en.exerciseId]=en.group; });
-      if(liveIds.length){
-        setRoutines(curr=>asArray(curr).map(r=>{
-          if(!r || r.id!==active.routineId) return r;
-          return {...r, days:asArray(r.days).map(d=>{
-            if(!d || d.id!==active.dayId) return d;
-            return {...d, exerciseIds:liveIds, groups:liveGroups};
-          })};
-        }));
-      }
-    }
-    setActive(null); setRest(null); setTab('records');
+    // If this workout came from a routine day, write exercise/order/superset
+    // and planned set changes back to the day template.
+    persistRoutineDayShape(active);
+    setActive(null); clearRest(); setTab('records');
   };
-  const discardWorkout = ()=>{ setActive(null); setRest(null); setTab('today'); };
+  const discardWorkout = ()=>{ setActive(null); clearRest(); setTab('today'); };
 
   const saveRoutine = (r)=>{
     if(routines.find(x=>x.id===r.id)) setRoutines(routines.map(x=>x.id===r.id?r:x));
@@ -1960,7 +2054,8 @@ function App(){
         {tab==='train' &&
           <TrainView active={active} exById={exById} unit={unit} records={records} exercises={exercises}
             setActive={setActive} onFinish={finishWorkout} onDiscard={discardWorkout}
-            onStartQuick={()=>startDay(null,null)} onAddExercise={()=>setPickerFor('active')} startRest={startRest} />}
+            onStartQuick={()=>startDay(null,null)} onAddExercise={()=>setPickerFor('active')} startRest={startRest}
+            onRoutineUpdate={persistRoutineDayShape} />}
         {tab==='records' &&
           <RecordsView records={records} exById={exById} logs={logs} unit={unit} onOpen={setDetailEx} onOpenCalendar={()=>setTab('calendar')} />}
         {tab==='calendar' &&
@@ -1973,7 +2068,7 @@ function App(){
       {tab==='calendar' && <button className="fab" onClick={()=>setMeasSheet({date:todayISO(), entry:null})}>{I.ruler}</button>}
 
       {rest &&
-        <RestBar rest={rest} onAdjust={adjustRest} onSkip={()=>setRest(null)} onDone={()=>setRest(null)} />}
+        <RestBar rest={rest} onAdjust={adjustRest} onSkip={clearRest} onDone={clearRest} onComplete={()=>{}} />}
 
       <nav className="nav">
         <button className={tab==='today'?'on':''} onClick={()=>setTab('today')}>{I.home}<span>Today</span></button>
@@ -1999,10 +2094,13 @@ function App(){
             const currentEntries=asArray(active.entries);
             const ex=currentEntries.map(e=>e.exerciseId);
             const add=ids.filter(id=>!ex.includes(id)).map(id=>liveEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
-            setActive({...active, entries:[...currentEntries, ...add]}); setPickerFor(null); }} />}
+            const next={...active, entries:[...currentEntries, ...add]};
+            setActive(next); persistRoutineDayShape(next); setPickerFor(null); }} />}
       {settingsOpen &&
         <SettingsSheet onClose={()=>setSettingsOpen(false)}
           unit={unit} setUnit={setUnit} restDefault={restDefault} setRestDefault={setRestDefault}
+          notifyRest={notifyRest} notificationPermission={notificationPermission} onEnableRestNotifications={enableRestNotifications}
+          onDisableRestNotifications={()=>{ setNotifyRest(false); cancelRestNotification(); flash('Rest alerts off'); }}
           sbUrl={sbUrl} sbKey={sbKey} session={session} syncStatus={syncStatus} setSyncStatus={setSyncStatus} lastSync={lastSync}
           clientRef={clientRef}
           onConnect={(u,k)=>{ store.set('sb_url',u); store.set('sb_key',k); setSbUrl(u); setSbKey(k); setSyncStatus('Connected. Now sign in or create an account.'); }}
@@ -2624,7 +2722,7 @@ function SwapSheet({current, exercises, onClose, onSwap}){
   );
 }
 
-function TrainView({active, exById, unit, records, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises}){
+function TrainView({active, exById, unit, records, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises, onRoutineUpdate}){
   const [elapsed,setElapsed]=useState(0);
   const [showReorder,setShowReorder]=useState(false);
   const [swapFor,setSwapFor]=useState(null);
@@ -2668,13 +2766,17 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const currentDone=currentSets.filter(s=>s&&s.done&&setHasData(trackOf(currentExercise),s)).length;
   const nextOpenIndex=guided ? entries.findIndex((en,idx)=>idx>currentIndex && !entryComplete(en)) : -1;
   const nextExercise=nextOpenIndex>=0 ? exById[(entries[nextOpenIndex]||{}).exerciseId] : null;
+  const saveActive=(next, persist=false)=>{
+    setActive(next);
+    if(persist && onRoutineUpdate) onRoutineUpdate(next);
+  };
   const applyReorder=(ids)=>{
     const byId={}; entries.forEach(en=>{ if(en&&en.exerciseId) byId[en.exerciseId]=en; });
     const next=asArray(ids).map(id=>byId[id]).filter(Boolean);
     if(!next.length){ setShowReorder(false); return; }
     const curEntry=guided ? entries[currentIndex] : null;
     const ni=curEntry ? Math.max(0, next.findIndex(en=>en.exerciseId===curEntry.exerciseId)) : Math.max(0, Math.min(next.length-1, storedIndex));
-    setActive({...active, entries:next, currentEntryIndex:ni});
+    saveActive({...active, entries:next, currentEntryIndex:ni}, true);
     setShowReorder(false);
   };
 
@@ -2702,15 +2804,15 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     if(ei<0 || ei>=ens.length-1) return;
     const gid=ens[ei].group || ens[ei+1].group || ('ss'+uid());
     ens[ei].group=gid; ens[ei+1].group=gid;
-    setActive(e);
+    saveActive(e, true);
   };
   const unlinkGroup=(ei)=>{
     const e=clone(active); const ens=asArray(e.entries);
     const g=ens[ei] && ens[ei].group; if(!g) return;
     ens.forEach(en=>{ if(en && en.group===g) delete en.group; });
-    setActive(e);
+    saveActive(e, true);
   };
-  const doSwap=(ei,newId)=>{ const e=clone(active); const en=asArray(e.entries)[ei]; if(!en || !exById[newId]) return; en.exerciseId=newId; setActive(e); };
+  const doSwap=(ei,newId)=>{ const e=clone(active); const en=asArray(e.entries)[ei]; if(!en || !exById[newId]) return; en.exerciseId=newId; saveActive(e, true); };
 
   const setFocusIndex=(idx)=>{
     if(!guided) return;
@@ -2793,6 +2895,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     if(!e.startedAt) e.startedAt=Date.now();
     const was=set.done; set.done=true;
     delete set._touchedFields;
+    if(guided && onRoutineUpdate) onRoutineUpdate(e);
     if(!was) advanceAfterSet(e,ei,ex?ex.name:'Rest'); else setActive(e);
   };
   const upd=(ei,si,f,v)=>{
@@ -2827,7 +2930,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     entry.sets.push(newSetAfter(entry, ex));
     if(guided) e.currentEntryIndex=ei;
     const nextIndex=entry.sets.length-1;
-    setActive(e);
+    saveActive(e, guided);
     setTimeout(()=>{
       const card=cardRefs.current[ei];
       const row=card && card.querySelectorAll ? card.querySelectorAll('.set-row')[nextIndex] : null;
@@ -2835,8 +2938,8 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       if(input){ try{ input.focus(); input.select(); }catch(_){} }
     },80);
   };
-  const delSet=(ei,si)=>{ clearAutoTimer(ei,si); const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } setActive(e); };
-  const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); setActive(e); };
+  const delSet=(ei,si)=>{ clearAutoTimer(ei,si); const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } saveActive(e, guided); };
+  const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); saveActive(e, true); };
   const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
 
@@ -2911,11 +3014,12 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         const demo=demoFor(ex);
         const sets=asArray(en.sets);
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 44px 34px';
+        const compactGuidedHeader=guided && !isSS;
         return (
           <div key={ei} className={'log-ex'+(isSS?' ss-item':'')} ref={el=>{ if(el) cardRefs.current[ei]=el; else delete cardRefs.current[ei]; }}>
-            <div className="log-ex-head">
-              <Thumb ex={ex} />
-              <div style={{flex:1,minWidth:0}}><div className="log-ex-name">{ssLabel[ei]&&<span className="ss-tag">{ssLabel[ei].tag}</span>}{ex.name}</div>
+            <div className={'log-ex-head'+(compactGuidedHeader?' compact':'')}>
+              {!compactGuidedHeader && <Thumb ex={ex} />}
+              <div style={{flex:1,minWidth:0}}>{!compactGuidedHeader && <div className="log-ex-name">{ssLabel[ei]&&<span className="ss-tag">{ssLabel[ei].tag}</span>}{ex.name}</div>}
                 <div className="log-prev">{rec?`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`:'No history yet — set the baseline'}</div>
                 <div className="target-line">{targetSummary(en, ex, unit)}</div></div>
               <div className="log-ex-actions">
@@ -3479,6 +3583,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
    SETTINGS  (rest timer + cloud sync + data)
    ============================================================ */
 function SettingsSheet({onClose, unit, setUnit, restDefault, setRestDefault,
+  notifyRest, notificationPermission, onEnableRestNotifications, onDisableRestNotifications,
   sbUrl, sbKey, session, syncStatus, setSyncStatus, lastSync, clientRef,
   onConnect, onDisconnect, onSyncNow, onResetData}){
   const configured = !!(sbUrl && sbKey);
@@ -3509,6 +3614,14 @@ function SettingsSheet({onClose, unit, setUnit, restDefault, setRestDefault,
               <button onClick={()=>setRestDefault(Math.min(600, restDefault+15))}>+</button>
             </div>
             <div className="preset-row">{presets.map(p=><button key={p} className={restDefault===p?'on':''} onClick={()=>setRestDefault(p)}>{p<120?p+'s':(p/60)+'m'+(p%60?' '+(p%60)+'s':'')}</button>)}</div>
+            <div style={{marginTop:12,display:'flex',alignItems:'center',gap:10}}>
+              <button className={notifyRest&&notificationPermission==='granted'?'btn btn-accent btn-sm':'btn btn-ghost btn-sm'} onClick={notifyRest&&notificationPermission==='granted'?onDisableRestNotifications:onEnableRestNotifications}>
+                {I.timer}{notifyRest&&notificationPermission==='granted'?'Phone alerts on':'Enable phone alerts'}
+              </button>
+              <span style={{fontSize:11.5,color:'var(--muted2)'}}>
+                {notificationPermission==='denied'?'Blocked':notificationPermission==='unsupported'?'Unavailable':notificationPermission==='granted'?'Allowed':'Off'}
+              </span>
+            </div>
           </div>
 
           {/* CLOUD SYNC */}
