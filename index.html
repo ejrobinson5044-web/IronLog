@@ -2909,6 +2909,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     clearAutoTimer(ei,si);
     const autoReady=!set.done && setHasData(tk,set) && fieldsTouched(set, fields);
     setActive(e);
+    if(guided && onRoutineUpdate) onRoutineUpdate(e);
     if(autoReady){
       const key=autoKey(ei,si);
       autoTimers.current[key]=setTimeout(()=>{
