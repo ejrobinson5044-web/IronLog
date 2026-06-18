@@ -1930,7 +1930,7 @@ function App(){
   };
   const openDayPreview = (day, program, label)=>{
     const dayIds=asArray(day&&day.exerciseIds);
-    if(!day || !dayIds.length) return;
+    if(!day) return;
     setPreviewDay({day, program, label, entries:dayIds.map(id=>newEntry(id, true, day))});
   };
   const updatePreviewDay = (nextIds, nextGroups)=>{
@@ -2086,7 +2086,7 @@ function App(){
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault}
-        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onUpdateDay={updatePreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
+        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onUpdateDay={updatePreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onCreateExercise={addCustomExercise} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
       {pickerFor==='active' && active &&
         <ExercisePicker exercises={exercises} preselected={asArray(active.entries).map(e=>e.exerciseId)}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
@@ -2296,18 +2296,30 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
 }
 const reorderMove=(setIds)=>(from,to)=>setIds(a=>{ const b=[...a]; const [x]=b.splice(from,1); b.splice(to,0,x); return b; });
 
-function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onUpdateDay, onDeleteEx, exercises, onSaveExercise}){
+function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onUpdateDay, onDeleteEx, exercises, onCreateExercise, onSaveExercise}){
   const day=preview.day||{};
   const entries=asArray(preview.entries);
   const label=preview.label || day.name || 'Routine day';
   const dayIds=asArray(day.exerciseIds);
   const [ids,setIds]=useState(()=>dayIds);
   const [groups,setGroups]=useState(()=>day.groups||{});
+  const [picking,setPicking]=useState(false);
   const [selectedId,setSelectedId]=useState(null);
   const [actionFor,setActionFor]=useState(null);
   const [editEx,setEditEx]=useState(null);
   useEffect(()=>{ setIds(dayIds); setGroups(day.groups||{}); setSelectedId(null); },[day.id, dayIds.join('|')]);
   const persistDay=(nextIds, nextGroups)=>{ if(onUpdateDay) onUpdateDay(nextIds, nextGroups); };
+  const addExercises=(selected)=>{
+    const nextIds=[...new Set(asArray(selected))];
+    const keep=new Set(nextIds);
+    const nextGroups={};
+    Object.keys(groups||{}).forEach(id=>{ if(keep.has(id)) nextGroups[id]=groups[id]; });
+    setIds(nextIds);
+    setGroups(nextGroups);
+    setSelectedId(null);
+    persistDay(nextIds, nextGroups);
+    setPicking(false);
+  };
   const linkPair=(idA, idB)=>{
     const g=groups[idA]||groups[idB]||('ss'+uid());
     const next={...groups, [idA]:g, [idB]:g};
@@ -2322,9 +2334,9 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
   };
   const entryById=useMemo(()=>{
     const map={};
-    dayIds.forEach((id,i)=>{ map[id]=entries[i]; });
+    ids.forEach((id,i)=>{ map[id]=entries[i]; });
     return map;
-  },[dayIds.join('|'), entries]);
+  },[ids.join('|'), entries]);
   const {dragId, handleProps, rowProps, startDrag}=useDragReorder({
     ids, onMove:reorderMove(setIds),
     onDrop:(next)=>{ persistDay(next, groups); },
@@ -2340,7 +2352,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
+        <div className="sheet-head"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={()=>setPicking(true)}>{I.plus}Add</button><button className="rc-edit" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="plan-day-head">
             <div className="guided-meta">{preview.program?preview.program.name:'Routine'}</div>
@@ -2352,6 +2364,13 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
             </div>
             <div className="plan-day-meta">{availableCount} exercise{availableCount!==1?'s':''} · ~{estimateMinutes(ids, logs, restDefault)} min</div>
           </div>
+          {ids.length===0 &&
+            <div className="empty" style={{padding:'30px 14px 24px'}}>
+              <div className="ic">{I.dumbbell}</div>
+              <h3>No exercises yet</h3>
+              <p>Add lifts to this day now, then start it whenever you are ready.</p>
+              <div style={{marginTop:18}}><button className="btn btn-accent" onClick={()=>setPicking(true)}>{I.plus}Add exercises</button></div>
+            </div>}
           {ids.map((id,i)=>{
             const ex=exById[id];
             if(!ex) return (
@@ -2447,6 +2466,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
       })()}
       {/* inline exercise edit */}
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(payload)=>{ if(onSaveExercise) onSaveExercise({...editEx,...payload,edited:true}); setEditEx(null); }} />}
+      {picking && <ExercisePicker exercises={exercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={onCreateExercise} onConfirm={addExercises} />}
     </div>
   );
 }
@@ -2569,7 +2589,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
                   days.map((d,i)=>{
                     const muscles=[...new Set(d.exerciseIds.map(id=>exById[id]&&exById[id].m).filter(Boolean))];
                     return (
-                      <div key={d.id} className="day-row" onClick={()=>{ if(d.exerciseIds.length) onOpenDay(d, r, dayLabel(d, i, r.labelMode||'num')); }}>
+                      <div key={d.id} className="day-row" onClick={()=>onOpenDay(d, r, dayLabel(d, i, r.labelMode||'num'))}>
                         <div className="day-info">
                           <div className="day-name">{dayLabel(d, i, r.labelMode||'num')}</div>
                           <div className="day-meta">{d.exerciseIds.length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
