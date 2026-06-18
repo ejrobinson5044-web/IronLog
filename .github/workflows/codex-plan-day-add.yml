@@ -1,0 +1,134 @@
+name: Codex Plan Day add deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/codex-plan-day-add.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-plan-day-add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply Plan Day add flow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if new in text:
+                  return text
+              if old not in text:
+                  raise SystemExit(f'Could not find insertion point: {label}')
+              return text.replace(old, new, 1)
+
+          index_path = Path('index.html')
+          index = index_path.read_text(encoding='utf-8')
+
+          index = replace_once(index,
+              "if(!day || !dayIds.length) return;",
+              "if(!day) return;",
+              'open empty Plan Day preview')
+
+          index = replace_once(index,
+              "onDeleteEx={deleteFromPreviewDay} exercises={exercises} onSaveExercise=",
+              "onDeleteEx={deleteFromPreviewDay} exercises={exercises} onCreateExercise={addCustomExercise} onSaveExercise=",
+              'pass create exercise to Plan Day')
+
+          index = replace_once(index,
+              "function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onUpdateDay, onDeleteEx, exercises, onSaveExercise}){",
+              "function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onUpdateDay, onDeleteEx, exercises, onCreateExercise, onSaveExercise}){",
+              'DayPreviewSheet signature')
+
+          index = replace_once(index,
+              "  const [groups,setGroups]=useState(()=>day.groups||{});\n  const [selectedId,setSelectedId]=useState(null);",
+              "  const [groups,setGroups]=useState(()=>day.groups||{});\n  const [picking,setPicking]=useState(false);\n  const [selectedId,setSelectedId]=useState(null);",
+              'Plan Day picking state')
+
+          index = replace_once(index,
+              "  const persistDay=(nextIds, nextGroups)=>{ if(onUpdateDay) onUpdateDay(nextIds, nextGroups); };\n  const linkPair=(idA, idB)=>{",
+              "  const persistDay=(nextIds, nextGroups)=>{ if(onUpdateDay) onUpdateDay(nextIds, nextGroups); };\n  const addExercises=(selected)=>{\n    const nextIds=[...new Set(asArray(selected))];\n    const keep=new Set(nextIds);\n    const nextGroups={};\n    Object.keys(groups||{}).forEach(id=>{ if(keep.has(id)) nextGroups[id]=groups[id]; });\n    setIds(nextIds);\n    setGroups(nextGroups);\n    setSelectedId(null);\n    persistDay(nextIds, nextGroups);\n    setPicking(false);\n  };\n  const linkPair=(idA, idB)=>{",
+              'Plan Day addExercises handler')
+
+          index = replace_once(index,
+              "    dayIds.forEach((id,i)=>{ map[id]=entries[i]; });\n    return map;\n  },[dayIds.join('|'), entries]);",
+              "    ids.forEach((id,i)=>{ map[id]=entries[i]; });\n    return map;\n  },[ids.join('|'), entries]);",
+              'Plan Day entry map tracks current ids')
+
+          index = replace_once(index,
+              "<div className=\"sheet-head\"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className=\"rc-edit\" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start</button><button className=\"x-btn\" onClick={onClose}>{I.x}</button></div></div>",
+              "<div className=\"sheet-head\"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className=\"rc-edit\" onClick={()=>setPicking(true)}>{I.plus}Add</button><button className=\"rc-edit\" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start</button><button className=\"x-btn\" onClick={onClose}>{I.x}</button></div></div>",
+              'Plan Day header add button')
+
+          index = replace_once(index,
+              "          {ids.map((id,i)=>{",
+              "          {ids.length===0 &&\n            <div className=\"empty\" style={{padding:'30px 14px 24px'}}>\n              <div className=\"ic\">{I.dumbbell}</div>\n              <h3>No exercises yet</h3>\n              <p>Add lifts to this day now, then start it whenever you are ready.</p>\n              <div style={{marginTop:18}}><button className=\"btn btn-accent\" onClick={()=>setPicking(true)}>{I.plus}Add exercises</button></div>\n            </div>}\n          {ids.map((id,i)=>{",
+              'Plan Day empty add prompt')
+
+          index = replace_once(index,
+              "      {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(payload)=>{ if(onSaveExercise) onSaveExercise({...editEx,...payload,edited:true}); setEditEx(null); }} />}\n    </div>",
+              "      {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(payload)=>{ if(onSaveExercise) onSaveExercise({...editEx,...payload,edited:true}); setEditEx(null); }} />}\n      {picking && <ExercisePicker exercises={exercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={onCreateExercise} onConfirm={addExercises} />}\n    </div>",
+              'Plan Day exercise picker render')
+
+          index = replace_once(index,
+              "<div key={d.id} className=\"day-row\" onClick={()=>{ if(d.exerciseIds.length) onOpenDay(d, r, dayLabel(d, i, r.labelMode||'num')); }}>",
+              "<div key={d.id} className=\"day-row\" onClick={()=>onOpenDay(d, r, dayLabel(d, i, r.labelMode||'num'))}>",
+              'empty routine day tap opens preview')
+
+          index_path.write_text(index, encoding='utf-8')
+
+          sw_path = Path('service-worker.js')
+          sw = sw_path.read_text(encoding='utf-8')
+          sw = sw.replace('ironlog-v46', 'ironlog-v47').replace('ironlog-v45', 'ironlog-v47')
+          sw_path.write_text(sw, encoding='utf-8')
+
+          smoke_path = Path('tests/smoke-check.js')
+          smoke = smoke_path.read_text(encoding='utf-8')
+          smoke = replace_once(smoke,
+              "check('routine day tap opens day preview', index.includes('function DayPreviewSheet') && index.includes('onOpenDay(d, r, dayLabel') && index.includes('onStart={(idx=0)=>') && index.includes('Start workout'));",
+              "check('routine day tap opens day preview', index.includes('function DayPreviewSheet') && index.includes('onClick={()=>onOpenDay(d, r, dayLabel') && index.includes('onStart={(idx=0)=>') && index.includes('Start workout'));",
+              'smoke empty day tap preview')
+          smoke = smoke.replace('ironlog-v46', 'ironlog-v47').replace('ironlog-v45', 'ironlog-v47')
+          new_check = "check('plan day preview can add exercises without starting', index.includes('const addExercises=(selected)=>') && index.includes('setPicking(true)}>{I.plus}Add') && index.includes('No exercises yet') && index.includes('ExercisePicker exercises={exercises} preselected={ids}') && index.includes('onConfirm={addExercises}'));"
+          anchor = "check('plan day preview can save reordered exercises', index.includes('function DayPreviewSheet') && index.includes('onUpdateDay') && index.includes('updatePreviewDay') && index.includes('selectPreviewExercise') && index.includes('linkPair') && index.includes('unlinkId'));"
+          if new_check not in smoke:
+              if anchor not in smoke:
+                  raise SystemExit('Could not find smoke add-plan-day anchor')
+              smoke = smoke.replace(anchor, anchor + '\n' + new_check, 1)
+          smoke_path.write_text(smoke, encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build app
+        run: npm run build:v2
+
+      - name: Run checks
+        run: npm run check
+
+      - name: Commit and push applied update
+        shell: bash
+        run: |
+          git config user.name "codex-bot"
+          git config user.email "codex-bot@users.noreply.github.com"
+          rm -f .github/workflows/codex-plan-day-add.yml
+          git add index.html service-worker.js tests/smoke-check.js app.bundle.js index-v2.html app-loader.js app-chunks/ .github/workflows/codex-plan-day-add.yml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Add exercises from Plan Day preview [codex plan day add] [skip v2 build]"
+          git push
