@@ -168,13 +168,21 @@
     background:rgba(13,9,20,.82);border:1px solid rgba(168,85,247,.1);margin-bottom:8px;transition:.12s;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
   .ex-row.tap:active{background:rgba(23,16,33,.92)}
   .ex-row,.day-row,.action-row,.reorder-row,.reorder-handle,.set-row,.workout-actions,.nav{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-  .reorder-row{position:relative;touch-action:pan-y}
+  .reorder-row{position:relative;touch-action:pan-y;will-change:transform,box-shadow,background,border-color}
   .reorder-row.ordering{background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(13,9,20,.94));border-color:rgba(168,85,247,.48);box-shadow:0 0 28px rgba(168,85,247,.22),inset 0 1px 0 rgba(255,255,255,.07);transform:translateY(-1px)}
   .reorder-handle{width:28px;height:46px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;color:var(--muted2);background:rgba(36,22,49,.45);border:1px solid transparent;touch-action:none;cursor:grab}
   .reorder-row.ordering .reorder-handle{color:var(--accent);background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.25)}
   .reorder-handle svg{width:18px;height:18px}
-  .reorder-row.dragging{z-index:5;border-color:var(--accent);background:var(--surface3);box-shadow:0 10px 26px rgba(0,0,0,.45),0 0 0 1px rgba(168,85,247,.35);transform:scale(1.02)}
-  .reorder-row.dragging .reorder-handle{color:var(--accent);background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.25);cursor:grabbing}
+  .reorder-row.holding{z-index:8;border-color:rgba(216,180,254,.72);background:linear-gradient(135deg,rgba(168,85,247,.24),rgba(23,16,33,.96));box-shadow:0 12px 30px rgba(0,0,0,.36),0 0 0 1px rgba(216,180,254,.28),0 0 24px rgba(168,85,247,.22);transform:translateY(-1px) scale(1.012)}
+  .reorder-row.holding::before,.reorder-row.dragging::before{content:'';position:absolute;inset:-2px;border-radius:calc(var(--radius-sm) + 2px);border:1px solid rgba(216,180,254,.55);pointer-events:none;box-shadow:0 0 22px rgba(168,85,247,.2)}
+  .reorder-row.dragging{z-index:24;border-color:#d8b4fe;background:linear-gradient(135deg,rgba(192,132,252,.28),rgba(36,22,49,.98));box-shadow:0 18px 42px rgba(0,0,0,.58),0 0 0 1px rgba(216,180,254,.45),0 0 34px rgba(168,85,247,.34),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-3px) scale(1.026)}
+  .reorder-row.dragging::after{content:'';position:absolute;left:12px;right:12px;bottom:-6px;height:3px;border-radius:999px;background:linear-gradient(90deg,transparent,rgba(216,180,254,.95),transparent);box-shadow:0 0 16px rgba(216,180,254,.58);animation:reorderGlow 1s ease-in-out infinite}
+  .reorder-row.holding .reorder-handle,.reorder-row.dragging .reorder-handle{color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-deep));border-color:rgba(255,255,255,.18);cursor:grabbing;box-shadow:0 0 18px rgba(168,85,247,.34);transform:scale(1.06)}
+  .reorder-row.dragging .ex-thumb{box-shadow:0 0 0 1px rgba(216,180,254,.45),0 0 22px rgba(168,85,247,.26)}
+  .reorder-row.dragging .ex-name{color:#fff}
+  body.is-reordering .reorder-row:not(.dragging){opacity:.48!important;filter:saturate(.72) brightness(.76)}
+  body.is-reordering .reorder-row.dragging{opacity:1!important;filter:none}
+  @keyframes reorderGlow{0%,100%{opacity:.44;transform:scaleX(.72)}50%{opacity:1;transform:scaleX(1)}}
   .reorder-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   .reorder-actions button{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(36,22,49,.88);border:1px solid rgba(168,85,247,.22);color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
   .reorder-actions button:disabled{opacity:.35;color:var(--muted2)}
@@ -2266,6 +2274,7 @@ function nextTrainingTarget(routines, logs){
    ============================================================ */
 function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
   const [dragId,setDragId]=useState(null);
+  const [holdId,setHoldId]=useState(null);
   const dragRef=useRef(null);          // {id, pointerId, lastY}
   const rowEls=useRef({});             // id -> element
   const holdTimer=useRef(null);
@@ -2275,11 +2284,12 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
   const idsRef=useRef(ids); idsRef.current=ids;
   const cbRef=useRef({onMove,onDrop,onHold}); cbRef.current={onMove,onDrop,onHold};
 
-  const clearHold=()=>{ if(holdTimer.current){clearTimeout(holdTimer.current); holdTimer.current=null;} holdStart.current=null; };
+  const clearHold=()=>{ if(holdTimer.current){clearTimeout(holdTimer.current); holdTimer.current=null;} holdStart.current=null; setHoldId(null); };
 
   const begin=(id, clientY, pointerId)=>{
     if(dragRef.current) return;
     dragRef.current={id, pointerId, lastY:clientY};
+    setHoldId(null);
     setDragId(id);
     suppressClick.current=true;
     if(typeof navigator!=='undefined' && navigator.vibrate){ try{navigator.vibrate(12);}catch(_){} }
@@ -2301,6 +2311,7 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
     const prevWebkitUserSelect=document.body.style.webkitUserSelect;
     document.body.style.userSelect='none';
     document.body.style.webkitUserSelect='none';
+    document.body.classList.add('is-reordering');
     const move=(e)=>{ const d=dragRef.current; if(!d) return; d.lastY=e.clientY; maybeSwap(e.clientY); };
     const end=()=>{ endDrag(); };
     const blockScroll=(e)=>{ if(dragRef.current) e.preventDefault(); };
@@ -2328,6 +2339,7 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
       if(scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
       document.body.style.userSelect=prevUserSelect;
       document.body.style.webkitUserSelect=prevWebkitUserSelect;
+      document.body.classList.remove('is-reordering');
     };
   },[dragId]);
 
@@ -2335,6 +2347,7 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
     if(!dragRef.current) return;
     dragRef.current=null;
     setDragId(null);
+    setHoldId(null);
     if(scrollRaf.current){ cancelAnimationFrame(scrollRaf.current); scrollRaf.current=null; }
     if(cbRef.current.onDrop) cbRef.current.onDrop(idsRef.current);
     setTimeout(()=>{ suppressClick.current=false; },350);
@@ -2354,8 +2367,9 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
     onPointerDown:(e)=>{ if(e.pointerType==='mouse' && e.button!==0) return;
       if(dragRef.current) return;
       holdStart.current={x:e.clientX, y:e.clientY, id, pointerId:e.pointerId};
+      setHoldId(id);
       if(holdTimer.current) clearTimeout(holdTimer.current);
-      holdTimer.current=setTimeout(()=>{ holdTimer.current=null; const h=holdStart.current; holdStart.current=null; if(!h) return; if(cbRef.current.onHold){ cbRef.current.onHold(h.id); } else { begin(h.id, h.y, h.pointerId); } }, holdMs);
+      holdTimer.current=setTimeout(()=>{ holdTimer.current=null; const h=holdStart.current; holdStart.current=null; setHoldId(null); if(!h) return; if(cbRef.current.onHold){ cbRef.current.onHold(h.id); } else { begin(h.id, h.y, h.pointerId); } }, holdMs);
     },
     onPointerMove:(e)=>{ const h=holdStart.current; if(h && (Math.abs(e.clientX-h.x)>10 || Math.abs(e.clientY-h.y)>10)) clearHold(); },
     onPointerUp:clearHold,
@@ -2375,7 +2389,7 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
     begin(id, startY, null);
   };
 
-  return {dragId, handleProps, rowProps, startDrag};
+  return {dragId, holdId, handleProps, rowProps, startDrag};
 }
 const reorderMove=(setIds)=>(from,to)=>setIds(a=>{ const b=[...a]; const [x]=b.splice(from,1); b.splice(to,0,x); return b; });
 
@@ -2420,7 +2434,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
     ids.forEach((id,i)=>{ map[id]=entries[i]; });
     return map;
   },[ids.join('|'), entries]);
-  const {dragId, handleProps, rowProps, startDrag}=useDragReorder({
+  const {dragId, holdId, handleProps, rowProps, startDrag}=useDragReorder({
     ids, onMove:reorderMove(setIds),
     onDrop:(next)=>{ persistDay(next, groups); },
     onHold:(id)=>{ setSelectedId(null); setActionFor(id); }
@@ -2457,7 +2471,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
           {ids.map((id,i)=>{
             const ex=exById[id];
             if(!ex) return (
-              <div key={id} className="ex-row reorder-row" style={{opacity:.78,marginBottom:8}} {...rowProps(id)}>
+              <div key={id} className={'ex-row reorder-row'+(holdId===id?' holding':'')} style={{opacity:.78,marginBottom:8}} {...rowProps(id)}>
                 <div className="reorder-handle" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                 <div className="ex-info">
                   <div className="ex-name">Missing exercise</div>
@@ -2467,6 +2481,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
             );
             const entry=entryById[id]||{sets:[]};
             const dragging=dragId===id;
+            const holding=holdId===id;
             const selected=selectedId===id;
             const demo=selected?demoFor(ex):null;
             const startIndex=ids.slice(0,i).filter(x=>exById[x]).length;
@@ -2477,7 +2492,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
             const canLink=i<ids.length-1 && exById[nextId];
             return (
               <div key={id}>
-              <div className={'ex-row tap reorder-row'+(dragging?' dragging':'')+' ' +(selected?' selected':'')}
+              <div className={'ex-row tap reorder-row'+(dragging?' dragging':'')+(holding?' holding':'')+' ' +(selected?' selected':'')}
                 onClick={()=>selectPreviewExercise(id)} {...rowProps(id)}>
                 <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                 <Thumb ex={ex} />
@@ -2759,7 +2774,7 @@ function ActiveAddOptionsSheet({prompt, active, exById, onSuperset, onClose}){
 /* compact drag list for re-sequencing a live workout's exercises */
 function WorkoutReorderSheet({entries, exById, onClose, onApply}){
   const [ids,setIds]=useState(()=>asArray(entries).map(en=>en&&en.exerciseId).filter(Boolean));
-  const {dragId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
+  const {dragId, holdId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
   const removeId=(id)=>setIds(curr=>curr.filter(x=>x!==id));
   return (
     <div className="overlay" onClick={onClose}>
@@ -2774,8 +2789,9 @@ function WorkoutReorderSheet({entries, exById, onClose, onApply}){
             const sets=asArray(en&&en.sets);
             const doneCount=sets.filter(s=>s&&s.done).length;
             const dragging=dragId===id;
+            const holding=holdId===id;
             return (
-              <div key={id} className={'ex-row reorder-row'+(dragging?' dragging':'')} style={{marginBottom:8,opacity:ex?1:.78}} {...rowProps(id)}>
+              <div key={id} className={'ex-row reorder-row'+(dragging?' dragging':'')+(holding?' holding':'')} style={{marginBottom:8,opacity:ex?1:.78}} {...rowProps(id)}>
                 <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                 {ex && <Thumb ex={ex} />}
                 <div className="ex-info">
@@ -3611,7 +3627,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
     asArray(created).forEach(ex=>{ if(ex&&ex.id) map[ex.id]=ex; });
     return map;
   },[exById, created]);
-  const {dragId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
+  const {dragId, holdId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
   const stopButton=e=>e.stopPropagation();
   const remove=id=>{ setIds(ids.filter(x=>x!==id)); };
   const delBtnProps=(id)=>({ onClick:(e)=>{ e.stopPropagation(); remove(id); } });
@@ -3634,7 +3650,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
             <div style={{textAlign:'center',padding:'24px 10px',color:'var(--muted)',fontSize:13.5}}>No exercises yet. Tap <b style={{color:'var(--accent)'}}>+ Add</b> to pull from your library.</div>
             :
             ids.map((id,i)=>{ const ex=localExById[id]; if(!ex) return (
-                <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')} style={{marginBottom:8,opacity:.78}} {...rowProps(id)}>
+                <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')+(holdId===id?' holding':'')} style={{marginBottom:8,opacity:.78}} {...rowProps(id)}>
                   <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                   <div className="ex-info"><div className="ex-name">Missing exercise</div>
                     <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div></div>
@@ -3642,8 +3658,9 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
                 </div>
               );
               const dragging=dragId===id;
+              const holding=holdId===id;
               return (
-                <div key={id} className={'ex-row reorder-row'+(dragging?' dragging':'')} style={{marginBottom:8}} {...rowProps(id)}>
+                <div key={id} className={'ex-row reorder-row'+(dragging?' dragging':'')+(holding?' holding':'')} style={{marginBottom:8}} {...rowProps(id)}>
                   <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                   <Thumb ex={ex} cls="" />
                   <div className="ex-info"><div className="ex-name">{ex.name}</div>
