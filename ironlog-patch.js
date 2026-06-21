@@ -110,6 +110,7 @@
       eq: String(ex.eq || 'Other').trim() || 'Other',
       m: String(ex.m || 'Other').trim() || 'Other',
       sec: ex.sec ? String(ex.sec).trim() : undefined,
+      ter: ex.ter ? String(ex.ter).trim() : undefined,
       media: String(ex.media || ''),
       custom: !!ex.custom,
       edited: !!ex.edited,

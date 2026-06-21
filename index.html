@@ -31,6 +31,7 @@
     --good:#63e6be; --warn:#f5c16c; --bad:#ff6b9a; --info:#a78bfa;
     --glow:rgba(168,85,247,.38); --hot:#e879f9;
     --radius:12px; --radius-sm:9px; --radius-lg:18px;
+    --bottom-safe:calc(96px + env(safe-area-inset-bottom));
     --font:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     --display:'Archivo',-apple-system,sans-serif;
   }
@@ -39,7 +40,7 @@
   body{background:#020104;color:var(--text);font-family:var(--font);font-size:15px;line-height:1.45;
     overflow:hidden;-webkit-font-smoothing:antialiased}
   #root{height:100%}
-  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   input,select,textarea{font-family:inherit;font-size:15px}
   input[type=number]{-moz-appearance:textfield}
   input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -73,7 +74,7 @@
   .gear svg{width:19px;height:19px}
   .sync-dot{position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-radius:999px;border:2px solid var(--bg)}
 
-  .scroll{flex:1;overflow-y:auto;padding:4px 16px calc(150px + env(safe-area-inset-bottom));scroll-behavior:smooth}
+  .scroll{flex:1;overflow-y:auto;padding:4px 16px calc(var(--bottom-safe) + 84px);scroll-padding-bottom:calc(var(--bottom-safe) + 84px);scroll-behavior:smooth}
   .section-h{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     color:var(--muted);margin:22px 2px 12px;display:flex;align-items:center;justify-content:space-between}
   .section-h:first-child{margin-top:8px}
@@ -157,7 +158,7 @@
   .plan-day-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
   .plan-day-stats span{background:rgba(5,4,8,.5);border:1px solid rgba(168,85,247,.14);border-radius:9px;padding:9px 7px;text-align:center;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
   .plan-day-stats b{display:block;color:var(--text);font-family:var(--display);font-size:15px;letter-spacing:0;margin-bottom:2px}
-  .day-launch{position:sticky;bottom:-18px;z-index:6;background:linear-gradient(180deg,rgba(13,9,20,.66),var(--surface) 34%);border-top:1px solid rgba(168,85,247,.16);padding:14px 18px 18px;margin:12px -18px -18px;backdrop-filter:blur(14px)}
+  .day-launch{position:sticky;bottom:0;z-index:6;background:linear-gradient(180deg,rgba(13,9,20,.66),var(--surface) 34%);border-top:1px solid rgba(168,85,247,.16);padding:14px 18px calc(18px + env(safe-area-inset-bottom));margin:12px -18px 0;backdrop-filter:blur(14px)}
   .day-launch-meta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;font-weight:800;margin-bottom:9px}
   .day-launch-meta b{color:var(--text);font-family:var(--display)}
   .preview-detail{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin:-4px 0 4px 40px}
@@ -166,7 +167,8 @@
   .ex-row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:var(--radius-sm);
     background:rgba(13,9,20,.82);border:1px solid rgba(168,85,247,.1);margin-bottom:8px;transition:.12s;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
   .ex-row.tap:active{background:rgba(23,16,33,.92)}
-  .reorder-row{position:relative;user-select:none;touch-action:pan-y}
+  .ex-row,.day-row,.action-row,.reorder-row,.reorder-handle,.set-row,.workout-actions,.nav{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  .reorder-row{position:relative;touch-action:pan-y}
   .reorder-row.ordering{background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(13,9,20,.94));border-color:rgba(168,85,247,.48);box-shadow:0 0 28px rgba(168,85,247,.22),inset 0 1px 0 rgba(255,255,255,.07);transform:translateY(-1px)}
   .reorder-handle{width:28px;height:46px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;color:var(--muted2);background:rgba(36,22,49,.45);border:1px solid transparent;touch-action:none;cursor:grab}
   .reorder-row.ordering .reorder-handle{color:var(--accent);background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.25)}
@@ -343,10 +345,10 @@
   .workout-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px}
   .workout-actions .btn{padding:11px 10px;font-size:13px}
   .reorder-sheet{max-height:min(94vh,720px) !important}
-  .reorder-sheet .sheet-body{padding-bottom:calc(92px + env(safe-area-inset-bottom));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .reorder-sheet .sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .reorder-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted);margin-bottom:12px}
   .reorder-summary b{color:var(--accent);font-family:var(--display)}
-  .reorder-savebar{position:sticky;bottom:0;margin:14px -18px calc(-92px - env(safe-area-inset-bottom));padding:14px 18px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);backdrop-filter:blur(14px);z-index:3}
+  .reorder-savebar{position:sticky;bottom:0;margin:14px -18px 0;padding:14px 18px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);backdrop-filter:blur(14px);z-index:3}
   .set-entry-hint{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted2);font-size:11.5px;font-weight:800;margin-top:8px;text-transform:uppercase;letter-spacing:.04em}
   .set-entry-hint svg{width:14px;height:14px;color:var(--accent)}
 
@@ -434,7 +436,7 @@
   @keyframes toastin{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
   .toast svg{width:18px;height:18px;flex-shrink:0}
 
-  .selected-count{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);padding:14px 18px;margin:0 -18px -18px;backdrop-filter:blur(14px)}
+  .selected-count{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);padding:14px 18px calc(18px + env(safe-area-inset-bottom));margin:0 -18px;backdrop-filter:blur(14px)}
   .added-badge{width:28px;height:28px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0}
   .added-badge svg{width:16px;height:16px}
   .add-circle{width:28px;height:28px;border-radius:999px;border:1.5px solid var(--border2);color:var(--muted2);display:grid;place-items:center;flex-shrink:0;transition:.12s}
@@ -613,6 +615,12 @@ function applyTargetDefaults(track,set){
   });
   return set;
 }
+function applySuggestedReps(track,set){
+  if(!TRACK[track] || !TRACK[track].fields.includes('reps')) return set;
+  const k=targetKey('reps');
+  if((set.reps===undefined || set.reps===null || set.reps==='') && set[k]!==undefined && set[k]!==null && set[k] !== '') set.reps=set[k];
+  return set;
+}
 function defaultSetFor(ex, planned=false){
   const set={weight:'', reps:'', time:'', dist:'', done:false};
   const tk=trackOf(ex);
@@ -705,7 +713,7 @@ function cleanActive(active){
 }
 const clone = o => JSON.parse(JSON.stringify(o));
 
-const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},'Smith Machine':{c:'#4f8ef7'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
+const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},'EZ Bar':{c:'#d8b4fe'},'Smith Machine':{c:'#4f8ef7'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
   Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},'Weight Plate':{c:'#c084fc'},Landmine:{c:'#e8915a'},Leverage:{c:'#00b8a9'},'Pit Shark':{c:'#d65db1'},Other:{c:'#9095ad'}};
 const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff','Front Delts':'#ff9f45','Side Delts':'#ffc04d','Rear Delts':'#e07b3c',Biceps:'#9d7bff',Triceps:'#b794ff',
   Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8'};
@@ -1114,10 +1122,24 @@ const SEED = [
   {name:'Cable Lateral Raise', eq:'Cable', m:'Side Delts', cue:'Constant tension version — great for the side delt.'},
   {name:'Dumbbell Rear Delt Fly', eq:'Dumbbell', m:'Rear Delts', cue:'Hinge over, pull wide, thumbs slightly down.'},
   {name:'Barbell Biceps Curl', eq:'Barbell', m:'Biceps', cue:'Elbows pinned to sides, no swinging the bar up.'},
+  {name:'EZ Bar Curl', eq:'EZ Bar', m:'Biceps', sec:'Forearms', cue:'Slightly angled grip keeps wrists happier; keep elbows pinned and curl clean.'},
+  {name:'EZ Bar Preacher Curl', eq:'EZ Bar', m:'Biceps', sec:'Forearms', cue:'Upper arms fixed on the pad, full stretch at the bottom, no shoulder roll.'},
+  {name:'EZ Bar Reverse Curl', eq:'EZ Bar', m:'Forearms', sec:'Biceps', cue:'Overhand grip, wrists straight, curl without swinging.'},
+  {name:'EZ Bar Drag Curl', eq:'EZ Bar', m:'Biceps', sec:'Forearms', cue:'Drag the bar close to the torso with elbows moving back; squeeze hard at the top.'},
+  {name:'EZ Bar Spider Curl', eq:'EZ Bar', m:'Biceps', sec:'Forearms', cue:'Chest on an incline bench, arms hanging down, curl strict through the whole range.'},
+  {name:'EZ Bar Close-Grip Curl', eq:'EZ Bar', m:'Biceps', sec:'Forearms', cue:'Use the inner angled grip to bias the outer biceps; control the negative.'},
   {name:'Dumbbell Biceps Curl', eq:'Dumbbell', m:'Biceps', cue:'Supinate (rotate pinky up) as you curl.'},
   {name:'Dumbbell Hammer Curl', eq:'Dumbbell', m:'Biceps', sec:'Forearms', cue:'Neutral grip — hits brachialis & forearm.'},
   {name:'Cable Biceps Curl', eq:'Cable', m:'Biceps', cue:'Constant tension through the full range.'},
   {name:'Barbell Skullcrusher', eq:'Barbell', m:'Triceps', cue:'Upper arms vertical & still, lower bar to forehead/behind.'},
+  {name:'EZ Bar Skullcrusher', eq:'EZ Bar', m:'Triceps', sec:'Forearms', cue:'Upper arms fixed, lower the bar toward the forehead or just behind the head.'},
+  {name:'EZ Bar Overhead Triceps Extension', eq:'EZ Bar', m:'Triceps', sec:'Core', cue:'Reach overhead for a deep long-head stretch; ribs down, elbows pointed forward.'},
+  {name:'EZ Bar French Press', eq:'EZ Bar', m:'Triceps', sec:'Core', cue:'Seated or standing, lower behind the head and extend without flaring elbows.'},
+  {name:'EZ Bar Close-Grip Bench Press', eq:'EZ Bar', m:'Triceps', sec:'Chest', cue:'Hands on the angled grips, elbows tucked, press from lower chest to lockout.'},
+  {name:'EZ Bar JM Press', eq:'EZ Bar', m:'Triceps', sec:'Chest', cue:'Hybrid close-grip press/skullcrusher; keep the bar path short and controlled.'},
+  {name:'EZ Bar Upright Row', eq:'EZ Bar', m:'Side Delts', sec:'Back', cue:'Pull to mid-chest with elbows leading; stop before shoulders pinch.'},
+  {name:'EZ Bar Front Raise', eq:'EZ Bar', m:'Front Delts', sec:'Core', cue:'Raise to shoulder height with soft elbows and no lean-back swing.'},
+  {name:'EZ Bar Bent-Over Row', eq:'EZ Bar', m:'Back', sec:'Biceps', cue:'Hinge, brace, and row the angled bar toward the lower ribs.'},
   {name:'Cable Triceps Pushdown', eq:'Cable', m:'Triceps', cue:'Elbows glued to sides, full lockout, control back up.'},
   {name:'Dumbbell Overhead Triceps Extension', eq:'Dumbbell', m:'Triceps', cue:'Deep stretch overhead, elbows point forward.'},
   {name:'Barbell Back Squat', eq:'Barbell', m:'Quads', sec:'Glutes', cue:'Brace, sit between hips, knees track over toes, depth at/below parallel.'},
@@ -1462,12 +1484,18 @@ function BodyMap({muscle, color}){
   );
 }
 
+function muscleTiersFor(ex){
+  if(!ex) return null;
+  let tiers = (MUS[ex.name] || MUS[baseExerciseName(ex)] || []).slice();
+  if(!tiers.length){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
+  if(ex.ter && tiers.length<3 && !tiers.some(t=>t && (t[0]===ex.ter || t[1]===ex.ter))) tiers.push([ex.ter,ex.ter]);
+  return tiers;
+}
+
 /* ---- per-lift muscle tiers (primary / secondary / tertiary) ---- */
 function MuscleTiers({ex}){
-  if(!ex) return null;
-  let tiers = MUS[ex.name] || MUS[baseExerciseName(ex)];
-  if(!tiers){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
-  if(!tiers.length) return null;
+  const tiers = muscleTiersFor(ex);
+  if(!tiers || !tiers.length) return null;
   const labels=['Primary','Secondary','Tertiary'];
   return (
     <div className="mtiers">
@@ -1530,8 +1558,7 @@ function MuscleBreakdown({exerciseIds, exById}){
   const sums={};
   (exerciseIds||[]).forEach(id=>{
     const ex=exById[id]; if(!ex) return;
-    let tiers = MUS[ex.name] || MUS[baseExerciseName(ex)];
-    if(!tiers){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
+    const tiers = muscleTiersFor(ex) || [];
     tiers.slice(0,3).forEach((t,idx)=>{ const region=t[1]; const w=[3,2,1][idx]||1; sums[region]=(sums[region]||0)+w; });
   });
   const entries=Object.entries(sums);
@@ -1710,6 +1737,7 @@ function App(){
   const [editRoutine, setEditRoutine] = useState(undefined);
   const [previewDay, setPreviewDay] = useState(null);
   const [pickerFor, setPickerFor] = useState(null);
+  const [activeAddPrompt, setActiveAddPrompt] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // sync
@@ -1918,6 +1946,38 @@ function App(){
       })};
     }));
   };
+  const linkAddedExercisesToActiveSuperset=(prompt)=>{
+    const ids=asArray(prompt&&prompt.ids).filter(Boolean);
+    const anchorId=prompt&&prompt.anchorId;
+    if(!ids.length){ setActiveAddPrompt(null); return; }
+    const curr=active;
+    if(!curr){ setActiveAddPrompt(null); return; }
+    const movingIds=new Set(ids);
+    const original=asArray(curr.entries).map(en=>en?{...en}:en).filter(Boolean);
+    const anchorOriginal=original.findIndex(en=>en&&en.exerciseId===anchorId);
+    const fallbackAnchor=Math.max(0, Math.min(original.length-1, Math.floor(+curr.currentEntryIndex||0)));
+    const anchorEntry=original[anchorOriginal>=0?anchorOriginal:fallbackAnchor];
+    if(!anchorEntry){ setActiveAddPrompt(null); return; }
+    const groupId=anchorEntry.group || ('ss'+uid());
+    const kept=[]; const moving=[];
+    original.forEach(en=>{
+      if(en && movingIds.has(en.exerciseId)) moving.push({...en, group:groupId});
+      else if(en) kept.push(en);
+    });
+    if(!moving.length){ setActiveAddPrompt(null); return; }
+    const anchorKeptIndex=Math.max(0, kept.findIndex(en=>en.exerciseId===anchorEntry.exerciseId));
+    kept.forEach(en=>{ if(en.group===groupId || en.exerciseId===anchorEntry.exerciseId) en.group=groupId; });
+    let insertAfter=anchorKeptIndex;
+    while(insertAfter+1<kept.length && kept[insertAfter+1].group===groupId) insertAfter++;
+    const nextEntries=[...kept.slice(0,insertAfter+1), ...moving, ...kept.slice(insertAfter+1)];
+    const currentEntry=original[Math.max(0, Math.min(original.length-1, Math.floor(+curr.currentEntryIndex||0)))] || anchorEntry;
+    const currentEntryIndex=Math.max(0, nextEntries.findIndex(en=>en.exerciseId===(currentEntry&&currentEntry.exerciseId)));
+    const next={...curr, entries:nextEntries, currentEntryIndex};
+    setActive(next);
+    persistRoutineDayShape(next);
+    setActiveAddPrompt(null);
+    flash(ids.length>1?'Superset linked':'Exercise linked as superset');
+  };
   const startDay = (day, program, label, focusIndex=0)=>{
     const dayIds=asArray(day&&day.exerciseIds).filter(id=>exById[id]);
     const dayGroups=(day&&day.groups)||{};
@@ -2095,9 +2155,20 @@ function App(){
           onConfirm={(ids)=>{ if(!active){ setPickerFor(null); return; }
             const currentEntries=asArray(active.entries);
             const ex=currentEntries.map(e=>e.exerciseId);
-            const add=ids.filter(id=>!ex.includes(id)).map(id=>liveEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
+            const addIds=ids.filter(id=>!ex.includes(id));
+            const add=addIds.map(id=>liveEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
             const next={...active, entries:[...currentEntries, ...add]};
-            setActive(next); persistRoutineDayShape(next); setPickerFor(null); }} />}
+            setActive(next); persistRoutineDayShape(next); setPickerFor(null);
+            if(addIds.length && currentEntries.length){
+              const anchorIndex=(active.mode==='guided'||!!active.routineId)
+                ? Math.max(0, Math.min(currentEntries.length-1, Math.floor(+active.currentEntryIndex||0)))
+                : currentEntries.length-1;
+              setActiveAddPrompt({ids:addIds, anchorId:currentEntries[anchorIndex]&&currentEntries[anchorIndex].exerciseId});
+            } else if(addIds.length) flash(addIds.length>1?'Exercises added':'Exercise added');
+          }} />}
+      {activeAddPrompt && active &&
+        <ActiveAddOptionsSheet prompt={activeAddPrompt} active={active} exById={exById}
+          onSuperset={linkAddedExercisesToActiveSuperset} onClose={()=>setActiveAddPrompt(null)} />}
       {settingsOpen &&
         <SettingsSheet onClose={()=>setSettingsOpen(false)}
           unit={unit} setUnit={setUnit} restDefault={restDefault} setRestDefault={setRestDefault}
@@ -2226,6 +2297,10 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
   // window listeners + scroll lock + edge auto-scroll, active only while dragging
   useEffect(()=>{
     if(!dragId) return;
+    const prevUserSelect=document.body.style.userSelect;
+    const prevWebkitUserSelect=document.body.style.webkitUserSelect;
+    document.body.style.userSelect='none';
+    document.body.style.webkitUserSelect='none';
     const move=(e)=>{ const d=dragRef.current; if(!d) return; d.lastY=e.clientY; maybeSwap(e.clientY); };
     const end=()=>{ endDrag(); };
     const blockScroll=(e)=>{ if(dragRef.current) e.preventDefault(); };
@@ -2251,6 +2326,8 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
       window.removeEventListener('pointercancel',end);
       window.removeEventListener('touchmove',blockScroll);
       if(scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
+      document.body.style.userSelect=prevUserSelect;
+      document.body.style.webkitUserSelect=prevWebkitUserSelect;
     };
   },[dragId]);
 
@@ -2266,7 +2343,9 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
   /* grip handle: drag starts the moment you touch it */
   const handleProps=(id)=>({
     onPointerDown:(e)=>{ if(e.pointerType==='mouse' && e.button!==0) return;
-      e.stopPropagation(); clearHold(); begin(id, e.clientY, e.pointerId); }
+      e.preventDefault(); e.stopPropagation(); clearHold(); begin(id, e.clientY, e.pointerId); },
+    onSelectStart:(e)=>e.preventDefault(),
+    onContextMenu:(e)=>e.preventDefault()
   });
 
   /* row body: press-and-hold to lift, small movement cancels into a normal scroll/tap */
@@ -2281,6 +2360,8 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
     onPointerMove:(e)=>{ const h=holdStart.current; if(h && (Math.abs(e.clientX-h.x)>10 || Math.abs(e.clientY-h.y)>10)) clearHold(); },
     onPointerUp:clearHold,
     onPointerCancel:clearHold,
+    onSelectStart:(e)=>e.preventDefault(),
+    onContextMenu:(e)=>{ if(dragRef.current || holdStart.current) e.preventDefault(); },
     onClickCapture:(e)=>{ if(suppressClick.current){ e.preventDefault(); e.stopPropagation(); suppressClick.current=false; } }
   });
 
@@ -2651,6 +2732,30 @@ function LibraryView({exercises, onOpen, onNew}){
 /* ============================================================
    TRAIN
    ============================================================ */
+function ActiveAddOptionsSheet({prompt, active, exById, onSuperset, onClose}){
+  const added=asArray(prompt&&prompt.ids).map(id=>exById[id]).filter(Boolean);
+  const anchor=prompt&&prompt.anchorId ? exById[prompt.anchorId] : null;
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'58vh'}}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Added to workout</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div className="reorder-summary"><span>{added.length} new lift{added.length!==1?'s':''}</span><b>{active&&active.mode==='guided'?'Routine':'Workout'}</b></div>
+          {added.map(ex=>
+            <div key={ex.id} className="ex-row" style={{marginBottom:8}}>
+              <Thumb ex={ex} />
+              <div className="ex-info"><div className="ex-name">{ex.name}</div>
+                <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span></div></div>
+            </div>)}
+          <button className="action-row" onClick={()=>onSuperset(prompt)}>{I.link}<span>Superset with {anchor?anchor.name:'current exercise'}</span></button>
+          <button className="action-row" onClick={onClose}>{I.list}<span>Keep separate in workout order</span></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* compact drag list for re-sequencing a live workout's exercises */
 function WorkoutReorderSheet({entries, exById, onClose, onApply}){
   const [ids,setIds]=useState(()=>asArray(entries).map(en=>en&&en.exerciseId).filter(Boolean));
@@ -2691,7 +2796,7 @@ function WorkoutReorderSheet({entries, exById, onClose, onApply}){
 }
 
 /* strip equipment words so "Smith Machine Bench Press" and "Bench Press" match on movement */
-const _EQ_STRIP=['smith machine','smith','machine','barbell','dumbbell','cable','kettlebell','resistance band','band','bodyweight','weight plate','landmine','leverage','pit shark','one arm','one leg','single-arm','single-leg','single arm','single leg'];
+const _EQ_STRIP=['smith machine','smith','machine','barbell','dumbbell','ez curl bar','ez bar','cable','kettlebell','resistance band','band','bodyweight','weight plate','landmine','leverage','pit shark','one arm','one leg','single-arm','single-leg','single arm','single leg'];
 function movementName(name){
   let n=' '+String(name||'').toLowerCase()+' ';
   _EQ_STRIP.forEach(w=>{ n=n.split(w).join(' '); });
@@ -2915,10 +3020,11 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     e.currentEntryIndex=ei;
     setActive(e);
   };
-  const finishSet=(ei,si,eOverride)=>{
+  const finishSet=(ei,si,eOverride,useTargets=false)=>{
     const e=eOverride||clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
     clearAutoTimer(ei,si);
+    if(useTargets) applySuggestedReps(tk,set);
     if(!setHasData(tk,set)){ set.done=false; setActive(e); return; }
     if(!e.startedAt) e.startedAt=Date.now();
     const was=set.done; set.done=true;
@@ -2943,7 +3049,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
       const key=autoKey(ei,si);
       autoTimers.current[key]=setTimeout(()=>{
         delete autoTimers.current[key];
-        finishSet(ei,si,e);
+        finishSet(ei,si,e,false);
       },850);
     }
   };
@@ -2951,7 +3057,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
     const e=clone(active); const set=asArray(e.entries)[ei]&&asArray(e.entries[ei].sets)[si]; if(!set) return;
     clearAutoTimer(ei,si);
     if(set.done){ set.done=false; setActive(e); return; }
-    finishSet(ei,si,e);
+    finishSet(ei,si,e,true);
   };
   const addSet=(ei)=>{
     const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
@@ -3089,7 +3195,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
                 <button className="addset" onClick={()=>addSet(ei)}>{I.plus}<span>Add set</span></button>
                 {!guided && <button className="restbtn" onClick={()=>startRest(ex.name)}>{I.timer}Rest</button>}
               </div>
-              {guided && <div className="set-entry-hint">{I.timer}<span>Enter actuals to start rest</span></div>}
+              {guided && <div className="set-entry-hint">{I.timer}<span>Tap check to accept goal reps and start rest</span></div>}
               {tk==='ws' && sets.some(s=>+s.weight>0&&+s.reps>0) &&
                 <div style={{textAlign:'center',fontSize:11.5,color:'var(--muted2)',marginTop:8}}>
                   Top est. 1RM this session: <b style={{color:'var(--accent)'}}>{Math.max(...sets.map(s=>epley(s.weight,s.reps)))} {unit}</b></div>}
@@ -3383,7 +3489,7 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit, onVariant}){
 function NewExerciseSheet({onClose, onSave, initialName, exercise}){
   const ed=!!exercise;
   const [name,setName]=useState(ed?exercise.name:(initialName||'')); const [eq,setEq]=useState(ed?exercise.eq:'Barbell'); const [m,setM]=useState(ed?exercise.m:'Chest');
-  const [sec,setSec]=useState(ed?(exercise.sec||''):''); const [cue,setCue]=useState(ed?(exercise.cue||''):''); const [media,setMedia]=useState(ed?(exercise.media||''):'');
+  const [sec,setSec]=useState(ed?(exercise.sec||''):''); const [ter,setTer]=useState(ed?(exercise.ter||''):''); const [cue,setCue]=useState(ed?(exercise.cue||''):''); const [media,setMedia]=useState(ed?(exercise.media||''):'');
   const [track,setTrack]=useState(ed?trackOf(exercise):'ws');
   const [side,setSide]=useState(ed?sideOf(exercise):sideFromName(initialName||''));
   const finalName=formatExerciseName(name.trim(),eq,side);
@@ -3392,7 +3498,7 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side})}>{I.check}{ed?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
+        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,ter:ter||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side})}>{I.check}{ed?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Name</label>
             <input placeholder="e.g. Smith Machine Squat" value={name} onChange={e=>setName(e.target.value)} autoFocus={!ed} />
@@ -3409,6 +3515,9 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
           <div className="field"><label>Secondary muscle (optional)</label><div className="seg">
             <button className={sec===''?'on':''} onClick={()=>setSec('')}>None</button>
             {Object.keys(MUSCLE).filter(x=>x!==m).map(x=><button key={x} className={sec===x?'on':''} onClick={()=>setSec(x)}>{x}</button>)}</div></div>
+          <div className="field"><label>Tertiary muscle (optional)</label><div className="seg">
+            <button className={ter===''?'on':''} onClick={()=>setTer('')}>None</button>
+            {Object.keys(MUSCLE).filter(x=>x!==m&&x!==sec).map(x=><button key={x} className={ter===x?'on':''} onClick={()=>setTer(x)}>{x}</button>)}</div></div>
           <div className="field"><label>Form cue / notes (optional)</label>
             <textarea rows="2" placeholder="Anything you want to remember…" value={cue} onChange={e=>setCue(e.target.value)}></textarea></div>
           <div className="field"><label>Image / video URL (optional)</label>
