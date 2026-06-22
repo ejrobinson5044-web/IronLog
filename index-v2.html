@@ -306,7 +306,7 @@
     color:var(--muted2);display:grid;place-items:center;font-size:18px;line-height:1;margin:0 auto;transition:.12s}
   .set-remove:active{color:var(--bad);border-color:rgba(255,107,154,.35);background:rgba(255,107,154,.12)}
   .set-remove.placeholder{visibility:hidden;pointer-events:none}
-  .set-foot{display:flex;gap:8px;margin-top:4px;align-items:center}
+  .set-foot{display:flex;gap:8px;margin-top:4px;align-items:center;flex-wrap:wrap}
   .addset{flex:1;padding:9px;border-radius:9px;background:var(--surface2);border:1px dashed var(--border2);color:var(--muted);
     font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px}
   .addset:active{background:var(--surface3)}
@@ -354,6 +354,26 @@
   .reorder-savebar{position:sticky;bottom:0;margin:14px -18px 0;padding:14px 18px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);backdrop-filter:blur(14px);z-index:3}
   .set-entry-hint{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted2);font-size:11.5px;font-weight:800;margin-top:8px;text-transform:uppercase;letter-spacing:.04em}
   .set-entry-hint svg{width:14px;height:14px;color:var(--accent)}
+  .machine-setup{margin-top:10px;background:rgba(13,9,20,.62);border:1px solid rgba(168,85,247,.12);border-radius:11px;padding:10px 11px}
+  .machine-setup label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}
+  .machine-setup label svg{width:14px;height:14px;color:var(--accent)}
+  .machine-setup .last{margin-left:auto;color:var(--accent);font-size:11px;max-width:48%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none;letter-spacing:0}
+  .machine-setup input{width:100%;background:rgba(5,4,8,.72);border:1px solid rgba(168,85,247,.14);border-radius:9px;color:var(--text);outline:none;padding:10px 11px;font-size:13.5px}
+  .machine-setup input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(168,85,247,.1)}
+  .plate-sheet .sheet-body{padding-top:12px}
+  .plate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .plate-field label{display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+  .plate-field input{width:100%;background:rgba(5,4,8,.72);border:1px solid rgba(168,85,247,.14);border-radius:10px;color:var(--text);outline:none;padding:12px 11px;font-family:var(--display);font-weight:800;font-size:17px}
+  .plate-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(168,85,247,.1)}
+  .plate-presets{display:flex;gap:8px;overflow-x:auto;margin:0 -18px 12px;padding:0 18px}
+  .plate-presets button{flex-shrink:0;background:rgba(36,22,49,.82);border:1px solid rgba(168,85,247,.16);border-radius:999px;color:var(--muted);font-size:12px;font-weight:800;padding:8px 12px}
+  .plate-presets button.on{background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:var(--accent-ink)}
+  .plate-result{background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(13,9,20,.9));border:1px solid rgba(168,85,247,.2);border-radius:var(--radius);padding:14px;margin:8px 0 12px}
+  .plate-result .big{font-family:var(--display);font-size:28px;font-weight:800;color:#fff;line-height:1}
+  .plate-result .sub{color:var(--muted);font-size:12.5px;margin-top:6px}
+  .plate-stack{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+  .plate-chip{background:rgba(5,4,8,.68);border:1px solid rgba(216,180,254,.24);border-radius:999px;padding:8px 11px;color:var(--text);font-family:var(--display);font-weight:800;font-size:13px}
+  .plate-note{color:var(--muted2);font-size:12px;line-height:1.45}
 
   /* ---- REST TIMER bar ---- */
   .rest-bar{position:absolute;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:34;background:linear-gradient(135deg,var(--accent-deep),var(--accent-dim));

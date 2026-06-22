@@ -62,22 +62,30 @@
 
   function cleanSet(set) {
     const s = set && typeof set === 'object' ? set : {};
-    return {
+    const cleaned = {
       done: !!s.done,
       weight: s.weight == null || s.weight === '' ? '' : safeNumber(s.weight),
       reps: s.reps == null || s.reps === '' ? '' : safeNumber(s.reps),
       time: s.time == null || s.time === '' ? '' : safeNumber(s.time),
       dist: s.dist == null || s.dist === '' ? '' : safeNumber(s.dist)
     };
+    ['weight', 'reps', 'time', 'dist'].forEach((field) => {
+      const key = 'target' + field.charAt(0).toUpperCase() + field.slice(1);
+      cleaned[key] = s[key] == null || s[key] === '' ? '' : safeNumber(s[key]);
+    });
+    return cleaned;
   }
 
   function cleanEntries(entries) {
     return asArray(entries).map((en) => ({
       exerciseId: String(en && en.exerciseId || ''),
       note: String(en && en.note || ''),
+      machineSettings: String(en && en.machineSettings || ''),
+      group: en && en.group ? String(en.group) : undefined,
       sets: asArray(en && en.sets)
         .map(cleanSet)
-        .filter((s) => s.weight !== '' || s.reps !== '' || s.time !== '' || s.dist !== '' || s.done)
+        .filter((s) => s.weight !== '' || s.reps !== '' || s.time !== '' || s.dist !== '' || s.done ||
+          s.targetWeight !== '' || s.targetReps !== '' || s.targetTime !== '' || s.targetDist !== '')
     })).filter((en) => en.exerciseId);
   }
 

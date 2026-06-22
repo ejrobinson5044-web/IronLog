@@ -311,7 +311,7 @@
     color:var(--muted2);display:grid;place-items:center;font-size:18px;line-height:1;margin:0 auto;transition:.12s}
   .set-remove:active{color:var(--bad);border-color:rgba(255,107,154,.35);background:rgba(255,107,154,.12)}
   .set-remove.placeholder{visibility:hidden;pointer-events:none}
-  .set-foot{display:flex;gap:8px;margin-top:4px;align-items:center}
+  .set-foot{display:flex;gap:8px;margin-top:4px;align-items:center;flex-wrap:wrap}
   .addset{flex:1;padding:9px;border-radius:9px;background:var(--surface2);border:1px dashed var(--border2);color:var(--muted);
     font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px}
   .addset:active{background:var(--surface3)}
@@ -359,6 +359,26 @@
   .reorder-savebar{position:sticky;bottom:0;margin:14px -18px 0;padding:14px 18px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);backdrop-filter:blur(14px);z-index:3}
   .set-entry-hint{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted2);font-size:11.5px;font-weight:800;margin-top:8px;text-transform:uppercase;letter-spacing:.04em}
   .set-entry-hint svg{width:14px;height:14px;color:var(--accent)}
+  .machine-setup{margin-top:10px;background:rgba(13,9,20,.62);border:1px solid rgba(168,85,247,.12);border-radius:11px;padding:10px 11px}
+  .machine-setup label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}
+  .machine-setup label svg{width:14px;height:14px;color:var(--accent)}
+  .machine-setup .last{margin-left:auto;color:var(--accent);font-size:11px;max-width:48%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none;letter-spacing:0}
+  .machine-setup input{width:100%;background:rgba(5,4,8,.72);border:1px solid rgba(168,85,247,.14);border-radius:9px;color:var(--text);outline:none;padding:10px 11px;font-size:13.5px}
+  .machine-setup input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(168,85,247,.1)}
+  .plate-sheet .sheet-body{padding-top:12px}
+  .plate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .plate-field label{display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+  .plate-field input{width:100%;background:rgba(5,4,8,.72);border:1px solid rgba(168,85,247,.14);border-radius:10px;color:var(--text);outline:none;padding:12px 11px;font-family:var(--display);font-weight:800;font-size:17px}
+  .plate-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(168,85,247,.1)}
+  .plate-presets{display:flex;gap:8px;overflow-x:auto;margin:0 -18px 12px;padding:0 18px}
+  .plate-presets button{flex-shrink:0;background:rgba(36,22,49,.82);border:1px solid rgba(168,85,247,.16);border-radius:999px;color:var(--muted);font-size:12px;font-weight:800;padding:8px 12px}
+  .plate-presets button.on{background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:var(--accent-ink)}
+  .plate-result{background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(13,9,20,.9));border:1px solid rgba(168,85,247,.2);border-radius:var(--radius);padding:14px;margin:8px 0 12px}
+  .plate-result .big{font-family:var(--display);font-size:28px;font-weight:800;color:#fff;line-height:1}
+  .plate-result .sub{color:var(--muted);font-size:12.5px;margin-top:6px}
+  .plate-stack{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+  .plate-chip{background:rgba(5,4,8,.68);border:1px solid rgba(216,180,254,.24);border-radius:999px;padding:8px 11px;color:var(--text);font-family:var(--display);font-weight:800;font-size:13px}
+  .plate-note{color:var(--muted2);font-size:12px;line-height:1.45}
 
   /* ---- REST TIMER bar ---- */
   .rest-bar{position:absolute;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:34;background:linear-gradient(135deg,var(--accent-deep),var(--accent-dim));
@@ -684,6 +704,8 @@ function cleanEntries(entries){
   return asArray(entries).map(en=>({
     exerciseId: String(en && en.exerciseId || ''),
     note: String(en && en.note || ''),
+    machineSettings: String(en && en.machineSettings || ''),
+    group: en && en.group ? String(en.group) : undefined,
     sets: asArray(en && en.sets).map(cleanSet).filter(s=>
       s.weight!=='' || s.reps!=='' || s.time!=='' || s.dist!=='' || s.done ||
       s.targetWeight!=='' || s.targetReps!=='' || s.targetTime!=='' || s.targetDist!=='')
@@ -726,6 +748,38 @@ const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},'EZ Bar':{c:'#d8b4fe
 const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff','Front Delts':'#ff9f45','Side Delts':'#ffc04d','Rear Delts':'#e07b3c',Biceps:'#9d7bff',Triceps:'#b794ff',
   Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8'};
 const tint = (hex, a) => { const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
+const MACHINE_SETTING_EQUIPMENT = new Set(['Machine','Smith Machine','Cable','Leverage','Pit Shark']);
+const PLATE_LOAD_EQUIPMENT = new Set(['Barbell','EZ Bar','Smith Machine','Machine','Leverage','Pit Shark','Landmine']);
+const PLATES = {
+  lb:[100,55,45,35,25,10,5,2.5],
+  kg:[25,20,15,10,5,2.5,1.25]
+};
+function machineSettingsApply(ex){
+  if(!ex) return false;
+  return MACHINE_SETTING_EQUIPMENT.has(ex.eq) || /\b(seat|pad|pin|lever|cable|machine|smith|press|row|pulldown|curl|extension|fly|hack|leg press)\b/i.test(ex.name||'');
+}
+function plateCalculatorApplies(ex){
+  return !!(ex && TRACK[trackOf(ex)] && TRACK[trackOf(ex)].fields.includes('weight') && PLATE_LOAD_EQUIPMENT.has(ex.eq));
+}
+function defaultBaseWeight(ex, unit){
+  if(!ex) return unit==='kg'?20:45;
+  if(ex.eq==='Smith Machine') return unit==='kg'?15:25;
+  if(ex.eq==='Machine'||ex.eq==='Leverage'||ex.eq==='Pit Shark') return 0;
+  return unit==='kg'?20:45;
+}
+function calcPlateLoad(total, base, unit){
+  const target=Math.max(0, Number(total)||0);
+  const empty=Math.max(0, Number(base)||0);
+  const perSide=Math.max(0, (target-empty)/2);
+  let remaining=perSide;
+  const plates=[];
+  (PLATES[unit]||PLATES.lb).forEach(p=>{
+    let count=0;
+    while(remaining + 1e-9 >= p){ remaining-=p; count++; }
+    if(count) plates.push({weight:p,count});
+  });
+  return {target, empty, perSide, plates, remainder:+remaining.toFixed(2), loaded:+(empty + 2*(perSide-remaining)).toFixed(2)};
+}
 
 /* ============================================================
    REAL EXERCISE DEMO IMAGES — free-exercise-db (CC0 / public domain)
@@ -1095,6 +1149,89 @@ const MUS = {
   "Smith Machine Upright Row": [["Side Delts", "Side Delts"], ["Traps", "Back"], ["Biceps", "Biceps"]],
   "Wrist Roller": [["Forearms", "Forearms"], ["Front Delts", "Front Delts"]],
 };
+const MUSCLE_REGION = {
+  Quadriceps:'Quads', Lats:'Back', 'Middle Back':'Back', 'Lower Back':'Back', Traps:'Back',
+  Abdominals:'Core', Obliques:'Core', 'Hip Flexors':'Core', Shoulders:'Front Delts'
+};
+const MUSCLE_AUDIT_OVERRIDES = {
+  'Barbell Snatch': [['Full Body','Full Body'],['Glutes','Glutes'],['Front Delts','Front Delts']],
+  'Barbell Power Snatch': [['Full Body','Full Body'],['Glutes','Glutes'],['Front Delts','Front Delts']],
+  'Barbell Hang Snatch': [['Full Body','Full Body'],['Hamstrings','Hamstrings'],['Front Delts','Front Delts']],
+  'Barbell Clean': [['Full Body','Full Body'],['Glutes','Glutes'],['Quads','Quads']],
+  'Barbell Power Clean': [['Full Body','Full Body'],['Glutes','Glutes'],['Back','Back']],
+  'Barbell Hang Clean': [['Full Body','Full Body'],['Glutes','Glutes'],['Quads','Quads']],
+  'Barbell Clean and Jerk': [['Full Body','Full Body'],['Front Delts','Front Delts'],['Glutes','Glutes']],
+  'Barbell Clean and Press': [['Full Body','Full Body'],['Front Delts','Front Delts'],['Glutes','Glutes']],
+  'Barbell Split Jerk': [['Full Body','Full Body'],['Front Delts','Front Delts'],['Quads','Quads']],
+  'Kettlebell Turkish Get-Up': [['Full Body','Full Body'],['Core','Core'],['Front Delts','Front Delts']],
+  'Kettlebell Windmill': [['Obliques','Core'],['Core','Core'],['Front Delts','Front Delts']],
+  'Bodyweight Plank': [['Abdominals','Core'],['Core','Core'],['Glutes','Glutes']],
+  'Bodyweight Side Plank': [['Obliques','Core'],['Abdominals','Core'],['Side Delts','Side Delts']],
+  'Bodyweight Mountain Climbers': [['Abdominals','Core'],['Quads','Quads'],['Chest','Chest']],
+  'Rowing Machine': [['Back','Back'],['Quads','Quads'],['Biceps','Biceps']],
+  Running: [['Quads','Quads'],['Hamstrings','Hamstrings'],['Calves','Calves']],
+  'Treadmill Run': [['Quads','Quads'],['Hamstrings','Hamstrings'],['Calves','Calves']],
+  Walking: [['Quads','Quads'],['Calves','Calves'],['Hamstrings','Hamstrings']],
+  'Incline Treadmill Walk': [['Glutes','Glutes'],['Hamstrings','Hamstrings'],['Calves','Calves']],
+  Cycling: [['Quads','Quads'],['Glutes','Glutes'],['Calves','Calves']],
+  'Stationary Bike': [['Quads','Quads'],['Glutes','Glutes'],['Calves','Calves']],
+  'Stair Climber': [['Quads','Quads'],['Glutes','Glutes'],['Calves','Calves']]
+};
+const MUSCLE_AUDIT_RULES = [
+  {rx:/\b(clean|snatch|jerk|thruster|turkish|get-up)\b/i, tiers:[['Full Body','Full Body'],['Glutes','Glutes'],['Front Delts','Front Delts']]},
+  {rx:/\b(squat|leg press|hack squat|lunge|step-up|split squat|belt squat|front squat|overhead squat)\b/i, tiers:[['Quadriceps','Quads'],['Glutes','Glutes'],['Hamstrings','Hamstrings']]},
+  {rx:/\b(deadlift|romanian|good morning|pull-through|back extension)\b/i, tiers:[['Hamstrings','Hamstrings'],['Glutes','Glutes'],['Lower Back','Back']]},
+  {rx:/\b(hip thrust|glute bridge|kickback)\b/i, tiers:[['Glutes','Glutes'],['Hamstrings','Hamstrings'],['Core','Core']]},
+  {rx:/\bleg extension\b/i, tiers:[['Quadriceps','Quads']]},
+  {rx:/\bleg curl\b/i, tiers:[['Hamstrings','Hamstrings'],['Calves','Calves']]},
+  {rx:/\b(calf|jump rope)\b/i, tiers:[['Calves','Calves']]},
+  {rx:/\b(close-grip|jm press|dip)\b/i, tiers:[['Triceps','Triceps'],['Chest','Chest'],['Front Delts','Front Delts']]},
+  {rx:/\b(bench press|chest press|push-up)\b/i, tiers:[['Chest','Chest'],['Triceps','Triceps'],['Front Delts','Front Delts']]},
+  {rx:/\b(fly|crossover|pec deck)\b/i, tiers:[['Chest','Chest'],['Front Delts','Front Delts']]},
+  {rx:/\b(row|pulldown|pull-up|chin-up|pullover)\b/i, tiers:[['Lats','Back'],['Biceps','Biceps'],['Rear Delts','Rear Delts']]},
+  {rx:/\b(shoulder press|overhead press|push press|landmine press|kettlebell press)\b/i, tiers:[['Front Delts','Front Delts'],['Triceps','Triceps'],['Side Delts','Side Delts']]},
+  {rx:/\blateral raise\b/i, tiers:[['Side Delts','Side Delts'],['Front Delts','Front Delts']]},
+  {rx:/\bfront raise\b/i, tiers:[['Front Delts','Front Delts'],['Core','Core']]},
+  {rx:/\b(rear delt|reverse fly|face pull)\b/i, tiers:[['Rear Delts','Rear Delts'],['Back','Back'],['Side Delts','Side Delts']]},
+  {rx:/\b(upright row)\b/i, tiers:[['Side Delts','Side Delts'],['Back','Back'],['Forearms','Forearms']]},
+  {rx:/\b(shrug)\b/i, tiers:[['Traps','Back'],['Forearms','Forearms']]},
+  {rx:/\b(curl|preacher|spider|hammer|zottman)\b/i, tiers:[['Biceps','Biceps'],['Forearms','Forearms']]},
+  {rx:/\b(triceps|skullcrusher|french press|pushdown|extension)\b/i, tiers:[['Triceps','Triceps'],['Forearms','Forearms']]},
+  {rx:/\b(plank|crunch|sit-up|woodchopper|rotation|russian twist|flutter|rollout|mountain climber|march)\b/i, tiers:[['Abdominals','Core'],['Obliques','Core'],['Hip Flexors','Core']]},
+  {rx:/\b(farmer|carry|hang|wrist|roller)\b/i, tiers:[['Forearms','Forearms'],['Core','Core'],['Back','Back']]},
+  {rx:/\b(swim|boxing|kickboxing|elliptical|hiking)\b/i, tiers:[['Full Body','Full Body'],['Core','Core'],['Calves','Calves']]}
+];
+function normalizeTier(t){
+  const label=String(t&&t[0]||'').trim();
+  if(!label) return null;
+  const region=String(t&&t[1]||MUSCLE_REGION[label]||label).trim();
+  return [label, MUSCLE[region] ? region : (MUSCLE_REGION[region] || region)];
+}
+function pushTier(out, tier){
+  const t=normalizeTier(tier);
+  if(!t) return;
+  if(out.some(x=>x && (x[0]===t[0] || x[1]===t[1]))) return;
+  out.push(t);
+}
+function defaultMuscleTiersFor(ex){
+  const out=[];
+  if(ex&&ex.m) pushTier(out, [ex.m, ex.m]);
+  if(ex&&ex.sec) pushTier(out, [ex.sec, ex.sec]);
+  if(ex&&ex.ter) pushTier(out, [ex.ter, ex.ter]);
+  return out;
+}
+function auditedMuscleTiersFor(ex){
+  if(!ex) return [];
+  const name=baseExerciseName(ex)||ex.name||'';
+  const out=[];
+  asArray(MUSCLE_AUDIT_OVERRIDES[name]).forEach(t=>pushTier(out,t));
+  if(!out.length){
+    const match=MUSCLE_AUDIT_RULES.find(r=>r.rx.test(name));
+    if(match) match.tiers.forEach(t=>pushTier(out,t));
+  }
+  defaultMuscleTiersFor(ex).forEach(t=>pushTier(out,t));
+  return out.slice(0,3);
+}
 // resolve a demo for any exercise: custom media wins, else CC0 frames, else none
 function demoFor(ex){
   if(!ex) return null;
@@ -1494,10 +1631,11 @@ function BodyMap({muscle, color}){
 
 function muscleTiersFor(ex){
   if(!ex) return null;
-  let tiers = (MUS[ex.name] || MUS[baseExerciseName(ex)] || []).slice();
-  if(!tiers.length){ tiers=[]; if(ex.m) tiers.push([ex.m,ex.m]); if(ex.sec) tiers.push([ex.sec,ex.sec]); }
-  if(ex.ter && tiers.length<3 && !tiers.some(t=>t && (t[0]===ex.ter || t[1]===ex.ter))) tiers.push([ex.ter,ex.ter]);
-  return tiers;
+  const audited = auditedMuscleTiersFor(ex);
+  const legacy = (MUS[ex.name] || MUS[baseExerciseName(ex)] || []).slice();
+  const tiers = audited.length ? audited.slice() : [];
+  legacy.forEach(t=>{ if(tiers.length<3) pushTier(tiers,t); });
+  return tiers.map(normalizeTier).filter(Boolean).slice(0,3);
 }
 
 /* ---- per-lift muscle tiers (primary / secondary / tertiary) ---- */
@@ -1894,6 +2032,10 @@ function App(){
     for(const s of logs){ const en=s.entries.find(e=>e.exerciseId===exId); if(en&&en.note) return en.note; }
     return '';
   };
+  const lastMachineSettingsFor = (exId)=>{
+    for(const s of asArray(logs)){ const en=asArray(s&&s.entries).find(e=>e.exerciseId===exId && e.machineSettings); if(en) return en.machineSettings; }
+    return '';
+  };
   const blankSet = (ex, planned=false)=>{
     return defaultSetFor(ex, planned);
   };
@@ -1914,7 +2056,7 @@ function App(){
   };
   const newEntry = (id, planned=false, day=null)=>{
     const ex=exById[id];
-    return { exerciseId:id, sets: planSetsFor(id, day) || lastSetsFor(id) || blankSets(planned?3:1, ex, planned), note: lastNoteFor(id) };
+    return { exerciseId:id, sets: planSetsFor(id, day) || lastSetsFor(id) || blankSets(planned?3:1, ex, planned), note: lastNoteFor(id), machineSettings: lastMachineSettingsFor(id) };
   };
   // For a LIVE workout: keep targets as placeholders/goals. Actual fields stay
   // blank until the lifter records what happened, so goals never auto-log a set.
@@ -2086,7 +2228,7 @@ function App(){
           valid.forEach(s=>{ const d=+s.dist; if(d>val){val=d; top= tk==='dt'?`${d} · ${+s.time||0}m`:`${d}`;} vol+=d; });
         }
         rec.best=Math.max(rec.best,val); rec.maxW=Math.max(rec.maxW,mw); rec.bestVol=Math.max(rec.bestVol,vol); rec.count++;
-        rec.sessions.push({date:session.date, top, val, vol, topW:tw, topR:tr, note:en.note||'', snote:session.note||'',
+        rec.sessions.push({date:session.date, top, val, vol, topW:tw, topR:tr, note:en.note||'', machineSettings:en.machineSettings||'', snote:session.note||'',
           sets:valid.map(s=>({w:+s.weight||0,r:+s.reps||0,t:+s.time||0,d:+s.dist||0}))});
       });
     });
@@ -2122,7 +2264,7 @@ function App(){
         {tab==='library' &&
           <LibraryView exercises={exercises} onOpen={setDetailEx} onNew={()=>setNewExOpen(true)} />}
         {tab==='train' &&
-          <TrainView active={active} exById={exById} unit={unit} records={records} exercises={exercises}
+          <TrainView active={active} exById={exById} unit={unit} records={records} logs={logs} exercises={exercises}
             setActive={setActive} onFinish={finishWorkout} onDiscard={discardWorkout}
             onStartQuick={()=>startDay(null,null)} onAddExercise={()=>setPickerFor('active')} startRest={startRest}
             onRoutineUpdate={persistRoutineDayShape} />}
@@ -2155,8 +2297,8 @@ function App(){
       {newExOpen && <NewExerciseSheet onClose={()=>setNewExOpen(false)} onSave={addCustomExercise} />}
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
       {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
-      {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault}
-        onClose={()=>setPreviewDay(null)} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onUpdateDay={updatePreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onCreateExercise={addCustomExercise} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
+      {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault} active={active}
+        onClose={()=>setPreviewDay(null)} onResume={()=>{ setPreviewDay(null); setTab('train'); }} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onUpdateDay={updatePreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onCreateExercise={addCustomExercise} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
       {pickerFor==='active' && active &&
         <ExercisePicker exercises={exercises} preselected={asArray(active.entries).map(e=>e.exerciseId)}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
@@ -2393,8 +2535,9 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
 }
 const reorderMove=(setIds)=>(from,to)=>setIds(a=>{ const b=[...a]; const [x]=b.splice(from,1); b.splice(to,0,x); return b; });
 
-function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onStart, onUpdateDay, onDeleteEx, exercises, onCreateExercise, onSaveExercise}){
+function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onClose, onStart, onResume, onUpdateDay, onDeleteEx, exercises, onCreateExercise, onSaveExercise}){
   const day=preview.day||{};
+  const program=preview.program||{};
   const entries=asArray(preview.entries);
   const label=preview.label || day.name || 'Routine day';
   const dayIds=asArray(day.exerciseIds);
@@ -2445,11 +2588,16 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
   };
   const availableCount=ids.filter(id=>exById[id]).length;
   const supersetCount=[...new Set(Object.values(groups||{}).filter(Boolean))].length;
+  const activeDay=!!(active && program && day && active.routineId===program.id && active.dayId===day.id);
+  const primaryDisabled=!activeDay && !availableCount;
+  const primaryLabel=activeDay?'Resume workout':'Start workout';
+  const primaryIcon=activeDay?I.refresh:I.flame;
+  const launchDay=()=> activeDay ? onResume&&onResume() : onStart(0);
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={()=>setPicking(true)}>{I.plus}Add</button><button className="rc-edit" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
+        <div className="sheet-head"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={()=>setPicking(true)}>{I.plus}Add</button><button className="rc-edit" disabled={primaryDisabled} style={{opacity:primaryDisabled ? .45 : 1}} onClick={launchDay}>{primaryIcon}{activeDay?'Resume':'Start'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="plan-day-head">
             <div className="guided-meta">{preview.program?preview.program.name:'Routine'}</div>
@@ -2508,7 +2656,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
                   {demo ? <div className="workout-demo" style={{margin:'0 0 10px'}}><AnimatedDemo demo={demo} /></div> :
                     <div className="target-line" style={{marginBottom:8}}>No demo image saved for this exercise yet.</div>}
                   <div className="target-line" style={{marginBottom:10}}>Planned: {targetSummary(entry, ex, unit)}</div>
-                  <button className="btn btn-ghost btn-sm" onClick={e=>{e.stopPropagation();onStart(startIndex);}}>Start from this exercise</button>
+                  <button className="btn btn-ghost btn-sm" onClick={e=>{e.stopPropagation(); activeDay ? launchDay() : onStart(startIndex);}}>{activeDay?I.refresh:I.flame}{activeDay?'Resume workout':'Start from this exercise'}</button>
                 </div>}
               {canLink && (
                 <div className="ss-connector">
@@ -2528,7 +2676,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, onClose, onS
           })}
           <div className="day-launch">
             <div className="day-launch-meta"><span>{label}</span><b>{availableCount} lift{availableCount!==1?'s':''} · ~{estimateMinutes(ids, logs, restDefault)} min</b></div>
-            <button className="btn btn-accent" disabled={!availableCount} style={{opacity:availableCount?1:.45}} onClick={()=>onStart(0)}>{I.flame}Start workout</button>
+            <button className="btn btn-accent" disabled={primaryDisabled} style={{opacity:primaryDisabled ? .45 : 1}} onClick={launchDay}>{primaryIcon}{primaryLabel}</button>
           </div>
         </div>
       </div>
@@ -2686,6 +2834,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
                   :
                   days.map((d,i)=>{
                     const muscles=[...new Set(d.exerciseIds.map(id=>exById[id]&&exById[id].m).filter(Boolean))];
+                    const isActiveDay=!!(active && active.routineId===r.id && active.dayId===d.id);
                     return (
                       <div key={d.id} className="day-row" onClick={()=>onOpenDay(d, r, dayLabel(d, i, r.labelMode||'num'))}>
                         <div className="day-info">
@@ -2693,8 +2842,8 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
                           <div className="day-meta">{d.exerciseIds.length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
                           {muscles.length>0 && <div className="day-tags">{muscles.slice(0,4).map(m=><span key={m} className="day-dot" style={{background:MUSCLE[m]||'#8b93a2'}} title={m}></span>)}</div>}
                         </div>
-                        <button className="day-start" disabled={d.exerciseIds.length===0} style={{opacity:d.exerciseIds.length?1:.4}}
-                          onClick={(e)=>{e.stopPropagation(); if(d.exerciseIds.length) onStartDay(d, r, dayLabel(d, i, r.labelMode||'num'));}}>Start</button>
+                        <button className="day-start" disabled={!isActiveDay && d.exerciseIds.length===0} style={{opacity:(isActiveDay||d.exerciseIds.length)?1:.4}}
+                          onClick={(e)=>{e.stopPropagation(); if(isActiveDay) onResume(); else if(d.exerciseIds.length) onStartDay(d, r, dayLabel(d, i, r.labelMode||'num'));}}>{isActiveDay?'Resume':'Start'}</button>
                       </div>
                     );
                   })}
@@ -2868,10 +3017,43 @@ function SwapSheet({current, exercises, onClose, onSwap}){
   );
 }
 
-function TrainView({active, exById, unit, records, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises, onRoutineUpdate}){
+function PlateCalculatorSheet({exercise, unit, initialWeight, onClose}){
+  const [target,setTarget]=useState(()=>Number(initialWeight)|| (unit==='kg'?60:135));
+  const [base,setBase]=useState(()=>defaultBaseWeight(exercise, unit));
+  const calc=calcPlateLoad(target, base, unit);
+  const basePresets=unit==='kg' ? [0,15,20] : [0,25,45];
+  const targetPresets=unit==='kg' ? [60,80,100,120] : [135,185,225,315];
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet plate-sheet" onClick={e=>e.stopPropagation()}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Plate Calculator</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div className="plate-grid">
+            <div className="plate-field"><label>Total load</label><input type="number" inputMode="decimal" value={target} onChange={e=>setTarget(e.target.value)} /></div>
+            <div className="plate-field"><label>Empty bar/machine</label><input type="number" inputMode="decimal" value={base} onChange={e=>setBase(e.target.value)} /></div>
+          </div>
+          <div className="plate-presets">{targetPresets.map(v=><button key={v} className={Number(target)===v?'on':''} onClick={()=>setTarget(v)}>{v} {unit}</button>)}</div>
+          <div className="plate-presets">{basePresets.map(v=><button key={v} className={Number(base)===v?'on':''} onClick={()=>setBase(v)}>{v} {unit} base</button>)}</div>
+          <div className="plate-result">
+            <div className="big">{calc.perSide.toFixed(calc.perSide%1?1:0)} {unit}/side</div>
+            <div className="sub">{calc.loaded.toFixed(calc.loaded%1?1:0)} {unit} loaded{calc.remainder?` · ${calc.remainder} ${unit}/side short with available plates`:''}</div>
+            <div className="plate-stack">
+              {calc.plates.length ? calc.plates.map(p=><span key={p.weight} className="plate-chip">{p.count} x {p.weight} {unit}</span>) : <span className="plate-chip">No side plates</span>}
+            </div>
+          </div>
+          <div className="plate-note">{exercise?exercise.name:'Selected lift'} · base weight is adjustable for Smith bars and plate-loaded machines.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrainView({active, exById, unit, records, logs, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises, onRoutineUpdate}){
   const [elapsed,setElapsed]=useState(0);
   const [showReorder,setShowReorder]=useState(false);
   const [swapFor,setSwapFor]=useState(null);
+  const [plateCalc,setPlateCalc]=useState(null);
   const cardRefs=useRef({});
   const autoTimers=useRef({});
   useEffect(()=>{
@@ -2915,6 +3097,17 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const saveActive=(next, persist=false)=>{
     setActive(next);
     if(persist && onRoutineUpdate) onRoutineUpdate(next);
+  };
+  const lastMachineSettingsFor=(exId)=>{
+    for(const session of asArray(logs)){
+      const en=asArray(session&&session.entries).find(e=>e&&e.exerciseId===exId&&e.machineSettings);
+      if(en) return en.machineSettings;
+    }
+    return '';
+  };
+  const plateWeightFromSets=(sets)=>{
+    const row=asArray(sets).find(s=>s && (s.weight || s.targetWeight)) || {};
+    return row.weight || row.targetWeight || '';
   };
   const applyReorder=(ids)=>{
     const byId={}; entries.forEach(en=>{ if(en&&en.exerciseId) byId[en.exerciseId]=en; });
@@ -3093,6 +3286,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
   const delSet=(ei,si)=>{ clearAutoTimer(ei,si); const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } saveActive(e, guided); };
   const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); saveActive(e, true); };
   const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
+  const updMachineSettings=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.machineSettings=v; setActive(e); };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
 
   return (
@@ -3165,6 +3359,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         const tk=trackOf(ex); const fields=TRACK[tk].fields;
         const demo=demoFor(ex);
         const sets=asArray(en.sets);
+        const lastSetup=machineSettingsApply(ex) ? lastMachineSettingsFor(en.exerciseId) : '';
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 44px 34px';
         const compactGuidedHeader=guided && !isSS;
         return (
@@ -3209,12 +3404,18 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
                 </div>)}
               <div className="set-foot">
                 <button className="addset" onClick={()=>addSet(ei)}>{I.plus}<span>Add set</span></button>
+                {plateCalculatorApplies(ex) && <button className="restbtn" onClick={()=>setPlateCalc({exercise:ex, initialWeight:plateWeightFromSets(sets)})}>{I.ruler}Plates</button>}
                 {!guided && <button className="restbtn" onClick={()=>startRest(ex.name)}>{I.timer}Rest</button>}
               </div>
               {guided && <div className="set-entry-hint">{I.timer}<span>Tap check to accept goal reps and start rest</span></div>}
               {tk==='ws' && sets.some(s=>+s.weight>0&&+s.reps>0) &&
                 <div style={{textAlign:'center',fontSize:11.5,color:'var(--muted2)',marginTop:8}}>
                   Top est. 1RM this session: <b style={{color:'var(--accent)'}}>{Math.max(...sets.map(s=>epley(s.weight,s.reps)))} {unit}</b></div>}
+              {machineSettingsApply(ex) &&
+                <div className="machine-setup">
+                  <label>{I.gear}<span>Machine setup</span>{lastSetup && !en.machineSettings && <span className="last">Last: {lastSetup}</span>}</label>
+                  <input placeholder={lastSetup ? 'Last: '+lastSetup : 'Seat / handle / pin setting'} value={en.machineSettings||''} onChange={e=>updMachineSettings(ei,e.target.value)} />
+                </div>}
               <input className="ex-note" placeholder="Notes — seat height, pin, grip, how it felt…" value={en.note||''} onChange={e=>updNote(ei,e.target.value)} />
             </div>
           </div>
@@ -3228,6 +3429,7 @@ function TrainView({active, exById, unit, records, setActive, onFinish, onDiscar
         onClose={()=>setShowReorder(false)} onApply={applyReorder} />}
       {swapFor!=null && <SwapSheet current={exById[(entries[swapFor]||{}).exerciseId]} exercises={exercises}
         onClose={()=>setSwapFor(null)} onSwap={(id)=>{ doSwap(swapFor,id); setSwapFor(null); }} />}
+      {plateCalc && <PlateCalculatorSheet exercise={plateCalc.exercise} unit={unit} initialWeight={plateCalc.initialWeight} onClose={()=>setPlateCalc(null)} />}
     </div>
   );
 }

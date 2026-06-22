@@ -10,7 +10,7 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v50';
+const CACHE_VERSION = 'ironlog-v51';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
@@ -35,6 +35,7 @@ const SHELL = [
   './app-chunks/app.13.js',
   './app-chunks/app.14.js',
   './app-chunks/app.15.js',
+  './app-chunks/app.16.js',
   './ironlog-patch.js',
   './manifest.json',
   './icon-192.png',
@@ -81,25 +82,59 @@ let restNotificationTimer = null;
 function clearRestNotification() {
   if (restNotificationTimer) clearTimeout(restNotificationTimer);
   restNotificationTimer = null;
+  self.registration.getNotifications({ tag: 'ironlog-rest' })
+    .then((items) => items.forEach((notification) => notification.close()))
+    .catch(() => {});
+}
+function restNotificationOptions(rest) {
+  const endsAt = Number(rest.endsAt || Date.now());
+  return {
+    body: rest.label ? `${rest.label}: next set is ready.` : 'Next set is ready.',
+    tag: 'ironlog-rest',
+    renotify: true,
+    requireInteraction: true,
+    silent: false,
+    timestamp: endsAt,
+    vibrate: [180, 80, 180, 80, 260],
+    icon: './icon-192.png',
+    badge: './favicon-32.png',
+    actions: [
+      { action: 'open', title: 'Open IronLog' },
+      { action: 'dismiss', title: 'Dismiss' }
+    ],
+    data: { url: './?rest=complete', restId: rest.id || '', endsAt }
+  };
+}
+function showRestNotification(rest) {
+  return self.registration.showNotification('Rest complete', restNotificationOptions(rest)).catch(() => {});
 }
 function scheduleRestNotification(rest) {
   clearRestNotification();
   const delay = Math.max(0, Number(rest.endsAt || 0) - Date.now());
+  if (delay <= 0) {
+    showRestNotification(rest);
+    return;
+  }
+  if ('TimestampTrigger' in self) {
+    const options = restNotificationOptions(rest);
+    options.showTrigger = new self.TimestampTrigger(Number(rest.endsAt));
+    self.registration.showNotification('Rest complete', options).catch(() => {
+      restNotificationTimer = setTimeout(() => {
+        restNotificationTimer = null;
+        showRestNotification(rest);
+      }, delay);
+    });
+    return;
+  }
   restNotificationTimer = setTimeout(() => {
     restNotificationTimer = null;
-    self.registration.showNotification('Rest complete', {
-      body: rest.label ? `${rest.label}: next set is ready.` : 'Next set is ready.',
-      tag: 'ironlog-rest',
-      renotify: true,
-      icon: './icon-192.png',
-      badge: './favicon-32.png',
-      data: { url: './?rest=complete' }
-    }).catch(() => {});
+    showRestNotification(rest);
   }, delay);
 }
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  if (event.action === 'dismiss') return;
   const targetUrl = new URL(event.notification.data && event.notification.data.url || './', self.location.href).href;
   event.waitUntil((async () => {
     const openClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
