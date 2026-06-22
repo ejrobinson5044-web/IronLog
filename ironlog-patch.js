@@ -82,6 +82,7 @@
       note: String(en && en.note || ''),
       machineSettings: String(en && en.machineSettings || ''),
       sessionOnly: !!(en && en.sessionOnly),
+      skipped: !!(en && en.skipped),
       group: en && en.group ? String(en.group) : undefined,
       sets: asArray(en && en.sets)
         .map(cleanSet)

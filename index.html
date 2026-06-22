@@ -66,6 +66,8 @@
   .brand h1{font-family:var(--display);font-size:20px;font-weight:800;letter-spacing:-.02em}
   .brand h1 span{color:var(--accent)}
   .top-right{display:flex;align-items:center;gap:10px}
+  .sync-status-pill{display:flex;align-items:center;gap:6px;max-width:116px;border:1px solid rgba(168,85,247,.14);background:rgba(23,16,33,.68);border-radius:999px;padding:6px 9px;color:var(--muted);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sync-status-pill i{width:7px;height:7px;border-radius:999px;display:block;flex-shrink:0}
   .unit-toggle{display:flex;background:rgba(23,16,33,.82);border-radius:999px;padding:3px;border:1px solid rgba(168,85,247,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
   .unit-toggle button{padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--muted);transition:.15s}
   .unit-toggle button.on{background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:var(--accent-ink);box-shadow:0 0 16px rgba(168,85,247,.22)}
@@ -274,6 +276,7 @@
   .seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 
   .log-ex{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+  .log-ex.skipped{opacity:.78;border-style:dashed}
   .superset-wrap{border:1px solid var(--accent-dim);border-radius:var(--radius);margin-bottom:14px;padding:0 0 2px;background:linear-gradient(180deg,rgba(168,85,247,.08),transparent 80px)}
   .superset-wrap .log-ex{margin:0 8px 8px;border-color:var(--border2)}
   .superset-wrap .log-ex:first-of-type{margin-top:8px}
@@ -293,6 +296,10 @@
   .log-prev{font-size:11.5px;color:var(--muted);margin-top:1px}
   .po-hint{font-size:12px;color:var(--muted);background:rgba(168,85,247,.08);border-bottom:1px solid var(--border);padding:8px 14px}
   .po-hint b{color:var(--accent);font-family:var(--display)}
+  .progression-card{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 14px 0;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid rgba(168,85,247,.16);background:linear-gradient(135deg,rgba(168,85,247,.12),rgba(5,4,8,.72));font-size:12px;color:var(--muted)}
+  .progression-card.good{border-color:rgba(99,230,190,.24);background:linear-gradient(135deg,rgba(99,230,190,.12),rgba(168,85,247,.08))}
+  .progression-card b{font-family:var(--display);font-size:12.5px;color:var(--text);white-space:nowrap}
+  .progression-card span{text-align:right;line-height:1.35}
   .set-table{padding:6px 14px 14px}
   .set-hdr,.set-row{display:grid;grid-template-columns:34px 1fr 1fr 44px 34px;gap:7px;align-items:center}
   .set-hdr{font-size:10.5px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:8px 0 6px}
@@ -357,6 +364,11 @@
   .workout-demo .demo-hero{height:190px;margin-bottom:2px}
   .workout-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px}
   .workout-actions .btn{padding:11px 10px;font-size:13px}
+  .train-command-bar{position:sticky;bottom:calc(78px + env(safe-area-inset-bottom));z-index:25;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px -4px 14px;padding:8px;background:rgba(5,4,8,.88);border:1px solid rgba(168,85,247,.18);border-radius:16px;backdrop-filter:blur(16px);box-shadow:0 16px 42px rgba(0,0,0,.45)}
+  .train-command-bar button{min-height:44px;border-radius:12px;background:rgba(23,16,33,.92);border:1px solid rgba(168,85,247,.14);color:var(--text);font-size:11.5px;font-weight:800;font-family:var(--display);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+  .train-command-bar button.primary{background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:var(--accent-ink)}
+  .train-command-bar button:disabled{opacity:.4}
+  .train-command-bar svg{width:17px;height:17px}
   .exercise-danger-zone{margin:2px 0 18px;padding-top:4px}
   .exercise-danger-zone .btn{justify-content:center}
   .reorder-sheet{max-height:min(94vh,720px) !important}
@@ -372,6 +384,8 @@
   .machine-setup .last{margin-left:auto;color:var(--accent);font-size:11px;max-width:48%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none;letter-spacing:0}
   .machine-setup input{width:100%;background:rgba(5,4,8,.72);border:1px solid rgba(168,85,247,.14);border-radius:9px;color:var(--text);outline:none;padding:10px 11px;font-size:13.5px}
   .machine-setup input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(168,85,247,.1)}
+  .machine-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:7px}
+  .machine-grid input{margin:0}
   .plate-sheet .sheet-body{padding-top:12px}
   .plate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
   .plate-field label{display:block;font-size:11px;color:var(--muted);font-weight:800;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
@@ -386,6 +400,11 @@
   .plate-stack{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
   .plate-chip{background:rgba(5,4,8,.68);border:1px solid rgba(216,180,254,.24);border-radius:999px;padding:8px 11px;color:var(--text);font-family:var(--display);font-weight:800;font-size:13px}
   .plate-note{color:var(--muted2);font-size:12px;line-height:1.45}
+  .warmup-rest{height:41px;display:flex;align-items:center;border:1px solid var(--border);background:rgba(23,16,33,.82);border-radius:10px;padding:0 12px;color:var(--accent);font-family:var(--display);font-weight:800}
+  .warmup-list{display:grid;gap:9px}
+  .warmup-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(168,85,247,.14);background:rgba(13,9,20,.72);border-radius:var(--radius-sm);padding:11px 12px}
+  .warmup-row b{font-family:var(--display);font-size:16px;color:var(--text)}
+  .warmup-row span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 
   /* ---- REST TIMER bar ---- */
   .rest-bar{position:absolute;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:34;background:linear-gradient(135deg,var(--accent-deep),var(--accent-dim));
@@ -470,6 +489,25 @@
     box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastin .3s;display:flex;align-items:center;gap:8px;max-width:90%}
   @keyframes toastin{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
   .toast svg{width:18px;height:18px;flex-shrink:0}
+  .update-banner{position:fixed;left:14px;right:14px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:61;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--accent),var(--hot));color:var(--accent-ink);border-radius:16px;padding:12px 14px;box-shadow:0 18px 45px rgba(0,0,0,.45);font-family:var(--display);font-weight:800}
+  .update-banner span{flex:1;font-size:13px}
+  .update-banner button{background:rgba(255,255,255,.92);color:var(--accent-deep);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900}
+  .finish-review-sheet .sheet-body{padding-top:14px}
+  .review-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .review-hero>div{background:linear-gradient(180deg,rgba(168,85,247,.12),rgba(13,9,20,.8));border:1px solid rgba(168,85,247,.14);border-radius:var(--radius-sm);padding:12px 8px;text-align:center}
+  .review-hero span{display:block;color:var(--muted2);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+  .review-hero b{font-family:var(--display);font-size:18px;color:var(--text)}
+  .review-section{margin-bottom:14px}
+  .review-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(168,85,247,.12);background:rgba(13,9,20,.68);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px}
+  .review-row b{display:block;color:var(--text);font-size:13.5px}
+  .review-row span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .review-row em{font-style:normal;color:var(--accent);font-size:11.5px;font-weight:800;white-space:nowrap}
+  .review-row.muted{opacity:.72}
+  .review-empty{border:1px dashed var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--muted);font-size:12.5px;text-align:center}
+  .review-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;border:1px solid rgba(168,85,247,.18);background:rgba(23,16,33,.82);border-radius:var(--radius-sm);padding:12px 14px;color:var(--muted);font-weight:800;margin:6px 0 14px}
+  .review-toggle.on{color:var(--text);border-color:rgba(99,230,190,.28);background:rgba(99,230,190,.08)}
+  .review-toggle b{color:var(--accent);font-family:var(--display)}
+  .review-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:9px;position:sticky;bottom:0;margin:0 -18px -18px;padding:14px 18px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);backdrop-filter:blur(14px)}
 
   .selected-count{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);padding:14px 18px calc(18px + env(safe-area-inset-bottom));margin:0 -18px;backdrop-filter:blur(14px)}
   .added-badge{width:28px;height:28px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0}
@@ -713,6 +751,7 @@ function cleanEntries(entries){
     note: String(en && en.note || ''),
     machineSettings: String(en && en.machineSettings || ''),
     sessionOnly: !!(en && en.sessionOnly),
+    skipped: !!(en && en.skipped),
     group: en && en.group ? String(en.group) : undefined,
     sets: asArray(en && en.sets).map(cleanSet).filter(s=>
       s.weight!=='' || s.reps!=='' || s.time!=='' || s.dist!=='' || s.done ||
@@ -787,6 +826,121 @@ function calcPlateLoad(total, base, unit){
     if(count) plates.push({weight:p,count});
   });
   return {target, empty, perSide, plates, remainder:+remaining.toFixed(2), loaded:+(empty + 2*(perSide-remaining)).toFixed(2)};
+}
+function smartRestSeconds(ex, fallback=90, superset=false){
+  if(superset) return 120;
+  if(!ex) return fallback||90;
+  const name=String(ex.name||'').toLowerCase();
+  const eq=String(ex.eq||'');
+  const tk=trackOf(ex);
+  if(tk==='t'||tk==='d'||tk==='dt') return 60;
+  if(/\b(deadlift|squat|leg press|hack squat|bench press|overhead press|row|pull-up|chin-up|clean|snatch|jerk)\b/.test(name)) return 180;
+  if(/\b(press|pulldown|lunge|split squat|hip thrust|dip)\b/.test(name) || ['Barbell','Smith Machine','Leverage','Pit Shark'].includes(eq)) return 150;
+  if(/\b(curl|raise|fly|extension|pushdown|calf|crunch|wrist)\b/.test(name)) return 75;
+  return fallback||90;
+}
+function formatRest(sec){
+  const s=Math.max(0, Math.round(Number(sec)||0));
+  return s<60 ? s+'s' : Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+function roundToPlateStep(value, unit){
+  const step=unit==='kg'?2.5:5;
+  return Math.max(step, Math.round((Number(value)||0)/step)*step);
+}
+function warmupSetsFor(ex, unit, workingWeight){
+  const target=Number(workingWeight)||0;
+  if(!target) return [];
+  const base=defaultBaseWeight(ex, unit);
+  const percents=[.4,.55,.7,.85];
+  return percents.map((pct,i)=>{
+    const weight=roundToPlateStep(Math.max(base, target*pct), unit);
+    return {label:(i+1), pct:Math.round(pct*100), weight, reps:[8,5,3,1][i], plates:calcPlateLoad(weight, base, unit)};
+  }).filter(row=>row.weight<target);
+}
+const MACHINE_KEYS=[
+  {k:'seat',label:'Seat'},
+  {k:'pad',label:'Pad'},
+  {k:'handle',label:'Handle'},
+  {k:'pin',label:'Pin'}
+];
+function parseMachineSettings(text){
+  const raw=String(text||'').trim();
+  const out={seat:'',pad:'',handle:'',pin:'',note:''};
+  if(!raw) return out;
+  let matched=false;
+  raw.split(';').map(x=>x.trim()).filter(Boolean).forEach(part=>{
+    const m=part.match(/^([A-Za-z ]+):\s*(.*)$/);
+    if(!m) return;
+    const key=m[1].trim().toLowerCase();
+    const found=MACHINE_KEYS.find(item=>item.label.toLowerCase()===key || item.k===key);
+    if(found){ out[found.k]=m[2].trim(); matched=true; }
+    else if(key==='note'){ out.note=m[2].trim(); matched=true; }
+  });
+  if(!matched) out.note=raw;
+  return out;
+}
+function formatMachineSettings(settings){
+  const s=settings||{};
+  const parts=[];
+  MACHINE_KEYS.forEach(item=>{ if(String(s[item.k]||'').trim()) parts.push(item.label+': '+String(s[item.k]).trim()); });
+  if(String(s.note||'').trim()) parts.push('Note: '+String(s.note).trim());
+  return parts.join('; ');
+}
+function setVolume(set, tk){
+  if(!setHasData(tk,set)) return 0;
+  if(tk==='ws') return (+set.weight||0)*(+set.reps||0);
+  if(tk==='wt') return (+set.weight||0)*(+set.time||0);
+  if(tk==='r') return +set.reps||0;
+  if(tk==='t') return +set.time||0;
+  return +set.dist||0;
+}
+function entryVolume(entry, ex){
+  const tk=trackOf(ex);
+  return asArray(entry&&entry.sets).filter(s=>setHasData(tk,s)).reduce((sum,s)=>sum+setVolume(s,tk),0);
+}
+function progressionFor(entry, ex, rec, unit){
+  if(!entry||!ex) return null;
+  const tk=trackOf(ex);
+  const sets=asArray(entry.sets).filter(s=>s&&s.done&&setHasData(tk,s));
+  if(!sets.length) return null;
+  if(tk==='ws'){
+    const targetReps=sets.map(s=>Number(s.targetReps)||0).filter(Boolean);
+    const goal=targetReps.length ? Math.min(...targetReps) : 8;
+    const allHit=sets.every(s=>(+s.reps||0)>=goal);
+    const top=Math.max(...sets.map(s=>+s.weight||0));
+    const inc=unit==='kg'?2.5:5;
+    return allHit ? {tone:'good',label:'Progress next time',detail:'Try '+(top+inc)+' '+unit+' for '+goal+' reps.'}
+      : {tone:'hold',label:'Hold weight',detail:'Stay at '+top+' '+unit+' until every set reaches '+goal+' reps.'};
+  }
+  if(tk==='r'){
+    const best=Math.max(...sets.map(s=>+s.reps||0));
+    const prior=rec&&Number(rec.best)||0;
+    return best>prior ? {tone:'good',label:'Rep PR',detail:'New best: '+best+' reps.'}
+      : {tone:'hold',label:'Progress target',detail:'Beat '+Math.max(best,prior)+' reps before adding difficulty.'};
+  }
+  return {tone:'hold',label:'Logged',detail:'Use this result as the next target.'};
+}
+function workoutSummary(workout, exById, records, unit){
+  const entries=asArray(workout&&workout.entries);
+  const rows=entries.map(en=>{
+    const ex=exById[en.exerciseId];
+    const tk=trackOf(ex);
+    const sets=asArray(en.sets);
+    const done=sets.filter(s=>s&&s.done&&setHasData(tk,s));
+    const typed=sets.filter(s=>setHasData(tk,s));
+    return {entry:en, ex, done, typed, skipped:!!en.skipped, volume:entryVolume(en,ex), progression:progressionFor(en,ex,records[en.exerciseId],unit)};
+  });
+  const logged=rows.filter(r=>r.done.length||r.typed.length);
+  const skipped=rows.filter(r=>r.skipped || (!r.done.length&&!r.typed.length));
+  const prs=logged.filter(r=>{
+    const rec=records[r.entry.exerciseId];
+    if(!rec) return false;
+    const tk=trackOf(r.ex);
+    if(tk==='ws') return r.done.some(s=>epley(s.weight,s.reps)>rec.best);
+    if(tk==='r') return r.done.some(s=>(+s.reps||0)>rec.best);
+    return r.volume>rec.bestVol;
+  });
+  return {rows, logged, skipped, prs, volume:logged.reduce((sum,r)=>sum+r.volume,0), sets:logged.reduce((sum,r)=>sum+r.done.length,0)};
 }
 
 /* ============================================================
@@ -1892,7 +2046,9 @@ function App(){
   const [previewDay, setPreviewDay] = useState(null);
   const [pickerFor, setPickerFor] = useState(null);
   const [activeAddPrompt, setActiveAddPrompt] = useState(null);
+  const [finishReview, setFinishReview] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [updateReady, setUpdateReady] = useState(null);
 
   // sync
   const [sbUrl, setSbUrl] = useState(()=>store.get('sb_url', SUPABASE_URL||''));
@@ -1915,6 +2071,16 @@ function App(){
 
   const exById = useMemo(()=>Object.fromEntries(exercises.map(e=>[e.id,e])),[exercises]);
   const flash = (msg)=>{ setToast(msg); setTimeout(()=>setToast(null), 1900); };
+  useEffect(()=>{
+    const onReady=(event)=>setUpdateReady(event.detail&&event.detail.worker ? event.detail.worker : true);
+    window.addEventListener('ironlog:update-ready', onReady);
+    return ()=>window.removeEventListener('ironlog:update-ready', onReady);
+  },[]);
+  const applyUpdate=()=>{
+    const worker=updateReady&&updateReady.postMessage ? updateReady : window.__ironlogWaitingWorker;
+    if(worker&&worker.postMessage) worker.postMessage({type:'SKIP_WAITING'});
+    else window.location.reload();
+  };
 
   /* ----- Supabase client lifecycle ----- */
   useEffect(()=>{
@@ -1992,9 +2158,10 @@ function App(){
     }});
   };
   const cancelRestNotification=()=>postServiceWorkerMessage({type:'CANCEL_REST_NOTIFICATION'});
-  const startRest = (label)=>{
+  const startRest = (label, seconds=null)=>{
     primeAudio();
-    const next={ id:'rest-'+uid(), endsAt: Date.now()+restDefault*1000, total: restDefault, label: label||'Rest', startedAt: Date.now() };
+    const total=Math.max(10, Math.min(600, Math.round(Number(seconds)||restDefault)));
+    const next={ id:'rest-'+uid(), endsAt: Date.now()+total*1000, total, label: label||'Rest', startedAt: Date.now() };
     cancelRestNotification();
     setRest(next);
     scheduleRestNotification(next);
@@ -2263,22 +2430,34 @@ function App(){
     delete nextGroups[exId];
     updatePreviewDay(nextIds, nextGroups);
   };
-  const finishWorkout = ()=>{
+  const buildFinishedWorkout=(source)=>{
+    if(!source) return null;
     // Save completed sets first; if none are checked, keep any typed sets.
-    const anyDone = active.entries.some(en=>en.sets.some(s=>s.done));
-    const c = {...active, startedAt: active.startedAt || Date.now(), endedAt: Date.now(), entries: active.entries.map(en=>{
+    const anyDone = asArray(source.entries).some(en=>asArray(en.sets).some(s=>s.done));
+    const c = {...source, startedAt: source.startedAt || Date.now(), endedAt: Date.now(), entries: asArray(source.entries).map(en=>{
       const tk = trackOf(exById[en.exerciseId]);
       const keep = anyDone ? (s=>s.done && setHasData(tk,s)) : (s=>setHasData(tk,s));
-      return {...en, sets: en.sets.filter(keep).map(({_touchedFields, ...set})=>set)};
+      return {...en, sets: asArray(en.sets).filter(keep).map(({_touchedFields, ...set})=>set)};
     }).filter(en=>en.sets.length>0)};
+    return c;
+  };
+  const requestFinishWorkout = ()=>{
+    if(!active) return;
+    const finished=buildFinishedWorkout(active);
+    setFinishReview({workout:active, finished, summary:workoutSummary(active, exById, records, unit), updatePlan:!!active.routineId});
+  };
+  const completeWorkout = (updatePlan=true)=>{
+    if(!finishReview || !finishReview.workout) return;
+    const c=finishReview.finished || buildFinishedWorkout(finishReview.workout);
     if(c.entries.length){ setLogs([c, ...logs]); flash('Workout saved 🔥'); }
     else flash('Nothing logged — discarded');
-    // If this workout came from a routine day, write exercise/order/superset
-    // and planned set changes back to the day template.
-    persistRoutineDayShape(active);
+    // Plan, active workout, and log are separate. Save the session first, then
+    // update the routine template only when the review toggle is on.
+    if(updatePlan) persistRoutineDayShape(finishReview.workout);
+    setFinishReview(null);
     setActive(null); clearRest(); setTab('records');
   };
-  const discardWorkout = ()=>{ setActive(null); clearRest(); setTab('today'); };
+  const discardWorkout = ()=>{ setFinishReview(null); setActive(null); clearRest(); setTab('today'); };
 
   const saveRoutine = (r)=>{
     const nextRoutine={...r, days:asArray(r.days).map(d=>normalizeDayShape(d, d.exerciseIds, d.groups))};
@@ -2332,13 +2511,15 @@ function App(){
     return r;
   },[logs, exById, unit]);
 
-  const syncColor = !sbUrl||!sbKey ? 'var(--muted2)' : (session ? 'var(--good)' : 'var(--warn)');
+  const syncColor = !sbUrl||!sbKey ? 'var(--muted2)' : (syncStatus&&/error/i.test(syncStatus) ? 'var(--bad)' : (session ? 'var(--good)' : 'var(--warn)'));
+  const syncLabel = !sbUrl||!sbKey ? 'Local' : (syncStatus ? (/error/i.test(syncStatus)?'Sync issue':'Syncing') : (session ? 'Synced' : 'Sign in'));
 
   return (
     <div className="app">
       <div className="topbar">
         <div className="brand"><div className="brand-mark">IL</div><h1>Iron<span>Log</span></h1></div>
         <div className="top-right">
+          <div className="sync-status-pill"><i style={{background:syncColor}}></i><span>{syncLabel}</span></div>
           <div className="unit-toggle">
             <button className={unit==='lb'?'on':''} onClick={()=>setUnit('lb')}>LB</button>
             <button className={unit==='kg'?'on':''} onClick={()=>setUnit('kg')}>KG</button>
@@ -2361,8 +2542,8 @@ function App(){
         {tab==='library' &&
           <LibraryView exercises={exercises} onOpen={setDetailEx} onNew={()=>setNewExOpen(true)} />}
         {tab==='train' &&
-          <TrainView active={active} exById={exById} unit={unit} records={records} logs={logs} exercises={exercises}
-            setActive={setActive} onFinish={finishWorkout} onDiscard={discardWorkout}
+          <TrainView active={active} exById={exById} unit={unit} restDefault={restDefault} records={records} logs={logs} exercises={exercises}
+            setActive={setActive} onFinish={requestFinishWorkout} onDiscard={discardWorkout}
             onStartQuick={()=>startDay(null,null)} onAddExercise={()=>setPickerFor('active')} startRest={startRest}
             onRoutineUpdate={persistRoutineDayShape} />}
         {tab==='records' &&
@@ -2416,6 +2597,11 @@ function App(){
       {activeAddPrompt && active &&
         <ActiveAddOptionsSheet prompt={activeAddPrompt} active={active} exById={exById}
           onSuperset={linkAddedExercisesToActiveSuperset} onClose={()=>setActiveAddPrompt(null)} />}
+      {finishReview &&
+        <FinishReviewSheet review={finishReview} unit={unit}
+          onClose={()=>setFinishReview(null)}
+          onSave={(updatePlan)=>completeWorkout(updatePlan)}
+          onTogglePlan={(value)=>setFinishReview(r=>r?{...r, updatePlan:value}:r)} />}
       {settingsOpen &&
         <SettingsSheet onClose={()=>setSettingsOpen(false)}
           unit={unit} setUnit={setUnit} restDefault={restDefault} setRestDefault={setRestDefault}
@@ -2429,6 +2615,7 @@ function App(){
           onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} />}
 
       {toast && <div className="toast">{I.check}{toast}</div>}
+      {updateReady && <div className="update-banner"><span>Update ready</span><button onClick={applyUpdate}>Reload</button></div>}
     </div>
   );
 }
@@ -3146,11 +3333,87 @@ function PlateCalculatorSheet({exercise, unit, initialWeight, onClose}){
   );
 }
 
-function TrainView({active, exById, unit, records, logs, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises, onRoutineUpdate}){
+function WarmupSheet({exercise, unit, initialWeight, onClose}){
+  const [target,setTarget]=useState(()=>Number(initialWeight)|| (unit==='kg'?60:135));
+  const rows=warmupSetsFor(exercise, unit, target);
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet plate-sheet" onClick={e=>e.stopPropagation()}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Warmup Ramp</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div className="plate-grid">
+            <div className="plate-field"><label>Working weight</label><input type="number" inputMode="decimal" value={target} onChange={e=>setTarget(e.target.value)} /></div>
+            <div className="plate-field"><label>Rest target</label><div className="warmup-rest">{formatRest(smartRestSeconds(exercise,90,false))}</div></div>
+          </div>
+          {rows.length===0 ? <div className="empty" style={{padding:'24px 12px'}}>Enter a working weight to build warmups.</div> :
+            <div className="warmup-list">
+              {rows.map(row=>
+                <div key={row.pct} className="warmup-row">
+                  <div><b>{row.weight} {unit}</b><span>{row.pct}% · {row.reps} reps</span></div>
+                  <div className="plate-stack">
+                    {row.plates.plates.length ? row.plates.plates.map(p=><span key={p.weight} className="plate-chip">{p.count} x {p.weight}</span>) : <span className="plate-chip">empty</span>}
+                  </div>
+                </div>)}
+            </div>}
+          <div className="plate-note">{exercise?exercise.name:'Selected lift'} · warmups round to normal plate jumps.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinishReviewSheet({review, unit, onClose, onSave, onTogglePlan}){
+  const summary=review.summary || {logged:[], skipped:[], prs:[], volume:0, sets:0};
+  const [updatePlan,setUpdatePlan]=useState(review.updatePlan);
+  const toggle=()=>{ const next=!updatePlan; setUpdatePlan(next); if(onTogglePlan) onTogglePlan(next); };
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet finish-review-sheet" onClick={e=>e.stopPropagation()}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Review Workout</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div className="review-hero">
+            <div><span>Sets</span><b>{summary.sets}</b></div>
+            <div><span>Volume</span><b>{Math.round(summary.volume).toLocaleString()} {unit}</b></div>
+            <div><span>PRs</span><b>{summary.prs.length}</b></div>
+          </div>
+          <div className="review-section">
+            <div className="section-h"><span>Logged</span><b>{summary.logged.length}</b></div>
+            {summary.logged.length ? summary.logged.map((row,i)=>
+              <div key={row.entry.exerciseId+':'+i} className="review-row">
+                <div><b>{row.ex?row.ex.name:'Missing exercise'}</b><span>{row.done.length||row.typed.length} set{(row.done.length||row.typed.length)!==1?'s':''}</span></div>
+                {row.progression && <em>{row.progression.label}</em>}
+              </div>) : <div className="review-empty">No completed sets yet.</div>}
+          </div>
+          <div className="review-section">
+            <div className="section-h"><span>Skipped / Empty</span><b>{summary.skipped.length}</b></div>
+            {summary.skipped.length ? summary.skipped.slice(0,6).map((row,i)=>
+              <div key={row.entry.exerciseId+':skip:'+i} className="review-row muted">
+                <div><b>{row.ex?row.ex.name:'Missing exercise'}</b><span>{row.skipped?'Skipped today':'No sets logged'}</span></div>
+              </div>) : <div className="review-empty">Nothing skipped.</div>}
+          </div>
+          {review.workout&&review.workout.routineId &&
+            <button className={'review-toggle '+(updatePlan?'on':'')} onClick={toggle}>
+              <span>{updatePlan?'Update routine plan':'Keep routine plan unchanged'}</span>
+              <b>{updatePlan?'On':'Off'}</b>
+            </button>}
+          <div className="review-actions">
+            <button className="btn btn-ghost" onClick={onClose}>{I.x}Back</button>
+            <button className="btn btn-accent" onClick={()=>onSave(updatePlan)}>{I.check}Save workout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrainView({active, exById, unit, restDefault, records, logs, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises, onRoutineUpdate}){
   const [elapsed,setElapsed]=useState(0);
   const [showReorder,setShowReorder]=useState(false);
   const [swapFor,setSwapFor]=useState(null);
   const [plateCalc,setPlateCalc]=useState(null);
+  const [warmupFor,setWarmupFor]=useState(null);
   const [showWorkoutOptions,setShowWorkoutOptions]=useState(false);
   const cardRefs=useRef({});
   const autoTimers=useRef({});
@@ -3176,6 +3439,7 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
   const totalVol=entries.reduce((n,e)=>n+asArray(e&&e.sets).filter(s=>s.done).reduce((v,s)=>v+(+s.weight||0)*(+s.reps||0),0),0);
   const entryComplete=(en)=>{
     if(!en || !Array.isArray(en.sets)) return false;
+    if(en.skipped) return true;
     const ex=exById[en.exerciseId]; const tk=trackOf(ex);
     if(!ex) return false;
     return en.sets.length>0 && en.sets.every(s=>s.done && setHasData(tk,s));
@@ -3196,6 +3460,7 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
     setActive(next);
     if(persist && onRoutineUpdate) onRoutineUpdate(next);
   };
+  const startSmartRest=(ex,label,superset=false)=>startRest(label||'Rest', smartRestSeconds(ex, restDefault, superset));
   const lastMachineSettingsFor=(exId)=>{
     for(const session of asArray(logs)){
       const en=asArray(session&&session.entries).find(e=>e&&e.exerciseId===exId&&e.machineSettings);
@@ -3296,32 +3561,33 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
     return next;
   };
   const advanceAfterSet=(e,ei,label)=>{
+    const currentEx=exById[(e.entries[ei]||{}).exerciseId];
     if(!guided){
-      setActive(e); startRest(label||'Rest');
+      setActive(e); startSmartRest(currentEx,label||'Rest');
       if(entryComplete(e.entries[ei])){
         const next=asArray(e.entries).findIndex((en,idx)=>idx>ei && !entryComplete(en));
         if(next>=0) setTimeout(()=>{ const el=cardRefs.current[next]; if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'}); },180);
       }
       return;
     }
-    if(!entryComplete(e.entries[ei])){ setActive(e); startRest(label||'Rest'); return; }
+    if(!entryComplete(e.entries[ei])){ setActive(e); startSmartRest(currentEx,label||'Rest'); return; }
     const eg=groupsOf(e.entries);
     const myGroup=eg.find(g=>g.indexOf(ei)>=0) || [ei];
     const groupDone=myGroup.every(idx=>entryComplete(e.entries[idx]));
     if(!groupDone){
       const nextInGroup=myGroup.find(idx=>!entryComplete(e.entries[idx]));
-      if(nextInGroup!==undefined){ e.currentEntryIndex=nextInGroup; setActive(e); const nx=exById[e.entries[nextInGroup].exerciseId]; startRest(nx?'Superset: '+nx.name:'Next in superset'); return; }
+      if(nextInGroup!==undefined){ e.currentEntryIndex=nextInGroup; setActive(e); const nx=exById[e.entries[nextInGroup].exerciseId]; startRest(nx?'Superset: '+nx.name:'Next in superset', 15); return; }
     }
     const myPos=eg.findIndex(g=>g.indexOf(ei)>=0);
     for(let p=myPos+1;p<eg.length;p++){
       const tgt=eg[p].find(idx=>!entryComplete(e.entries[idx]));
-      if(tgt!==undefined){ e.currentEntryIndex=tgt; setActive(e); const nx=exById[e.entries[tgt].exerciseId]; startRest(nx?'Next: '+nx.name:'Next exercise'); return; }
+      if(tgt!==undefined){ e.currentEntryIndex=tgt; setActive(e); const nx=exById[e.entries[tgt].exerciseId]; startSmartRest(currentEx,nx?'Next: '+nx.name:'Next exercise', myGroup.length>1); return; }
     }
     const anyOpen=asArray(e.entries).findIndex(en=>!entryComplete(en));
     if(anyOpen>=0){
       e.currentEntryIndex=anyOpen;
       setActive(e);
-      startRest(label||'Rest');
+      startSmartRest(currentEx,label||'Rest', myGroup.length>1);
       return;
     }
     e.currentEntryIndex=ei;
@@ -3382,6 +3648,22 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
     },80);
   };
   const delSet=(ei,si)=>{ clearAutoTimer(ei,si); const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } saveActive(e, guided); };
+  const skipEx=(ei)=>{
+    const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
+    const ex=exById[entry.exerciseId]; const tk=trackOf(ex);
+    const hasData=asArray(entry.sets).some(s=>s&&setHasData(tk,s));
+    if(hasData && !confirm('Skip '+(ex?ex.name:'this exercise')+' today? Typed sets for this exercise will stay on screen but will not be logged unless you mark them done.')) return;
+    entry.skipped=true;
+    if(guided){
+      const next=asArray(e.entries).findIndex((en,idx)=>idx>ei && !entryComplete(en));
+      if(next>=0) e.currentEntryIndex=next;
+      else {
+        const any=asArray(e.entries).findIndex(en=>!entryComplete(en));
+        e.currentEntryIndex=any>=0?any:ei;
+      }
+    }
+    saveActive(e, false);
+  };
   const removeEx=(ei)=>{
     const e=clone(active); e.entries=asArray(e.entries);
     if(ei<0 || ei>=e.entries.length) return;
@@ -3403,7 +3685,16 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
   };
   const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
   const updMachineSettings=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.machineSettings=v; setActive(e); };
+  const updMachineSetting=(ei,key,value)=>{
+    const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
+    const parsed=parseMachineSettings(entry.machineSettings||'');
+    parsed[key]=value;
+    entry.machineSettings=formatMachineSettings(parsed);
+    setActive(e);
+  };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
+  const commandIndex=guided ? currentIndex : (entries.length?0:-1);
+  const commandExercise=commandIndex>=0 ? exById[(entries[commandIndex]||{}).exerciseId] : null;
   const removeCurrentLabel=currentExercise?('Remove '+currentExercise.name+' from workout'):'Remove this exercise from workout';
 
   return (
@@ -3480,15 +3771,19 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
         const demo=demoFor(ex);
         const sets=asArray(en.sets);
         const lastSetup=machineSettingsApply(ex) ? lastMachineSettingsFor(en.exerciseId) : '';
+        const setup=parseMachineSettings(en.machineSettings||'');
+        const lastSetupParsed=parseMachineSettings(lastSetup);
+        const progression=progressionFor(en, ex, rec, unit);
+        const restSec=smartRestSeconds(ex, restDefault, isSS);
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 44px 34px';
         const compactGuidedHeader=guided && !isSS;
         return (
-          <div key={ei} className={'log-ex'+(isSS?' ss-item':'')} ref={el=>{ if(el) cardRefs.current[ei]=el; else delete cardRefs.current[ei]; }}>
+          <div key={ei} className={'log-ex'+(isSS?' ss-item':'')+(en.skipped?' skipped':'')} ref={el=>{ if(el) cardRefs.current[ei]=el; else delete cardRefs.current[ei]; }}>
             <div className={'log-ex-head'+(compactGuidedHeader?' compact':'')}>
               {!compactGuidedHeader && <Thumb ex={ex} />}
               <div style={{flex:1,minWidth:0}}>{!compactGuidedHeader && <div className="log-ex-name">{ssLabel[ei]&&<span className="ss-tag">{ssLabel[ei].tag}</span>}{ex.name}</div>}
                 <div className="log-prev">{rec?`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`:'No history yet — set the baseline'}</div>
-                <div className="target-line">{targetSummary(en, ex, unit)}</div></div>
+                <div className="target-line">{en.skipped?'Skipped today':targetSummary(en, ex, unit)} · Rest {formatRest(restSec)}</div></div>
               <div className="log-ex-actions">
                 <button className="iconbtn" title="Swap for a similar exercise" onClick={()=>setSwapFor(ei)}>{I.swap}</button>
                 {ssLabel[ei]
@@ -3507,6 +3802,10 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
               return <div className="po-hint">🎯 {allHit
                 ? <span>All sets hit 8+ — <b>add weight: {w+inc}×8</b></span>
                 : <span>Build every set to <b>8 reps</b> at <b>{w} {unit}</b>, then add weight</span>}</div>; })()}
+            {progression &&
+              <div className={'progression-card '+progression.tone}>
+                <b>{progression.label}</b><span>{progression.detail}</span>
+              </div>}
             <div className="set-table">
               <div className="set-hdr" style={{gridTemplateColumns:cols}}><div>Set</div>{fields.map(f=><div key={f}>{fieldLabel(f,unit,ex)}</div>)}<div>Done</div><div></div></div>
               {sets.map((s,si)=>
@@ -3524,8 +3823,10 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
                 </div>)}
               <div className="set-foot">
                 <button className="addset" onClick={()=>addSet(ei)}>{I.plus}<span>Add set</span></button>
+                {guided && <button className="restbtn" onClick={()=>skipEx(ei)}>{I.chevron}Skip today</button>}
+                {plateCalculatorApplies(ex) && <button className="restbtn" onClick={()=>setWarmupFor({exercise:ex, initialWeight:plateWeightFromSets(sets)})}>{I.flame}Warmup</button>}
                 {plateCalculatorApplies(ex) && <button className="restbtn" onClick={()=>setPlateCalc({exercise:ex, initialWeight:plateWeightFromSets(sets)})}>{I.ruler}Plates</button>}
-                {!guided && <button className="restbtn" onClick={()=>startRest(ex.name)}>{I.timer}Rest</button>}
+                {!guided && <button className="restbtn" onClick={()=>startRest(ex.name, restSec)}>{I.timer}Rest</button>}
               </div>
               {guided && <div className="set-entry-hint">{I.timer}<span>Tap check to accept goal reps and start rest</span></div>}
               {tk==='ws' && sets.some(s=>+s.weight>0&&+s.reps>0) &&
@@ -3534,7 +3835,11 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
               {machineSettingsApply(ex) &&
                 <div className="machine-setup">
                   <label>{I.gear}<span>Machine setup</span>{lastSetup && !en.machineSettings && <span className="last">Last: {lastSetup}</span>}</label>
-                  <input placeholder={lastSetup ? 'Last: '+lastSetup : 'Seat / handle / pin setting'} value={en.machineSettings||''} onChange={e=>updMachineSettings(ei,e.target.value)} />
+                  <div className="machine-grid">
+                    {MACHINE_KEYS.map(item=>
+                      <input key={item.k} placeholder={lastSetupParsed[item.k] ? item.label+' last '+lastSetupParsed[item.k] : item.label} value={setup[item.k]||''} onChange={e=>updMachineSetting(ei,item.k,e.target.value)} />)}
+                  </div>
+                  <input placeholder={lastSetupParsed.note ? 'Last note: '+lastSetupParsed.note : 'Setup note'} value={setup.note||''} onChange={e=>updMachineSetting(ei,'note',e.target.value)} />
                 </div>}
               <input className="ex-note" placeholder="Notes — seat height, pin, grip, how it felt…" value={en.note||''} onChange={e=>updNote(ei,e.target.value)} />
             </div>
@@ -3548,12 +3853,19 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
         <div className="exercise-danger-zone">
           <button className="btn btn-danger btn-sm" onClick={()=>confirmRemoveEx(currentIndex)}>{I.trash}{removeCurrentLabel}</button>
         </div>}
+      <div className="train-command-bar">
+        <button onClick={onAddExercise}>{I.plus}<span>Add</span></button>
+        <button disabled={!commandExercise} onClick={()=>commandExercise&&startRest(commandExercise.name, smartRestSeconds(commandExercise, restDefault, currentGroup.length>1))}>{I.timer}<span>Rest</span></button>
+        <button disabled={commandIndex<0} onClick={()=>commandIndex>=0&&setSwapFor(commandIndex)}>{I.swap}<span>Swap</span></button>
+        <button className="primary" onClick={onFinish}>{I.check}<span>Finish</span></button>
+      </div>
       {showWorkoutOptions && <WorkoutOptionsSheet onClose={()=>setShowWorkoutOptions(false)} onDiscard={()=>{ setShowWorkoutOptions(false); onDiscard(); }} />}
       {showReorder && <WorkoutReorderSheet entries={entries} exById={exById}
         onClose={()=>setShowReorder(false)} onApply={applyReorder} />}
       {swapFor!=null && <SwapSheet current={exById[(entries[swapFor]||{}).exerciseId]} exercises={exercises}
         onClose={()=>setSwapFor(null)} onSwap={(id)=>{ doSwap(swapFor,id); setSwapFor(null); }} />}
       {plateCalc && <PlateCalculatorSheet exercise={plateCalc.exercise} unit={unit} initialWeight={plateCalc.initialWeight} onClose={()=>setPlateCalc(null)} />}
+      {warmupFor && <WarmupSheet exercise={warmupFor.exercise} unit={unit} initialWeight={warmupFor.initialWeight} onClose={()=>setWarmupFor(null)} />}
     </div>
   );
 }
@@ -4226,8 +4538,26 @@ ReactDOM.createRoot(document.getElementById('root')).render(<AppErrorBoundary><A
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('service-worker.js')
-        .then(function (reg) { console.log('IronLog SW registered:', reg.scope); })
+        .then(function (reg) {
+          console.log('IronLog SW registered:', reg.scope);
+          reg.addEventListener('updatefound', function () {
+            var worker = reg.installing;
+            if (!worker) return;
+            worker.addEventListener('statechange', function () {
+              if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                window.__ironlogWaitingWorker = worker;
+                window.dispatchEvent(new CustomEvent('ironlog:update-ready', { detail: { worker: worker } }));
+              }
+            });
+          });
+        })
         .catch(function (err) { console.log('IronLog SW registration failed:', err); });
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!window.__ironlogReloading) {
+          window.__ironlogReloading = true;
+          window.location.reload();
+        }
+      });
     });
   }
 </script>
