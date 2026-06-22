@@ -324,6 +324,11 @@
 
   .workout-bar{background:linear-gradient(135deg,rgba(168,85,247,.18),rgba(109,40,217,.13)),linear-gradient(180deg,rgba(36,22,49,.96),rgba(13,9,20,.96));border:1px solid rgba(168,85,247,.34);
     border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 28px rgba(168,85,247,.12)}
+  .workout-bar-main{min-width:0;flex:1}
+  .workout-bar-actions{display:flex;align-items:flex-end;gap:8px;text-align:right;flex-shrink:0}
+  .workout-bar-stack{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .workout-options-btn{width:36px;height:36px;border-radius:12px;background:rgba(23,16,33,.9);border:1px solid rgba(168,85,247,.18);color:var(--muted);display:grid;place-items:center}
+  .workout-options-btn svg{width:18px;height:18px}
   .wb-time{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--accent)}
   .wb-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
   .guided-head{background:rgba(13,9,20,.82);border:1px solid rgba(168,85,247,.16);border-radius:var(--radius);padding:13px 14px;margin-bottom:13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
@@ -352,6 +357,8 @@
   .workout-demo .demo-hero{height:190px;margin-bottom:2px}
   .workout-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px}
   .workout-actions .btn{padding:11px 10px;font-size:13px}
+  .exercise-danger-zone{margin:2px 0 18px;padding-top:4px}
+  .exercise-danger-zone .btn{justify-content:center}
   .reorder-sheet{max-height:min(94vh,720px) !important}
   .reorder-sheet .sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .reorder-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted);margin-bottom:12px}
@@ -705,6 +712,7 @@ function cleanEntries(entries){
     exerciseId: String(en && en.exerciseId || ''),
     note: String(en && en.note || ''),
     machineSettings: String(en && en.machineSettings || ''),
+    sessionOnly: !!(en && en.sessionOnly),
     group: en && en.group ? String(en.group) : undefined,
     sets: asArray(en && en.sets).map(cleanSet).filter(s=>
       s.weight!=='' || s.reps!=='' || s.time!=='' || s.dist!=='' || s.done ||
@@ -2063,10 +2071,97 @@ function App(){
   const liveEntry = (id, planned=false, day=null)=>{
     return newEntry(id, planned, day);
   };
+  const normalizeDayShape=(baseDay, nextIds, nextGroups)=>{
+    const ids=[...new Set(asArray(nextIds).filter(Boolean))];
+    const keep=new Set(ids);
+    const rawGroups=nextGroups||baseDay&&baseDay.groups||{};
+    const counts={};
+    Object.keys(rawGroups||{}).forEach(id=>{
+      const g=rawGroups[id];
+      if(keep.has(id) && g) counts[g]=(counts[g]||0)+1;
+    });
+    const groups={};
+    Object.keys(rawGroups||{}).forEach(id=>{
+      const g=rawGroups[id];
+      if(keep.has(id) && g && counts[g]>1) groups[id]=String(g);
+    });
+    const targets={};
+    const sourceTargets=baseDay&&baseDay.targets||{};
+    ids.forEach(id=>{ if(sourceTargets[id]) targets[id]=sourceTargets[id]; });
+    return {...(baseDay||{}), exerciseIds:ids, groups, targets};
+  };
+  const activeMatchesDay=(workout, programId, dayId)=>!!(workout && programId && dayId && workout.routineId===programId && workout.dayId===dayId);
+  const entryHasSessionData=(entry)=>{
+    if(!entry) return false;
+    const ex=exById[entry.exerciseId];
+    const tk=trackOf(ex);
+    return asArray(entry.sets).some(s=>s && (s.done || setHasData(tk,s) || asArray(s._touchedFields).length>0));
+  };
+  const syncEntryTargetsFromDay=(entry, day)=>{
+    if(!entry || !entry.exerciseId) return entry;
+    const targetRows=planSetsFor(entry.exerciseId, day);
+    if(!targetRows) return entry;
+    const ex=exById[entry.exerciseId];
+    const tk=trackOf(ex);
+    const fields=TRACK[tk] ? TRACK[tk].fields : [];
+    const existing=asArray(entry.sets);
+    const nextSets=[];
+    const max=Math.max(existing.length, targetRows.length);
+    for(let i=0;i<max;i++){
+      const curr=existing[i] ? {...existing[i]} : defaultSetFor(ex, true);
+      const hasActual=curr.done || setHasData(tk,curr) || asArray(curr._touchedFields).length>0;
+      if(i>=targetRows.length && !hasActual) continue;
+      if(!hasActual && targetRows[i]){
+        fields.forEach(f=>{
+          const k=targetKey(f);
+          curr[k]=targetRows[i][k]!==undefined && targetRows[i][k]!==null ? targetRows[i][k] : '';
+          if(curr[f]===undefined || curr[f]===null) curr[f]='';
+        });
+        curr.done=false;
+      }
+      nextSets.push(curr);
+    }
+    return {...entry, sets:nextSets.length?nextSets:[defaultSetFor(ex, true)]};
+  };
+  const mergePlanDayIntoActive=(workout, programId, nextDay)=>{
+    if(!activeMatchesDay(workout, programId, nextDay&&nextDay.id)) return workout;
+    const planIds=asArray(nextDay.exerciseIds).filter(id=>exById[id]);
+    const planIdSet=new Set(planIds);
+    const planGroups=nextDay.groups||{};
+    const original=asArray(workout.entries).filter(Boolean);
+    const byId={};
+    original.forEach(en=>{ if(en&&en.exerciseId&&!byId[en.exerciseId]) byId[en.exerciseId]=en; });
+    const nextEntries=planIds.map(id=>{
+      const existing=byId[id];
+      let entry=existing ? {...existing, sessionOnly:false} : liveEntry(id, true, nextDay);
+      if(planGroups[id]) entry.group=planGroups[id]; else delete entry.group;
+      return syncEntryTargetsFromDay(entry, nextDay);
+    });
+    original.forEach(en=>{
+      if(!en || !en.exerciseId || planIdSet.has(en.exerciseId)) return;
+      if(entryHasSessionData(en)){
+        const kept={...en, sessionOnly:true};
+        delete kept.group;
+        nextEntries.push(kept);
+      }
+    });
+    const oldIdx=Math.max(0, Math.min(original.length-1, Math.floor(+workout.currentEntryIndex||0)));
+    const current=original[oldIdx];
+    let nextIdx=current ? nextEntries.findIndex(en=>en.exerciseId===current.exerciseId) : -1;
+    if(nextIdx<0) nextIdx=Math.max(0, Math.min(nextEntries.length-1, oldIdx));
+    return {...workout, entries:nextEntries, currentEntryIndex:Math.max(0,nextIdx)};
+  };
+  const syncActiveWithPlanDay=(programId, nextDay, announce=true)=>{
+    if(!activeMatchesDay(active, programId, nextDay&&nextDay.id)) return false;
+    setActive(mergePlanDayIntoActive(active, programId, nextDay));
+    if(announce) flash('Plan changes applied to active workout');
+    return true;
+  };
   const routineShapeFromEntries=(entries)=>{
     const exerciseIds=[]; const groups={}; const targets={};
     asArray(entries).forEach(en=>{
       if(!en || !en.exerciseId) return;
+      if(en.sessionOnly) return;
       exerciseIds.push(en.exerciseId);
       if(en.group) groups[en.exerciseId]=en.group;
       const ex=exById[en.exerciseId]; const tk=trackOf(ex);
@@ -2087,7 +2182,6 @@ function App(){
   const persistRoutineDayShape=(workout)=>{
     if(!workout || !workout.routineId || !workout.dayId) return;
     const shape=routineShapeFromEntries(workout.entries);
-    if(!shape.exerciseIds.length) return;
     setRoutines(curr=>asArray(curr).map(r=>{
       if(!r || r.id!==workout.routineId) return r;
       return {...r, days:asArray(r.days).map(d=>{
@@ -2148,22 +2242,19 @@ function App(){
   const updatePreviewDay = (nextIds, nextGroups)=>{
     const p=previewDay;
     if(!p || !p.day || !p.program) return;
-    const ids=asArray(nextIds);
-    const groups=nextGroups||p.day.groups||{};
-    const targets={};
-    ids.forEach(id=>{ if(p.day.targets && p.day.targets[id]) targets[id]=p.day.targets[id]; });
-    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?{...d, exerciseIds:ids, groups, targets}:d);
+    const nextDay=normalizeDayShape(p.day, nextIds, nextGroups);
+    const updateDays=days=>asArray(days).map(d=>d&&d.id===p.day.id?nextDay:d);
     setRoutines(curr=>asArray(curr).map(r=>r&&r.id===p.program.id?{...r, days:updateDays(r.days)}:r));
     setPreviewDay(curr=>{
       if(!curr || !curr.day || curr.day.id!==p.day.id) return curr;
-      const nextDay={...curr.day, exerciseIds:ids, groups, targets};
       return {
         ...curr,
         day:nextDay,
         program:curr.program?{...curr.program, days:updateDays(curr.program.days)}:curr.program,
-        entries:ids.map(id=>newEntry(id, true, nextDay))
+        entries:nextDay.exerciseIds.map(id=>newEntry(id, true, nextDay))
       };
     });
+    syncActiveWithPlanDay(p.program.id, nextDay);
   };
   const deleteFromPreviewDay=(exId)=>{
     if(!previewDay||!previewDay.day) return;
@@ -2190,9 +2281,15 @@ function App(){
   const discardWorkout = ()=>{ setActive(null); clearRest(); setTab('today'); };
 
   const saveRoutine = (r)=>{
-    if(routines.find(x=>x.id===r.id)) setRoutines(routines.map(x=>x.id===r.id?r:x));
-    else setRoutines([r, ...routines]);
-    setEditRoutine(undefined); flash('Routine saved');
+    const nextRoutine={...r, days:asArray(r.days).map(d=>normalizeDayShape(d, d.exerciseIds, d.groups))};
+    if(routines.find(x=>x.id===nextRoutine.id)) setRoutines(routines.map(x=>x.id===nextRoutine.id?nextRoutine:x));
+    else setRoutines([nextRoutine, ...routines]);
+    let synced=false;
+    if(active && active.routineId===nextRoutine.id){
+      const activeDay=asArray(nextRoutine.days).find(d=>d&&d.id===active.dayId);
+      if(activeDay) synced=syncActiveWithPlanDay(nextRoutine.id, activeDay, false);
+    }
+    setEditRoutine(undefined); flash(synced?'Routine saved · active workout updated':'Routine saved');
   };
   const deleteRoutine = (id)=>{ setRoutines(routines.filter(r=>r.id!==id)); setEditRoutine(undefined); flash('Routine deleted'); };
 
@@ -3054,6 +3151,7 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
   const [showReorder,setShowReorder]=useState(false);
   const [swapFor,setSwapFor]=useState(null);
   const [plateCalc,setPlateCalc]=useState(null);
+  const [showWorkoutOptions,setShowWorkoutOptions]=useState(false);
   const cardRefs=useRef({});
   const autoTimers=useRef({});
   useEffect(()=>{
@@ -3284,17 +3382,39 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
     },80);
   };
   const delSet=(ei,si)=>{ clearAutoTimer(ei,si); const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.sets=asArray(entry.sets); entry.sets.splice(si,1); if(!entry.sets.length){ const ex=exById[entry.exerciseId]; entry.sets.push(defaultSetFor(ex, true)); } saveActive(e, guided); };
-  const removeEx=(ei)=>{ const e=clone(active); e.entries=asArray(e.entries); e.entries.splice(ei,1); saveActive(e, true); };
+  const removeEx=(ei)=>{
+    const e=clone(active); e.entries=asArray(e.entries);
+    if(ei<0 || ei>=e.entries.length) return;
+    const oldCurrent=Math.max(0, Math.min(e.entries.length-1, Math.floor(+e.currentEntryIndex||0)));
+    e.entries.splice(ei,1);
+    if(e.entries.length){
+      const nextCurrent=ei<oldCurrent ? oldCurrent-1 : (ei===oldCurrent ? Math.min(oldCurrent, e.entries.length-1) : oldCurrent);
+      e.currentEntryIndex=Math.max(0, Math.min(e.entries.length-1, nextCurrent));
+    } else {
+      e.currentEntryIndex=0;
+    }
+    saveActive(e, true);
+  };
+  const confirmRemoveEx=(ei)=>{
+    const en=entries[ei];
+    const ex=en&&exById[en.exerciseId];
+    const label=ex?ex.name:'this exercise';
+    if(confirm('Remove '+label+' from this workout? This updates the routine day, but keeps any workout history already saved.')) removeEx(ei);
+  };
   const updNote=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.note=v; setActive(e); };
   const updMachineSettings=(ei,v)=>{ const e=clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return; entry.machineSettings=v; setActive(e); };
   const updSessionNote=(v)=>{ setActive({...active, note:v}); };
+  const removeCurrentLabel=currentExercise?('Remove '+currentExercise.name+' from workout'):'Remove this exercise from workout';
 
   return (
     <div>
       <div className="workout-bar">
-        <div><div className="wb-lbl">{active.name}</div><div className="wb-time">{fmt(elapsed)}</div></div>
-        <div style={{textAlign:'right'}}><div className="wb-lbl">{totalSets} sets · {Math.round(totalVol).toLocaleString()} {unit}</div>
-          <button className="start-btn" style={{marginTop:6}} onClick={onFinish}>Finish ✓</button></div>
+        <div className="workout-bar-main"><div className="wb-lbl">{active.name}</div><div className="wb-time">{fmt(elapsed)}</div></div>
+        <div className="workout-bar-actions">
+          <div className="workout-bar-stack"><div className="wb-lbl">{totalSets} sets · {Math.round(totalVol).toLocaleString()} {unit}</div>
+            <button className="start-btn" onClick={onFinish}>Finish ✓</button></div>
+          <button className="workout-options-btn" title="Workout options" onClick={()=>setShowWorkoutOptions(true)}>{I.gear}</button>
+        </div>
       </div>
       {guided &&
         <div className="guided-head">
@@ -3349,7 +3469,7 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
                   <div className="log-prev">This slot's exercise was deleted from your library. Swap it or remove it.</div></div>
                 <div className="log-ex-actions">
                   <button className="iconbtn" title="Swap for a similar exercise" onClick={()=>setSwapFor(ei)}>{I.swap}</button>
-                  <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
+                  <button className="delset" onClick={()=>confirmRemoveEx(ei)}>{I.trash}</button>
                 </div>
               </div>
             </div>
@@ -3374,7 +3494,7 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
                 {ssLabel[ei]
                   ? (ssLabel[ei].first && <button className="iconbtn" title="Unlink superset" onClick={()=>unlinkGroup(ei)}>{I.unlink}</button>)
                   : (ei<entries.length-1 && <button className="iconbtn" title="Superset with next exercise" onClick={()=>linkWithNext(ei)}>{I.link}</button>)}
-                <button className="delset" onClick={()=>removeEx(ei)}>{I.trash}</button>
+                <button className="delset" onClick={()=>confirmRemoveEx(ei)}>{I.trash}</button>
               </div>
             </div>
             {guided && demo && <div className="workout-demo"><AnimatedDemo demo={demo} /></div>}
@@ -3424,12 +3544,36 @@ function TrainView({active, exById, unit, records, logs, setActive, onFinish, on
         </div>
         );
       })}
-      <button className="btn btn-danger btn-sm" onClick={onDiscard} style={{marginTop:10}}>{I.trash}Discard workout</button>
+      {guided && currentEntry &&
+        <div className="exercise-danger-zone">
+          <button className="btn btn-danger btn-sm" onClick={()=>confirmRemoveEx(currentIndex)}>{I.trash}{removeCurrentLabel}</button>
+        </div>}
+      {showWorkoutOptions && <WorkoutOptionsSheet onClose={()=>setShowWorkoutOptions(false)} onDiscard={()=>{ setShowWorkoutOptions(false); onDiscard(); }} />}
       {showReorder && <WorkoutReorderSheet entries={entries} exById={exById}
         onClose={()=>setShowReorder(false)} onApply={applyReorder} />}
       {swapFor!=null && <SwapSheet current={exById[(entries[swapFor]||{}).exerciseId]} exercises={exercises}
         onClose={()=>setSwapFor(null)} onSwap={(id)=>{ doSwap(swapFor,id); setSwapFor(null); }} />}
       {plateCalc && <PlateCalculatorSheet exercise={plateCalc.exercise} unit={unit} initialWeight={plateCalc.initialWeight} onClose={()=>setPlateCalc(null)} />}
+    </div>
+  );
+}
+
+function WorkoutOptionsSheet({onClose, onDiscard}){
+  const discard=()=>{
+    if(confirm('Discard this workout? Logged sets in this active session will be lost. Your routine plan stays saved.')) onDiscard();
+  };
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet action-sheet" onClick={e=>e.stopPropagation()}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Workout Options</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <button className="action-row action-danger" onClick={discard}>
+          {I.trash}<span>Discard workout</span><span className="action-hint">Lose this active session</span>
+        </button>
+        <button className="action-row" style={{color:'var(--muted)',marginTop:4}} onClick={onClose}>
+          {I.x}<span>Cancel</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -3833,7 +3977,23 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
   const stopButton=e=>e.stopPropagation();
   const remove=id=>{ setIds(ids.filter(x=>x!==id)); };
   const delBtnProps=(id)=>({ onClick:(e)=>{ e.stopPropagation(); remove(id); } });
-  const saveDayEdits=()=>onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids});
+  const saveDayEdits=()=>{
+    const keep=new Set(ids);
+    const rawGroups=day.groups||{};
+    const counts={};
+    Object.keys(rawGroups).forEach(id=>{
+      const g=rawGroups[id];
+      if(keep.has(id) && g) counts[g]=(counts[g]||0)+1;
+    });
+    const groups={};
+    Object.keys(rawGroups).forEach(id=>{
+      const g=rawGroups[id];
+      if(keep.has(id) && g && counts[g]>1) groups[id]=g;
+    });
+    const targets={};
+    ids.forEach(id=>{ if(day.targets && day.targets[id]) targets[id]=day.targets[id]; });
+    onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids, groups, targets});
+  };
   const handleCreate=(payload)=>{
     const ex=onCreate&&onCreate(payload);
     if(ex&&ex.id) setCreated(curr=>[ex, ...asArray(curr).filter(x=>x&&x.id!==ex.id)]);
