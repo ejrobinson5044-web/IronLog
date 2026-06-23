@@ -2876,6 +2876,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onCl
   const [selectedId,setSelectedId]=useState(null);
   const [actionFor,setActionFor]=useState(null);
   const [editEx,setEditEx]=useState(null);
+  const [swapForDay,setSwapForDay]=useState(null);
   useEffect(()=>{ setIds(dayIds); setGroups(day.groups||{}); setSelectedId(null); },[day.id, dayIds.join('|')]);
   const persistDay=(nextIds, nextGroups)=>{ if(onUpdateDay) onUpdateDay(nextIds, nextGroups); };
   const addExercises=(selected)=>{
@@ -2901,6 +2902,13 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onCl
     Object.keys(next).forEach(k=>{ if(next[k]===g) delete next[k]; });
     setGroups(next); persistDay(ids, next);
   };
+  const swapExerciseInDay=(oldId, newId)=>{
+    if(!newId || oldId===newId) return;
+    const nextIds=ids.map(id=>id===oldId?newId:id);
+    const nextGroups={...groups};
+    if(nextGroups[oldId]!==undefined){ nextGroups[newId]=nextGroups[oldId]; delete nextGroups[oldId]; }
+    setIds(nextIds); setGroups(nextGroups); setSelectedId(null); persistDay(nextIds, nextGroups);
+  };
   const entryById=useMemo(()=>{
     const map={};
     ids.forEach((id,i)=>{ map[id]=entries[i]; });
@@ -2923,7 +2931,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onCl
   const primaryIcon=activeDay?I.refresh:I.flame;
   const launchDay=()=> activeDay ? onResume&&onResume() : onStart(0);
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay" onClick={()=>{ if(selectedId) setSelectedId(null); else onClose(); }}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="sheet-grip"></div>
         <div className="sheet-head"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={()=>setPicking(true)}>{I.plus}Add</button><button className="rc-edit" disabled={primaryDisabled} style={{opacity:primaryDisabled ? .45 : 1}} onClick={launchDay}>{primaryIcon}{activeDay?'Resume':'Start'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
@@ -3026,6 +3034,9 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onCl
               <button className="action-row" onClick={()=>{ setActionFor(null); if(ax) setEditEx(ax); }}>
                 {I.gear}<span>Edit exercise</span><span className="action-hint">Name, muscle, type…</span>
               </button>
+              <button className="action-row" onClick={()=>{ const id=actionFor; setActionFor(null); setSwapForDay(id); }}>
+                {I.swap}<span>Swap exercise</span><span className="action-hint">Rotate in a similar move</span>
+              </button>
               <button className="action-row" onClick={()=>{ const id=actionFor; setActionFor(null); requestAnimationFrame(()=>startDrag(id)); }}>
                 {I.grip}<span>Move</span><span className="action-hint">Slide your finger to place it</span>
               </button>
@@ -3042,6 +3053,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onCl
       {/* inline exercise edit */}
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(payload)=>{ if(onSaveExercise) onSaveExercise({...editEx,...payload,edited:true}); setEditEx(null); }} />}
       {picking && <ExercisePicker exercises={exercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={onCreateExercise} onConfirm={addExercises} />}
+      {swapForDay && <SwapSheet current={exById[swapForDay]} exercises={exercises} onCreate={onCreateExercise} onClose={()=>setSwapForDay(null)} onSwap={(id)=>{ swapExerciseInDay(swapForDay, id); setSwapForDay(null); }} />}
     </div>
   );
 }
