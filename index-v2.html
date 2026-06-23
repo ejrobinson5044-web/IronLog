@@ -256,7 +256,7 @@
   .action-danger{color:#f87171}
   .action-danger svg{color:#f87171}
   .sheet-head h2{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.01em}
-  .sheet-body{overflow-y:auto;padding:18px;flex:1}
+  .sheet-body{overflow-y:auto;padding:18px 18px calc(18px + env(safe-area-inset-bottom));flex:1;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .x-btn{width:32px;height:32px;border-radius:999px;background:var(--surface2);display:grid;place-items:center;color:var(--muted)}
   .x-btn svg{width:18px;height:18px}
 

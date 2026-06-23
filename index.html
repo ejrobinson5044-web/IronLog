@@ -261,7 +261,7 @@
   .action-danger{color:#f87171}
   .action-danger svg{color:#f87171}
   .sheet-head h2{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.01em}
-  .sheet-body{overflow-y:auto;padding:18px;flex:1}
+  .sheet-body{overflow-y:auto;padding:18px 18px calc(18px + env(safe-area-inset-bottom));flex:1;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .x-btn{width:32px;height:32px;border-radius:999px;background:var(--surface2);display:grid;place-items:center;color:var(--muted)}
   .x-btn svg{width:18px;height:18px}
 
@@ -659,6 +659,42 @@ function normalizeExerciseVariant(ex){
   const side = sideOf(ex) || sideFromName(ex&&ex.name);
   return side ? {...ex, side, name:formatExerciseName(ex.name, ex.eq, side)} : {...ex, side:''};
 }
+/* guess equipment + primary muscle from what the user typed, so the New Exercise
+   sheet opens pre-filled instead of defaulting to Barbell / Chest every time */
+function guessEquipmentFromName(name){
+  const n=String(name||'').toLowerCase();
+  if(/\bsmith\b/.test(n)) return 'Smith Machine';
+  if(/\bez[\s-]?bar\b|\bez\b/.test(n)) return 'EZ Bar';
+  if(/\bdumbbell|\bdb\b/.test(n)) return 'Dumbbell';
+  if(/\bkettlebell|\bkb\b/.test(n)) return 'Kettlebell';
+  if(/\bbarbell|\bbb\b/.test(n)) return 'Barbell';
+  if(/\bcable\b/.test(n)) return 'Cable';
+  if(/\bband\b/.test(n)) return 'Band';
+  if(/\blandmine\b/.test(n)) return 'Landmine';
+  if(/\bpit[\s-]?shark\b/.test(n)) return 'Pit Shark';
+  if(/\bleverage|hammer|iso[\s-]?lateral\b/.test(n)) return 'Leverage';
+  if(/\bmachine|pec[\s-]?deck|pulldown|leg press|leg curl|leg extension\b/.test(n)) return 'Machine';
+  if(/\bbodyweight|\bbw\b|pull[\s-]?up|chin[\s-]?up|push[\s-]?up|\bdip\b|plank|sit[\s-]?up\b/.test(n)) return 'Bodyweight';
+  if(/\bplate\b/.test(n)) return 'Weight Plate';
+  return null;
+}
+function guessMuscleFromName(name){
+  const n=String(name||'').toLowerCase();
+  if(/\bleg curl|romanian|\brdl\b|hamstring|good[\s-]?morning\b/.test(n)) return 'Hamstrings';
+  if(/\bsquat|leg press|leg extension|lunge|hack|split squat\b/.test(n)) return 'Quads';
+  if(/\bhip thrust|glute|bridge\b/.test(n)) return 'Glutes';
+  if(/\bcalf|calves\b/.test(n)) return 'Calves';
+  if(/\bbench|chest|\bfly\b|\bpec\b|push[\s-]?up\b/.test(n)) return 'Chest';
+  if(/\brow|pulldown|pull[\s-]?up|chin[\s-]?up|\blat\b|deadlift|shrug|pullover\b/.test(n)) return 'Back';
+  if(/\blateral raise|side raise|side delt\b/.test(n)) return 'Side Delts';
+  if(/\brear delt|reverse fly|face pull\b/.test(n)) return 'Rear Delts';
+  if(/\boverhead press|shoulder press|\bohp\b|front raise|military|arnold\b/.test(n)) return 'Front Delts';
+  if(/\btricep|pushdown|skull|kickback|close[\s-]?grip\b/.test(n)) return 'Triceps';
+  if(/\bcurl\b/.test(n)) return 'Biceps';
+  if(/\bwrist|forearm|reverse curl|\bgrip\b/.test(n)) return 'Forearms';
+  if(/\bcrunch|plank|\babs?\b|sit[\s-]?up|core|leg raise|hanging\b/.test(n)) return 'Core';
+  return null;
+}
 function baseExerciseName(ex){
   return sideOf(ex) ? (String(ex.eq||'Other').trim()||'Other')+' '+stripSidePrefix(ex.name, ex.eq) : (ex&&ex.name);
 }
@@ -826,18 +862,6 @@ function calcPlateLoad(total, base, unit){
     if(count) plates.push({weight:p,count});
   });
   return {target, empty, perSide, plates, remainder:+remaining.toFixed(2), loaded:+(empty + 2*(perSide-remaining)).toFixed(2)};
-}
-function smartRestSeconds(ex, fallback=90, superset=false){
-  if(superset) return 120;
-  if(!ex) return fallback||90;
-  const name=String(ex.name||'').toLowerCase();
-  const eq=String(ex.eq||'');
-  const tk=trackOf(ex);
-  if(tk==='t'||tk==='d'||tk==='dt') return 60;
-  if(/\b(deadlift|squat|leg press|hack squat|bench press|overhead press|row|pull-up|chin-up|clean|snatch|jerk)\b/.test(name)) return 180;
-  if(/\b(press|pulldown|lunge|split squat|hip thrust|dip)\b/.test(name) || ['Barbell','Smith Machine','Leverage','Pit Shark'].includes(eq)) return 150;
-  if(/\b(curl|raise|fly|extension|pushdown|calf|crunch|wrist)\b/.test(name)) return 75;
-  return fallback||90;
 }
 function formatRest(sec){
   const s=Math.max(0, Math.round(Number(sec)||0));
@@ -2026,7 +2050,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
-  const [restDefault, setRestDefault] = useState(()=>store.get('restDefault',90));
+  const [restDefault, setRestDefault] = useState(()=>store.get('restDefault',120));
   const [notifyRest, setNotifyRest] = useState(()=>!!store.get('notifyRest',false));
   const [notificationPermission, setNotificationPermission] = useState(()=>notificationSupport()?Notification.permission:'unsupported');
   const [exercises, setExercises] = useState(()=>migrateExercises(store.get('exercises', null)));
@@ -2062,12 +2086,31 @@ function App(){
 
   useEffect(()=>store.set('unit',unit),[unit]);
   useEffect(()=>store.set('restDefault',restDefault),[restDefault]);
+  // one-time migration: flat 2:00 rest replaces the old per-exercise "smart" timing
+  useEffect(()=>{ if(!store.get('rest120Migrated',false)){ store.set('rest120Migrated',true); setRestDefault(120); } },[]);
   useEffect(()=>store.set('notifyRest',notifyRest),[notifyRest]);
   useEffect(()=>store.set('exercises',exercises),[exercises]);
   useEffect(()=>store.set('routines',routines),[routines]);
   useEffect(()=>store.set('logs',logs),[logs]);
   useEffect(()=>store.set('measurements',measurements),[measurements]);
   useEffect(()=>store.set('active',active),[active]);
+
+  // keep the screen awake while a rest timer runs, so the foreground chime actually fires
+  // (iOS PWAs can't fire a background/locked-screen notification; this is the reliable path)
+  const wakeLockRef = useRef(null);
+  useEffect(()=>{
+    if(!('wakeLock' in navigator)) return;
+    let live=true;
+    if(rest){
+      navigator.wakeLock.request('screen').then(wl=>{ if(!live){ wl.release().catch(()=>{}); return; } wakeLockRef.current=wl; wl.addEventListener('release',()=>{ wakeLockRef.current=null; }); }).catch(()=>{});
+    } else if(wakeLockRef.current){ const wl=wakeLockRef.current; wakeLockRef.current=null; wl.release().catch(()=>{}); }
+    return ()=>{ live=false; };
+  },[rest]);
+  useEffect(()=>{
+    const onVis=()=>{ if(document.visibilityState==='visible' && rest && !wakeLockRef.current && ('wakeLock' in navigator)){ navigator.wakeLock.request('screen').then(wl=>{ wakeLockRef.current=wl; wl.addEventListener('release',()=>{ wakeLockRef.current=null; }); }).catch(()=>{}); } };
+    document.addEventListener('visibilitychange', onVis);
+    return ()=>document.removeEventListener('visibilitychange', onVis);
+  },[rest]);
 
   const exById = useMemo(()=>Object.fromEntries(exercises.map(e=>[e.id,e])),[exercises]);
   const flash = (msg)=>{ setToast(msg); setTimeout(()=>setToast(null), 1900); };
@@ -2545,7 +2588,7 @@ function App(){
           <TrainView active={active} exById={exById} unit={unit} restDefault={restDefault} records={records} logs={logs} exercises={exercises}
             setActive={setActive} onFinish={requestFinishWorkout} onDiscard={discardWorkout}
             onStartQuick={()=>startDay(null,null)} onAddExercise={()=>setPickerFor('active')} startRest={startRest}
-            onRoutineUpdate={persistRoutineDayShape} />}
+            onRoutineUpdate={persistRoutineDayShape} onCreateExercise={addCustomExercise} />}
         {tab==='records' &&
           <RecordsView records={records} exById={exById} logs={logs} unit={unit} onOpen={setDetailEx} onOpenCalendar={()=>setTab('calendar')} />}
         {tab==='calendar' &&
@@ -2694,9 +2737,10 @@ function nextTrainingTarget(routines, logs){
 
 /* ============================================================
    DRAG TO REORDER (shared)
-   Grab the grip to drag instantly, or press-and-hold anywhere on
-   the row (~0.3s) to lift it, then slide up/down. Rows swap live
-   as the finger crosses their midpoints. Works with touch + mouse.
+   Grab the grip handle to drag instantly, then slide up/down. Rows
+   swap live as the finger crosses their midpoints. Where an onHold
+   action is wired, press-and-hold the row opens its action sheet
+   (handle stays the only way to drag). Works with touch + mouse.
    ============================================================ */
 function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
   const [dragId,setDragId]=useState(null);
@@ -2792,10 +2836,11 @@ function useDragReorder({ids, onMove, onDrop, onHold, holdMs=300}){
     ref:(el)=>{ if(el) rowEls.current[id]=el; else delete rowEls.current[id]; },
     onPointerDown:(e)=>{ if(e.pointerType==='mouse' && e.button!==0) return;
       if(dragRef.current) return;
+      if(!cbRef.current.onHold) return; /* handle-only drag: bare rows don't lift on press, use the grip */
       holdStart.current={x:e.clientX, y:e.clientY, id, pointerId:e.pointerId};
       setHoldId(id);
       if(holdTimer.current) clearTimeout(holdTimer.current);
-      holdTimer.current=setTimeout(()=>{ holdTimer.current=null; const h=holdStart.current; holdStart.current=null; setHoldId(null); if(!h) return; if(cbRef.current.onHold){ cbRef.current.onHold(h.id); } else { begin(h.id, h.y, h.pointerId); } }, holdMs);
+      holdTimer.current=setTimeout(()=>{ holdTimer.current=null; const h=holdStart.current; holdStart.current=null; setHoldId(null); if(h && cbRef.current.onHold){ cbRef.current.onHold(h.id); } }, holdMs);
     },
     onPointerMove:(e)=>{ const h=holdStart.current; if(h && (Math.abs(e.clientX-h.x)>10 || Math.abs(e.clientY-h.y)>10)) clearHold(); },
     onPointerUp:clearHold,
@@ -3264,8 +3309,9 @@ function rankAlternates(cur, exercises){
     return {e,score};
   }).filter(x=>x.score>=40).sort((a,b)=>b.score-a.score);
 }
-function SwapSheet({current, exercises, onClose, onSwap}){
+function SwapSheet({current, exercises, onClose, onSwap, onCreate}){
   const [q,setQ]=useState('');
+  const [creating,setCreating]=useState(false);
   const ranked=useMemo(()=>rankAlternates(current, exercises),[current, exercises]);
   const ql=q.trim().toLowerCase();
   const list = ql
@@ -3283,6 +3329,7 @@ function SwapSheet({current, exercises, onClose, onSwap}){
           <div className="field" style={{marginBottom:12}}>
             <input placeholder="Search all exercises…" value={q} onChange={e=>setQ(e.target.value)} />
           </div>
+          {onCreate && <button className="rc-edit" style={{width:'100%',justifyContent:'center',marginBottom:14}} onClick={()=>setCreating(true)}>{I.plus}{q.trim()?`Create “${q.trim()}”`:'Create a new exercise'}</button>}
           {!ql && <div className="section-h" style={{margin:'2px 0 8px'}}>Similar exercises</div>}
           {list.length===0 && <div style={{textAlign:'center',padding:'20px',color:'var(--muted)',fontSize:13}}>No matches{ql?' for that search':''}.</div>}
           {list.map(e=>(
@@ -3295,6 +3342,7 @@ function SwapSheet({current, exercises, onClose, onSwap}){
               <span className="chevron">{I.swap}</span>
             </div>
           ))}
+          {creating && onCreate && <NewExerciseSheet initialName={q.trim()} onClose={()=>setCreating(false)} onSave={(p)=>{ const ex=onCreate(p); setCreating(false); if(ex&&ex.id) onSwap(ex.id); }} />}
         </div>
       </div>
     </div>
@@ -3333,7 +3381,7 @@ function PlateCalculatorSheet({exercise, unit, initialWeight, onClose}){
   );
 }
 
-function WarmupSheet({exercise, unit, initialWeight, onClose}){
+function WarmupSheet({exercise, unit, initialWeight, restDefault=120, onClose}){
   const [target,setTarget]=useState(()=>Number(initialWeight)|| (unit==='kg'?60:135));
   const rows=warmupSetsFor(exercise, unit, target);
   return (
@@ -3344,7 +3392,7 @@ function WarmupSheet({exercise, unit, initialWeight, onClose}){
         <div className="sheet-body">
           <div className="plate-grid">
             <div className="plate-field"><label>Working weight</label><input type="number" inputMode="decimal" value={target} onChange={e=>setTarget(e.target.value)} /></div>
-            <div className="plate-field"><label>Rest target</label><div className="warmup-rest">{formatRest(smartRestSeconds(exercise,90,false))}</div></div>
+            <div className="plate-field"><label>Rest target</label><div className="warmup-rest">{formatRest(restDefault)}</div></div>
           </div>
           {rows.length===0 ? <div className="empty" style={{padding:'24px 12px'}}>Enter a working weight to build warmups.</div> :
             <div className="warmup-list">
@@ -3408,7 +3456,7 @@ function FinishReviewSheet({review, unit, onClose, onSave, onTogglePlan}){
   );
 }
 
-function TrainView({active, exById, unit, restDefault, records, logs, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises, onRoutineUpdate}){
+function TrainView({active, exById, unit, restDefault, records, logs, setActive, onFinish, onDiscard, onStartQuick, onAddExercise, startRest, exercises, onRoutineUpdate, onCreateExercise}){
   const [elapsed,setElapsed]=useState(0);
   const [showReorder,setShowReorder]=useState(false);
   const [swapFor,setSwapFor]=useState(null);
@@ -3460,7 +3508,7 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
     setActive(next);
     if(persist && onRoutineUpdate) onRoutineUpdate(next);
   };
-  const startSmartRest=(ex,label,superset=false)=>startRest(label||'Rest', smartRestSeconds(ex, restDefault, superset));
+  const startSmartRest=(ex,label,superset=false)=>startRest(label||'Rest', restDefault); /* flat default rest across all exercises */
   const lastMachineSettingsFor=(exId)=>{
     for(const session of asArray(logs)){
       const en=asArray(session&&session.entries).find(e=>e&&e.exerciseId===exId&&e.machineSettings);
@@ -3774,7 +3822,7 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
         const setup=parseMachineSettings(en.machineSettings||'');
         const lastSetupParsed=parseMachineSettings(lastSetup);
         const progression=progressionFor(en, ex, rec, unit);
-        const restSec=smartRestSeconds(ex, restDefault, isSS);
+        const restSec=restDefault;
         const cols='34px '+fields.map(()=>'1fr').join(' ')+' 44px 34px';
         const compactGuidedHeader=guided && !isSS;
         return (
@@ -3855,7 +3903,7 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
         </div>}
       <div className="train-command-bar">
         <button onClick={onAddExercise}>{I.plus}<span>Add</span></button>
-        <button disabled={!commandExercise} onClick={()=>commandExercise&&startRest(commandExercise.name, smartRestSeconds(commandExercise, restDefault, currentGroup.length>1))}>{I.timer}<span>Rest</span></button>
+        <button disabled={!commandExercise} onClick={()=>commandExercise&&startRest(commandExercise.name, restDefault)}>{I.timer}<span>Rest</span></button>
         <button disabled={commandIndex<0} onClick={()=>commandIndex>=0&&setSwapFor(commandIndex)}>{I.swap}<span>Swap</span></button>
         <button className="primary" onClick={onFinish}>{I.check}<span>Finish</span></button>
       </div>
@@ -3863,9 +3911,10 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
       {showReorder && <WorkoutReorderSheet entries={entries} exById={exById}
         onClose={()=>setShowReorder(false)} onApply={applyReorder} />}
       {swapFor!=null && <SwapSheet current={exById[(entries[swapFor]||{}).exerciseId]} exercises={exercises}
+        onCreate={onCreateExercise}
         onClose={()=>setSwapFor(null)} onSwap={(id)=>{ doSwap(swapFor,id); setSwapFor(null); }} />}
       {plateCalc && <PlateCalculatorSheet exercise={plateCalc.exercise} unit={unit} initialWeight={plateCalc.initialWeight} onClose={()=>setPlateCalc(null)} />}
-      {warmupFor && <WarmupSheet exercise={warmupFor.exercise} unit={unit} initialWeight={warmupFor.initialWeight} onClose={()=>setWarmupFor(null)} />}
+      {warmupFor && <WarmupSheet exercise={warmupFor.exercise} unit={unit} initialWeight={warmupFor.initialWeight} restDefault={restDefault} onClose={()=>setWarmupFor(null)} />}
     </div>
   );
 }
@@ -4162,7 +4211,7 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit, onVariant}){
    ============================================================ */
 function NewExerciseSheet({onClose, onSave, initialName, exercise}){
   const ed=!!exercise;
-  const [name,setName]=useState(ed?exercise.name:(initialName||'')); const [eq,setEq]=useState(ed?exercise.eq:'Barbell'); const [m,setM]=useState(ed?exercise.m:'Chest');
+  const [name,setName]=useState(ed?exercise.name:(initialName||'')); const [eq,setEq]=useState(ed?exercise.eq:(guessEquipmentFromName(initialName)||'Barbell')); const [m,setM]=useState(ed?exercise.m:(guessMuscleFromName(initialName)||'Chest'));
   const [sec,setSec]=useState(ed?(exercise.sec||''):''); const [ter,setTer]=useState(ed?(exercise.ter||''):''); const [cue,setCue]=useState(ed?(exercise.cue||''):''); const [media,setMedia]=useState(ed?(exercise.media||''):'');
   const [track,setTrack]=useState(ed?trackOf(exercise):'ws');
   const [side,setSide]=useState(ed?sideOf(exercise):sideFromName(initialName||''));
