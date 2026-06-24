@@ -87,6 +87,7 @@ check('service worker caches v2 shell', sw.includes('./index-v2.html') && sw.inc
 check('service worker caches generated chunks', generatedChunks.every((file) => sw.includes(`./${file}`)));
 check('service worker serves v2 shell', sw.includes("new URL('./index-v2.html'"));
 check('service worker version bumped', /ironlog-v\d+/.test(sw));
+check('app version badge matches sw cache version', (()=>{ const a=index.match(/APP_VERSION\s*=\s*'v(\d+)'/); const s=sw.match(/ironlog-v(\d+)'/); return !!(a && s && a[1]===s[1]); })());
 check('service worker injects helper once', (sw.includes('html.includes') || sw.includes('patched.includes')) && sw.includes('ironlog-patch.js'));
 check('supersets: link/unlink + grouped flow', index.includes('const groupsOf') && index.includes('linkWithNext') && index.includes('unlinkGroup') && index.includes('superset-wrap') && index.includes('Superset: '));
 check('swap: similar-exercise sheet with movement ranking', index.includes('function SwapSheet') && index.includes('function rankAlternates') && index.includes('movementName') && index.includes('setSwapFor'));
