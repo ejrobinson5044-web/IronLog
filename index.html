@@ -2931,7 +2931,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onCl
   const primaryIcon=activeDay?I.refresh:I.flame;
   const launchDay=()=> activeDay ? onResume&&onResume() : onStart(0);
   return (
-    <div className="overlay" onClick={()=>{ if(selectedId) setSelectedId(null); else onClose(); }}>
+    <div className="overlay" onClick={(e)=>{ if(e.target!==e.currentTarget) return; if(selectedId) setSelectedId(null); else onClose(); }}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="sheet-grip"></div>
         <div className="sheet-head"><h2>Plan Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={()=>setPicking(true)}>{I.plus}Add</button><button className="rc-edit" disabled={primaryDisabled} style={{opacity:primaryDisabled ? .45 : 1}} onClick={launchDay}>{primaryIcon}{activeDay?'Resume':'Start'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
