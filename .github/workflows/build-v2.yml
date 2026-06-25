@@ -37,6 +37,7 @@ jobs:
             echo "Could not derive app version from service-worker.js"
             exit 1
           fi
+          export APP_VERSION
           node - <<'NODE'
           const fs = require('fs');
           const version = process.env.APP_VERSION;
@@ -49,8 +50,6 @@ jobs:
           }
           fs.writeFileSync(file, next);
           NODE
-        env:
-          APP_VERSION: ${{ env.APP_VERSION }}
 
       - name: Build compiled shell
         run: npm run build:v2
