@@ -2047,7 +2047,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v55';
+const APP_VERSION = 'v57';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
