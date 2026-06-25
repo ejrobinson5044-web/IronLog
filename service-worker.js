@@ -10,7 +10,7 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v57';
+const CACHE_VERSION = 'ironlog-v58';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
@@ -246,6 +246,7 @@ function fixedBottomCss() {
 <style id="ironlog-fixed-bottom-patch">
   :root{--fixed-action-left:max(12px, calc((100vw - 480px)/2 + 12px));--fixed-action-right:max(12px, calc((100vw - 480px)/2 + 12px));--fixed-action-bottom:calc(82px + env(safe-area-inset-bottom));}
   .sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom)) !important;}
+  .reorder-sheet .sheet-body{padding-bottom:calc(260px + env(safe-area-inset-bottom)) !important;scroll-padding-bottom:calc(260px + env(safe-area-inset-bottom)) !important;}
   .day-launch{position:fixed !important;left:var(--fixed-action-left) !important;right:var(--fixed-action-right) !important;bottom:0 !important;z-index:80 !important;margin:0 !important;border-top:1px solid rgba(168,85,247,.22) !important;border-left:0 !important;border-right:0 !important;border-bottom:0 !important;border-radius:0 !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;background:linear-gradient(180deg,rgba(13,9,20,.72),var(--surface) 34%) !important;}
   .train-command-bar{position:fixed !important;left:var(--fixed-action-left) !important;right:var(--fixed-action-right) !important;bottom:var(--fixed-action-bottom) !important;z-index:75 !important;margin:0 !important;}
   .selected-count,.review-actions,.reorder-savebar{position:fixed !important;left:var(--fixed-action-left) !important;right:var(--fixed-action-right) !important;bottom:var(--fixed-action-bottom) !important;z-index:75 !important;margin:0 !important;border:1px solid rgba(168,85,247,.22) !important;border-radius:16px !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;}
