@@ -10,7 +10,7 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v56';
+const CACHE_VERSION = 'ironlog-v57';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
@@ -229,12 +229,6 @@ function patchAppChunkSource(source, url) {
       's&&(applySuggestedReps(m,d),' + acceptSuggestedTargetsExpression('d') + '),!' + anyLoggedSetNumberExpression('d') + ')return d.done=!1,void n(c);'
     );
   }
-  if (url.pathname.endsWith('/app-chunks/app.14.js')) {
-    patched = patched.replace(
-      'const p=!u.done&&setHasData(m,u)&&((e,t)=>{const a=asArray(e&&e._touchedFields);return t.every(e=>a.includes(e))})(u,d);',
-      'const p=!u.done&&setHasData(m,u)&&((e,t)=>{const a=asArray(e&&e._touchedFields);return t.every(e=>a.includes(e))})(u,d);'
-    );
-  }
   return patched;
 }
 
@@ -245,6 +239,19 @@ async function patchedAppChunk(req, url) {
   const headers = new Headers(res.headers);
   headers.set('Content-Type', 'application/javascript; charset=utf-8');
   return new Response(patched, { status: res.status, statusText: res.statusText, headers });
+}
+
+function fixedBottomCss() {
+  return `
+<style id="ironlog-fixed-bottom-patch">
+  :root{--fixed-action-left:max(12px, calc((100vw - 480px)/2 + 12px));--fixed-action-right:max(12px, calc((100vw - 480px)/2 + 12px));--fixed-action-bottom:calc(82px + env(safe-area-inset-bottom));}
+  .sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom)) !important;}
+  .day-launch{position:fixed !important;left:var(--fixed-action-left) !important;right:var(--fixed-action-right) !important;bottom:var(--fixed-action-bottom) !important;z-index:75 !important;margin:0 !important;border:1px solid rgba(168,85,247,.22) !important;border-radius:16px !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;background:linear-gradient(180deg,rgba(13,9,20,.72),var(--surface) 34%) !important;}
+  .train-command-bar{position:fixed !important;left:var(--fixed-action-left) !important;right:var(--fixed-action-right) !important;bottom:var(--fixed-action-bottom) !important;z-index:75 !important;margin:0 !important;}
+  .selected-count,.review-actions,.reorder-savebar{position:fixed !important;left:var(--fixed-action-left) !important;right:var(--fixed-action-right) !important;bottom:var(--fixed-action-bottom) !important;z-index:75 !important;margin:0 !important;border:1px solid rgba(168,85,247,.22) !important;border-radius:16px !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;}
+  .rest-bar{bottom:calc(154px + env(safe-area-inset-bottom)) !important;}
+  .toast{bottom:calc(164px + env(safe-area-inset-bottom)) !important;}
+</style>`;
 }
 
 async function cacheFirst(req) {
@@ -275,6 +282,9 @@ async function appShellWithPatch(req, event) {
 
   const html = await res.text();
   let patched = html;
+  if (!patched.includes('ironlog-fixed-bottom-patch')) {
+    patched = patched.replace('</head>', fixedBottomCss() + '</head>');
+  }
   if (!patched.includes('ironlog-patch.js')) {
     patched = patched.replace('</body>', '<script src="./ironlog-patch.js" defer></script></body>');
   }
