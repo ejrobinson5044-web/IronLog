@@ -32,24 +32,14 @@ jobs:
 
       - name: Sync visible app version
         run: |
-          APP_VERSION="$(grep -o "ironlog-v[0-9][0-9]*" service-worker.js | head -n 1 | sed 's/ironlog-//')"
+          APP_VERSION=$(grep -o 'ironlog-v[0-9][0-9]*' service-worker.js | head -n 1 | sed 's/ironlog-//')
           if [ -z "$APP_VERSION" ]; then
             echo "Could not derive app version from service-worker.js"
             exit 1
           fi
-          export APP_VERSION
-          node - <<'NODE'
-          const fs = require('fs');
-          const version = process.env.APP_VERSION;
-          const file = 'index.html';
-          const html = fs.readFileSync(file, 'utf8');
-          const next = html.replace(/const APP_VERSION = 'v\d+';/, `const APP_VERSION = '${version}';`);
-          if (next === html) {
-            console.error('APP_VERSION constant was not found.');
-            process.exit(1);
-          }
-          fs.writeFileSync(file, next);
-          NODE
+          python3 -c "from pathlib import Path; import os,re; p=Path('index.html'); s=p.read_text(); n=re.sub(r\"const APP_VERSION = 'v[0-9]+';\", \"const APP_VERSION = '%s';\" % os.environ['APP_VERSION'], s); assert n!=s or os.environ['APP_VERSION'] in s; p.write_text(n)" 
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
 
       - name: Build compiled shell
         run: npm run build:v2
