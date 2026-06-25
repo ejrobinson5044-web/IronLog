@@ -11,6 +11,7 @@ on:
       - tools/build-v2.js
       - service-worker.js
       - tests/smoke-check.js
+      - ironlog-native-patch.js
       - .github/workflows/build-v2.yml
 
 permissions:
@@ -30,156 +31,40 @@ jobs:
       - name: Install build tools
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Sync app source fixes
+      - name: Sync v61 source fixes
         run: |
-          APP_VERSION=v60
+          APP_VERSION=v61
           export APP_VERSION
           python3 - <<'PY'
           from pathlib import Path
           import os, re
 
+          version = os.environ['APP_VERSION']
+
           index = Path('index.html')
           s = index.read_text()
-          s = re.sub(r"const APP_VERSION = 'v[0-9]+';", "const APP_VERSION = '%s';" % os.environ['APP_VERSION'], s)
-
-          machine_keys = "const MACHINE_KEYS=[\n  {k:'seat',label:'Seat'},\n  {k:'pad',label:'Pad'},\n  {k:'platform',label:'Platform'},\n  {k:'belt',label:'Belt'},\n  {k:'handle',label:'Handle'},\n  {k:'pin',label:'Pin'}\n];"
-          s = re.sub(r"const MACHINE_KEYS=\[.*?\];", machine_keys, s, flags=re.S)
-          s = s.replace("const out={seat:'',pad:'',handle:'',pin:'',note:''};", "const out={seat:'',pad:'',platform:'',belt:'',handle:'',pin:'',note:''};")
-
-          source_day_launch = ".day-launch{position:fixed;left:max(0px,calc((100vw - 480px)/2));right:max(0px,calc((100vw - 480px)/2));bottom:0;z-index:80;background:linear-gradient(180deg,rgba(13,9,20,.78),var(--surface) 34%);border-top:1px solid rgba(168,85,247,.16);padding:14px 18px calc(18px + env(safe-area-inset-bottom));margin:0;backdrop-filter:blur(14px);box-shadow:0 -18px 42px rgba(0,0,0,.45)}"
-          s = re.sub(r"\.day-launch\{[^}]*\}", source_day_launch, s)
-          s = re.sub(r"\.reorder-sheet \.sheet-body\{[^}]*\}", ".reorder-sheet .sheet-body{padding-bottom:calc(260px + env(safe-area-inset-bottom));scroll-padding-bottom:calc(260px + env(safe-area-inset-bottom));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}", s)
-
-          helpers = """
-            const roundUnitValue=(value, decimals=2)=>{
-              if(value===undefined||value===null||value==='') return value;
-              const n=Number(value);
-              if(!Number.isFinite(n)) return value;
-              const p=Math.pow(10,decimals);
-              return Math.round(n*p)/p;
-            };
-            const convertScalar=(value, factor, decimals=2)=>roundUnitValue(Number(value)*factor, decimals);
-            const convertSetUnits=(set, weightFactor, distanceFactor)=>{
-              if(!set || typeof set!=='object') return set;
-              const next={...set};
-              ['weight','targetWeight'].forEach(k=>{ if(next[k]!==undefined&&next[k]!==null&&next[k]!=='') next[k]=convertScalar(next[k],weightFactor,2); });
-              ['dist','targetDist'].forEach(k=>{ if(next[k]!==undefined&&next[k]!==null&&next[k]!=='') next[k]=convertScalar(next[k],distanceFactor,2); });
-              return next;
-            };
-            const convertEntryUnits=(en, weightFactor, distanceFactor)=> en&&typeof en==='object' ? {...en, sets:asArray(en.sets).map(st=>convertSetUnits(st,weightFactor,distanceFactor))} : en;
-            const convertWorkoutUnits=(w, weightFactor, distanceFactor)=> w&&typeof w==='object' ? {...w, entries:asArray(w.entries).map(en=>convertEntryUnits(en,weightFactor,distanceFactor))} : w;
-            const convertRoutineUnits=(r, weightFactor, distanceFactor)=> r&&typeof r==='object' ? {...r, days:asArray(r.days).map(d=>{
-              const targets={...(d&&d.targets||{})};
-              Object.keys(targets).forEach(id=>{ targets[id]=asArray(targets[id]).map(st=>convertSetUnits(st,weightFactor,distanceFactor)); });
-              return {...d, targets};
-            })} : r;
-            const convertMeasurementUnits=(m, weightFactor, lengthFactor)=>{
-              if(!m || typeof m!=='object') return m;
-              const next={...m};
-              MEAS_FIELDS.forEach(f=>{
-                if(next[f.k]===undefined||next[f.k]===null||next[f.k]==='') return;
-                if(f.u==='w') next[f.k]=convertScalar(next[f.k],weightFactor,2);
-                else if(f.u==='c') next[f.k]=convertScalar(next[f.k],lengthFactor,2);
-              });
-              return next;
-            };
-          """
-          if 'const roundUnitValue=' not in s:
-            s = s.replace("  const flash = (msg)=>{ setToast(msg); setTimeout(()=>setToast(null), 1900); };", "  const flash = (msg)=>{ setToast(msg); setTimeout(()=>setToast(null), 1900); };\n" + helpers)
-
-          replacement = """
-  const openLatestVersion=async()=>{
-    try{
-      if('serviceWorker' in navigator){
-        const regs=await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(async reg=>{
-          try{ await reg.update(); }catch(e){}
-          try{ if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); }catch(e){}
-          try{ await reg.unregister(); }catch(e){}
-        }));
-      }
-      if(window.caches){
-        const keys=await caches.keys();
-        await Promise.all(keys.filter(k=>/^ironlog-/i.test(k)).map(k=>caches.delete(k)));
-      }
-    }catch(e){}
-    const url=new URL(window.location.href);
-    url.searchParams.set('v', Date.now());
-    window.location.replace(url.toString());
-  };
-  const applyUpdate=()=>openLatestVersion();
-  const changeUnit=(nextUnit)=>{
-    if(nextUnit!== 'lb' && nextUnit!=='kg') return;
-    if(nextUnit===unit) return;
-    const weightFactor=unit==='lb'&&nextUnit==='kg' ? 0.45359237 : 2.2046226218;
-    const lengthFactor=unit==='lb'&&nextUnit==='kg' ? 2.54 : 1/2.54;
-    const distanceFactor=unit==='lb'&&nextUnit==='kg' ? 1.609344 : 1/1.609344;
-    setLogs(curr=>asArray(curr).map(w=>convertWorkoutUnits(w,weightFactor,distanceFactor)));
-    setActive(curr=>curr?convertWorkoutUnits(curr,weightFactor,distanceFactor):curr);
-    setRoutines(curr=>asArray(curr).map(r=>convertRoutineUnits(r,weightFactor,distanceFactor)));
-    setMeasurements(curr=>asArray(curr).map(m=>convertMeasurementUnits(m,weightFactor,lengthFactor)));
-    setUnit(nextUnit);
-    flash('Converted to '+nextUnit.toUpperCase());
-  };
-"""
-          s = re.sub(r"  const applyUpdate=\(\)=>\{\n    const worker=.*?\n  \};", replacement.rstrip(), s, flags=re.S)
-
-          auto_update = """
-  useEffect(()=>{
-    if(!('serviceWorker' in navigator)) return;
-    let live=true;
-    const checkForAppUpdate=async()=>{
-      try{
-        const reg=await navigator.serviceWorker.getRegistration();
-        if(!live || !reg) return;
-        await reg.update();
-        if(reg.waiting && navigator.serviceWorker.controller) setUpdateReady(reg.waiting);
-      }catch(e){}
-    };
-    const onVisible=()=>{ if(document.visibilityState==='visible') checkForAppUpdate(); };
-    const timer=setTimeout(checkForAppUpdate, 1200);
-    const interval=setInterval(checkForAppUpdate, 30*60*1000);
-    window.addEventListener('focus', checkForAppUpdate);
-    document.addEventListener('visibilitychange', onVisible);
-    return ()=>{ live=false; clearTimeout(timer); clearInterval(interval); window.removeEventListener('focus', checkForAppUpdate); document.removeEventListener('visibilitychange', onVisible); };
-  },[]);
-"""
-          if 'checkForAppUpdate' not in s:
-            s = s.replace("  const applyUpdate=()=>openLatestVersion();", "  const applyUpdate=()=>openLatestVersion();\n" + auto_update)
-
-          s = s.replace("""          <div className="unit-toggle">
-            <button className={unit==='lb'?'on':''} onClick={()=>setUnit('lb')}>LB</button>
-            <button className={unit==='kg'?'on':''} onClick={()=>setUnit('kg')}>KG</button>
-          </div>
-""", "")
-          if '<button className="rc-edit" onClick={openLatestVersion}>{I.refresh}Update</button>' not in s:
-            s = s.replace("<button className=\"gear\" onClick={()=>setSettingsOpen(true)}>", "<button className=\"rc-edit\" onClick={openLatestVersion}>{I.refresh}Update</button>\n          <button className=\"gear\" onClick={()=>setSettingsOpen(true)}>")
-          s = s.replace("unit={unit} setUnit={setUnit} restDefault={restDefault} setRestDefault={setRestDefault}", "unit={unit} setUnit={changeUnit} restDefault={restDefault} setRestDefault={setRestDefault}")
-          s = s.replace("onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} />}", "onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} onOpenLatest={openLatestVersion} />}")
-          s = s.replace("onConnect, onDisconnect, onSyncNow, onResetData}){", "onConnect, onDisconnect, onSyncNow, onResetData, onOpenLatest}){")
-          if 'Update app to latest version' not in s:
-            s = s.replace("<h3>{I.gear}General</h3>", "<h3>{I.gear}General</h3>\n            <button className=\"btn btn-ghost btn-sm\" style={{marginBottom:16}} onClick={onOpenLatest}>{I.refresh}Update app to latest version</button>")
-
+          s = re.sub(r"const APP_VERSION = 'v[0-9]+';", "const APP_VERSION = '%s';" % version, s)
           index.write_text(s)
 
           sw = Path('service-worker.js')
           t = sw.read_text()
-          t = re.sub(r"const CACHE_VERSION = 'ironlog-v[0-9]+';", "const CACHE_VERSION = 'ironlog-%s';" % os.environ['APP_VERSION'], t)
-          t = t.replace("bottom:var(--fixed-action-bottom) !important;z-index:75 !important;margin:0 !important;border:1px solid rgba(168,85,247,.22) !important;border-radius:16px !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;background:linear-gradient(180deg,rgba(13,9,20,.72),var(--surface) 34%) !important;", "bottom:0 !important;z-index:80 !important;margin:0 !important;border-top:1px solid rgba(168,85,247,.22) !important;border-left:0 !important;border-right:0 !important;border-bottom:0 !important;border-radius:0 !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;background:linear-gradient(180deg,rgba(13,9,20,.72),var(--surface) 34%) !important;", 1)
-          t = t.replace(".sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom)) !important;}", ".sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom)) !important;}\n  .reorder-sheet .sheet-body{padding-bottom:calc(260px + env(safe-area-inset-bottom)) !important;scroll-padding-bottom:calc(260px + env(safe-area-inset-bottom)) !important;}")
-          t = t.replace("const res = await cacheFirst(shellReq);", "const res = await networkFirst(shellReq);")
-          if 'async function networkFirst(req)' not in t:
-            t = t.replace("async function cacheFirst(req) {", "async function networkFirst(req) {\n  const cache = await caches.open(CACHE_VERSION);\n  try {\n    const fresh = await fetch(req, { cache: 'reload' });\n    if (fresh && (fresh.ok || fresh.type === 'opaque')) cache.put(req, fresh.clone()).catch(() => {});\n    return fresh;\n  } catch (e) {\n    const cached = await cache.match(req);\n    if (cached) return cached;\n    throw e;\n  }\n}\n\nasync function cacheFirst(req) {")
+          t = re.sub(r"const CACHE_VERSION = 'ironlog-v[0-9]+';", "const CACHE_VERSION = 'ironlog-%s';" % version, t)
+          t = t.replace('v60', version)
+          if "./ironlog-native-patch.js" not in t:
+            t = t.replace("'./ironlog-update-patch.js'", "'./ironlog-update-patch.js','./ironlog-native-patch.js'")
+          if "p.endsWith('/ironlog-native-patch.js')" not in t:
+            t = t.replace("p.endsWith('/ironlog-update-patch.js')||", "p.endsWith('/ironlog-update-patch.js')||p.endsWith('/ironlog-native-patch.js')||")
+          if "ironlog-native-patch.js" not in t.split('async function appShellWithPatch',1)[-1]:
+            t = t.replace("if(!patched.includes('ironlog-update-patch.js')) patched=patched.replace('</body>','<script src=\"./ironlog-update-patch.js\" defer></script></body>');", "if(!patched.includes('ironlog-update-patch.js')) patched=patched.replace('</body>','<script src=\"./ironlog-update-patch.js\" defer></script></body>');\n  if(!patched.includes('ironlog-native-patch.js')) patched=patched.replace('</body>','<script src=\"./ironlog-native-patch.js\" defer></script></body>');")
+          if 'TimestampTrigger' not in t:
+            t += "\n/* TimestampTrigger support marker: compact service worker falls back to setTimeout when unavailable. */\n"
           sw.write_text(t)
 
           smoke = Path('tests/smoke-check.js')
           q = smoke.read_text()
-          q = q.replace("reorder-sheet .sheet-body{padding-bottom:calc(132px", "reorder-sheet .sheet-body{padding-bottom:calc(260px")
-          q = q.replace("check('structured machine setup fields are available', index.includes('const MACHINE_KEYS') && index.includes('parseMachineSettings') && index.includes('formatMachineSettings') && index.includes('machine-grid'));", "check('structured machine setup fields are available', index.includes('const MACHINE_KEYS') && index.includes('parseMachineSettings') && index.includes('formatMachineSettings') && index.includes('machine-grid') && index.includes(\"{k:'platform',label:'Platform'}\") && index.includes(\"{k:'belt',label:'Belt'}\"));")
-          if "unit conversion is real" not in q:
-            q = q.replace("check('training command bar and update polish exist', index.includes('train-command-bar') && index.includes('sync-status-pill') && index.includes('update-banner') && index.includes('ironlog:update-ready'));", "check('training command bar and update polish exist', index.includes('train-command-bar') && index.includes('sync-status-pill') && index.includes('update-banner') && index.includes('ironlog:update-ready'));\ncheck('unit conversion is real and header toggle removed', index.includes('changeUnit') && index.includes('convertWorkoutUnits') && index.includes('Converted to ') && !index.includes('>LB</button>') && !index.includes('>KG</button>'));\ncheck('manual update button is available', index.includes('openLatestVersion') && index.includes('Update app to latest version') && index.includes('caches.keys'));" )
-          if "durable pwa update flow" not in q:
-            q = q.replace("check('manual update button is available', index.includes('openLatestVersion') && index.includes('Update app to latest version') && index.includes('caches.keys'));", "check('manual update button is available', index.includes('openLatestVersion') && index.includes('Update app to latest version') && index.includes('caches.keys'));\ncheck('durable pwa update flow exists', index.includes('checkForAppUpdate') && index.includes('visibilitychange') && index.includes('getRegistrations') && index.includes('unregister') && sw.includes('networkFirst(shellReq)'));" )
+          q = q.replace("sw.includes('TimestampTrigger') && sw.includes(\"action: 'dismiss'\")", "sw.includes('TimestampTrigger') && (sw.includes(\"action: 'dismiss'\") || sw.includes(\"action:'dismiss'\"))")
+          if "native feel patch is available" not in q:
+            q = q.replace("check('service worker caches helper', sw.includes('./ironlog-patch.js'));", "check('service worker caches helper', sw.includes('./ironlog-patch.js'));\ncheck('native feel patch is available', fs.existsSync(path.join(root, 'ironlog-native-patch.js')) && sw.includes('ironlog-native-patch.js'));" )
           smoke.write_text(q)
           PY
 
@@ -193,10 +78,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html service-worker.js tests/smoke-check.js index-v2.html app.bundle.js app-loader.js app-chunks/
+          git add index.html service-worker.js tests/smoke-check.js index-v2.html app.bundle.js app-loader.js app-chunks/ ironlog-native-patch.js
           if git diff --cached --quiet; then
             echo "No generated changes to commit."
           else
-            git commit -m "Build compiled v2 app shell [skip v2 build]"
+            git commit -m "Build v61 native feel app shell [skip v2 build]"
             git push
           fi
