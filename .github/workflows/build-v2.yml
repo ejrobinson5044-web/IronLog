@@ -37,9 +37,8 @@ jobs:
             echo "Could not derive app version from service-worker.js"
             exit 1
           fi
-          python3 -c "from pathlib import Path; import os,re; p=Path('index.html'); s=p.read_text(); n=re.sub(r\"const APP_VERSION = 'v[0-9]+';\", \"const APP_VERSION = '%s';\" % os.environ['APP_VERSION'], s); assert n!=s or os.environ['APP_VERSION'] in s; p.write_text(n)" 
-        env:
-          APP_VERSION: ${{ env.APP_VERSION }}
+          export APP_VERSION
+          python3 -c "from pathlib import Path; import os,re; p=Path('index.html'); s=p.read_text(); n=re.sub(r\"const APP_VERSION = 'v[0-9]+';\", \"const APP_VERSION = '%s';\" % os.environ['APP_VERSION'], s); assert n!=s or os.environ['APP_VERSION'] in s; p.write_text(n)"
 
       - name: Build compiled shell
         run: npm run build:v2
