@@ -10,7 +10,7 @@
      new service worker activates.
    ============================================================ */
 
-const CACHE_VERSION = 'ironlog-v55';
+const CACHE_VERSION = 'ironlog-v56';
 
 /* The app shell: the core files the app is made of.
    Relative paths keep this working on GitHub Pages project URLs. */
@@ -178,6 +178,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (isPatchableAppChunk(url)) {
+    event.respondWith(patchedAppChunk(req, url));
+    return;
+  }
+
   /* Same-origin app files are version-locked: serve them cache-first with NO
      background refresh. The whole app version swaps atomically when a new
      service worker installs, so a half-updated deploy can never mix old and
@@ -201,6 +206,45 @@ function isVersionedAsset(url) {
     p.endsWith('/ironlog-patch.js') ||
     p.endsWith('/manifest.json') ||
     p.endsWith('.png');
+}
+
+function isPatchableAppChunk(url) {
+  if (url.origin !== self.location.origin) return false;
+  return url.pathname.endsWith('/app-chunks/app.13.js') || url.pathname.endsWith('/app-chunks/app.14.js');
+}
+
+function anyLoggedSetNumberExpression(setName) {
+  return '["weight","reps","time","dist"].some(function(f){var v=' + setName + '[f];return v!==undefined&&v!==null&&v!==""&&!isNaN(parseFloat(v));})';
+}
+
+function acceptSuggestedTargetsExpression(setName) {
+  return '["weight","reps","time","dist"].forEach(function(f){var k=targetKey(f),v=' + setName + '[k];if((' + setName + '[f]===undefined||' + setName + '[f]===null||' + setName + '[f]==="")&&v!==undefined&&v!==null&&v!=="")' + setName + '[f]=v;})';
+}
+
+function patchAppChunkSource(source, url) {
+  let patched = source;
+  if (url.pathname.endsWith('/app-chunks/app.13.js')) {
+    patched = patched.replace(
+      's&&applySuggestedReps(m,d),!setHasData(m,d))return d.done=!1,void n(c);',
+      's&&(applySuggestedReps(m,d),' + acceptSuggestedTargetsExpression('d') + '),!' + anyLoggedSetNumberExpression('d') + ')return d.done=!1,void n(c);'
+    );
+  }
+  if (url.pathname.endsWith('/app-chunks/app.14.js')) {
+    patched = patched.replace(
+      'const p=!u.done&&setHasData(m,u)&&((e,t)=>{const a=asArray(e&&e._touchedFields);return t.every(e=>a.includes(e))})(u,d);',
+      'const p=!u.done&&setHasData(m,u)&&((e,t)=>{const a=asArray(e&&e._touchedFields);return t.every(e=>a.includes(e))})(u,d);'
+    );
+  }
+  return patched;
+}
+
+async function patchedAppChunk(req, url) {
+  const res = await cacheFirst(req);
+  const source = await res.text();
+  const patched = patchAppChunkSource(source, url);
+  const headers = new Headers(res.headers);
+  headers.set('Content-Type', 'application/javascript; charset=utf-8');
+  return new Response(patched, { status: res.status, statusText: res.statusText, headers });
 }
 
 async function cacheFirst(req) {
