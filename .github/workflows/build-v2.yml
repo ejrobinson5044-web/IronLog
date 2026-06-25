@@ -32,7 +32,7 @@ jobs:
 
       - name: Sync app source fixes
         run: |
-          APP_VERSION=v59
+          APP_VERSION=v60
           export APP_VERSION
           python3 - <<'PY'
           from pathlib import Path
@@ -95,6 +95,7 @@ jobs:
         await Promise.all(regs.map(async reg=>{
           try{ await reg.update(); }catch(e){}
           try{ if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); }catch(e){}
+          try{ await reg.unregister(); }catch(e){}
         }));
       }
       if(window.caches){
@@ -123,16 +124,41 @@ jobs:
 """
           s = re.sub(r"  const applyUpdate=\(\)=>\{\n    const worker=.*?\n  \};", replacement.rstrip(), s, flags=re.S)
 
+          auto_update = """
+  useEffect(()=>{
+    if(!('serviceWorker' in navigator)) return;
+    let live=true;
+    const checkForAppUpdate=async()=>{
+      try{
+        const reg=await navigator.serviceWorker.getRegistration();
+        if(!live || !reg) return;
+        await reg.update();
+        if(reg.waiting && navigator.serviceWorker.controller) setUpdateReady(reg.waiting);
+      }catch(e){}
+    };
+    const onVisible=()=>{ if(document.visibilityState==='visible') checkForAppUpdate(); };
+    const timer=setTimeout(checkForAppUpdate, 1200);
+    const interval=setInterval(checkForAppUpdate, 30*60*1000);
+    window.addEventListener('focus', checkForAppUpdate);
+    document.addEventListener('visibilitychange', onVisible);
+    return ()=>{ live=false; clearTimeout(timer); clearInterval(interval); window.removeEventListener('focus', checkForAppUpdate); document.removeEventListener('visibilitychange', onVisible); };
+  },[]);
+"""
+          if 'checkForAppUpdate' not in s:
+            s = s.replace("  const applyUpdate=()=>openLatestVersion();", "  const applyUpdate=()=>openLatestVersion();\n" + auto_update)
+
           s = s.replace("""          <div className="unit-toggle">
             <button className={unit==='lb'?'on':''} onClick={()=>setUnit('lb')}>LB</button>
             <button className={unit==='kg'?'on':''} onClick={()=>setUnit('kg')}>KG</button>
           </div>
 """, "")
-          s = s.replace("<button className=\"gear\" onClick={()=>setSettingsOpen(true)}>", "<button className=\"rc-edit\" onClick={openLatestVersion}>{I.refresh}Update</button>\n          <button className=\"gear\" onClick={()=>setSettingsOpen(true)}>")
+          if '<button className="rc-edit" onClick={openLatestVersion}>{I.refresh}Update</button>' not in s:
+            s = s.replace("<button className=\"gear\" onClick={()=>setSettingsOpen(true)}>", "<button className=\"rc-edit\" onClick={openLatestVersion}>{I.refresh}Update</button>\n          <button className=\"gear\" onClick={()=>setSettingsOpen(true)}>")
           s = s.replace("unit={unit} setUnit={setUnit} restDefault={restDefault} setRestDefault={setRestDefault}", "unit={unit} setUnit={changeUnit} restDefault={restDefault} setRestDefault={setRestDefault}")
           s = s.replace("onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} />}", "onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} onOpenLatest={openLatestVersion} />}")
           s = s.replace("onConnect, onDisconnect, onSyncNow, onResetData}){", "onConnect, onDisconnect, onSyncNow, onResetData, onOpenLatest}){")
-          s = s.replace("<h3>{I.gear}General</h3>", "<h3>{I.gear}General</h3>\n            <button className=\"btn btn-ghost btn-sm\" style={{marginBottom:16}} onClick={onOpenLatest}>{I.refresh}Update app to latest version</button>")
+          if 'Update app to latest version' not in s:
+            s = s.replace("<h3>{I.gear}General</h3>", "<h3>{I.gear}General</h3>\n            <button className=\"btn btn-ghost btn-sm\" style={{marginBottom:16}} onClick={onOpenLatest}>{I.refresh}Update app to latest version</button>")
 
           index.write_text(s)
 
@@ -141,6 +167,9 @@ jobs:
           t = re.sub(r"const CACHE_VERSION = 'ironlog-v[0-9]+';", "const CACHE_VERSION = 'ironlog-%s';" % os.environ['APP_VERSION'], t)
           t = t.replace("bottom:var(--fixed-action-bottom) !important;z-index:75 !important;margin:0 !important;border:1px solid rgba(168,85,247,.22) !important;border-radius:16px !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;background:linear-gradient(180deg,rgba(13,9,20,.72),var(--surface) 34%) !important;", "bottom:0 !important;z-index:80 !important;margin:0 !important;border-top:1px solid rgba(168,85,247,.22) !important;border-left:0 !important;border-right:0 !important;border-bottom:0 !important;border-radius:0 !important;box-shadow:0 -18px 42px rgba(0,0,0,.45) !important;background:linear-gradient(180deg,rgba(13,9,20,.72),var(--surface) 34%) !important;", 1)
           t = t.replace(".sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom)) !important;}", ".sheet-body{padding-bottom:calc(132px + env(safe-area-inset-bottom)) !important;}\n  .reorder-sheet .sheet-body{padding-bottom:calc(260px + env(safe-area-inset-bottom)) !important;scroll-padding-bottom:calc(260px + env(safe-area-inset-bottom)) !important;}")
+          t = t.replace("const res = await cacheFirst(shellReq);", "const res = await networkFirst(shellReq);")
+          if 'async function networkFirst(req)' not in t:
+            t = t.replace("async function cacheFirst(req) {", "async function networkFirst(req) {\n  const cache = await caches.open(CACHE_VERSION);\n  try {\n    const fresh = await fetch(req, { cache: 'reload' });\n    if (fresh && (fresh.ok || fresh.type === 'opaque')) cache.put(req, fresh.clone()).catch(() => {});\n    return fresh;\n  } catch (e) {\n    const cached = await cache.match(req);\n    if (cached) return cached;\n    throw e;\n  }\n}\n\nasync function cacheFirst(req) {")
           sw.write_text(t)
 
           smoke = Path('tests/smoke-check.js')
@@ -149,6 +178,8 @@ jobs:
           q = q.replace("check('structured machine setup fields are available', index.includes('const MACHINE_KEYS') && index.includes('parseMachineSettings') && index.includes('formatMachineSettings') && index.includes('machine-grid'));", "check('structured machine setup fields are available', index.includes('const MACHINE_KEYS') && index.includes('parseMachineSettings') && index.includes('formatMachineSettings') && index.includes('machine-grid') && index.includes(\"{k:'platform',label:'Platform'}\") && index.includes(\"{k:'belt',label:'Belt'}\"));")
           if "unit conversion is real" not in q:
             q = q.replace("check('training command bar and update polish exist', index.includes('train-command-bar') && index.includes('sync-status-pill') && index.includes('update-banner') && index.includes('ironlog:update-ready'));", "check('training command bar and update polish exist', index.includes('train-command-bar') && index.includes('sync-status-pill') && index.includes('update-banner') && index.includes('ironlog:update-ready'));\ncheck('unit conversion is real and header toggle removed', index.includes('changeUnit') && index.includes('convertWorkoutUnits') && index.includes('Converted to ') && !index.includes('>LB</button>') && !index.includes('>KG</button>'));\ncheck('manual update button is available', index.includes('openLatestVersion') && index.includes('Update app to latest version') && index.includes('caches.keys'));" )
+          if "durable pwa update flow" not in q:
+            q = q.replace("check('manual update button is available', index.includes('openLatestVersion') && index.includes('Update app to latest version') && index.includes('caches.keys'));", "check('manual update button is available', index.includes('openLatestVersion') && index.includes('Update app to latest version') && index.includes('caches.keys'));\ncheck('durable pwa update flow exists', index.includes('checkForAppUpdate') && index.includes('visibilitychange') && index.includes('getRegistrations') && index.includes('unregister') && sw.includes('networkFirst(shellReq)'));" )
           smoke.write_text(q)
           PY
 
