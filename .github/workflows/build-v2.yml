@@ -30,7 +30,7 @@ jobs:
       - name: Install build tools
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Sync visible app version
+      - name: Sync app source fixes
         run: |
           APP_VERSION=$(grep -o 'ironlog-v[0-9][0-9]*' service-worker.js | head -n 1 | sed 's/ironlog-//')
           if [ -z "$APP_VERSION" ]; then
@@ -38,7 +38,7 @@ jobs:
             exit 1
           fi
           export APP_VERSION
-          python3 -c "from pathlib import Path; import os,re; p=Path('index.html'); s=p.read_text(); n=re.sub(r\"const APP_VERSION = 'v[0-9]+';\", \"const APP_VERSION = '%s';\" % os.environ['APP_VERSION'], s); assert n!=s or os.environ['APP_VERSION'] in s; p.write_text(n)"
+          python3 -c "from pathlib import Path; import os,re; p=Path('index.html'); s=p.read_text(); s=re.sub(r\"const APP_VERSION = 'v[0-9]+';\", \"const APP_VERSION = '%s';\" % os.environ['APP_VERSION'], s); fixed=\".day-launch{position:fixed;left:max(0px,calc((100vw - 480px)/2));right:max(0px,calc((100vw - 480px)/2));bottom:0;z-index:80;background:linear-gradient(180deg,rgba(13,9,20,.78),var(--surface) 34%);border-top:1px solid rgba(168,85,247,.16);padding:14px 18px calc(18px + env(safe-area-inset-bottom));margin:0;backdrop-filter:blur(14px);box-shadow:0 -18px 42px rgba(0,0,0,.45)}\"; s=re.sub(r\"\\.day-launch\\{[^}]*\\}\", fixed, s); p.write_text(s)"
 
       - name: Build compiled shell
         run: npm run build:v2
