@@ -30,6 +30,28 @@ jobs:
       - name: Install build tools
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Sync visible app version
+        run: |
+          APP_VERSION="$(grep -o "ironlog-v[0-9][0-9]*" service-worker.js | head -n 1 | sed 's/ironlog-//')"
+          if [ -z "$APP_VERSION" ]; then
+            echo "Could not derive app version from service-worker.js"
+            exit 1
+          fi
+          node - <<'NODE'
+          const fs = require('fs');
+          const version = process.env.APP_VERSION;
+          const file = 'index.html';
+          const html = fs.readFileSync(file, 'utf8');
+          const next = html.replace(/const APP_VERSION = 'v\d+';/, `const APP_VERSION = '${version}';`);
+          if (next === html) {
+            console.error('APP_VERSION constant was not found.');
+            process.exit(1);
+          }
+          fs.writeFileSync(file, next);
+          NODE
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+
       - name: Build compiled shell
         run: npm run build:v2
 
@@ -40,7 +62,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index-v2.html app.bundle.js app-loader.js app-chunks/
+          git add index.html index-v2.html app.bundle.js app-loader.js app-chunks/
           if git diff --cached --quiet; then
             echo "No generated changes to commit."
           else
