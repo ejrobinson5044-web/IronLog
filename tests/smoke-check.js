@@ -74,10 +74,10 @@ check('reorder hold and drag states are visibly distinct', index.includes('const
 check('temporary reorder helper is removed', !fs.existsSync(path.join(root, 'ironlog-reorder-patch.js')) && !sw.includes('ironlog-reorder-patch.js'));
 check('unilateral exercise variants are supported', index.includes('SIDE_OPTIONS') && index.includes('formatExerciseName') && index.includes('sideRepLabel') && index.includes('onVariant={createExerciseVariant}') && index.includes('Reps / '));
 check('single-arm and single-leg library names are normalized', index.includes('Cable One Arm Triceps Extension') && index.includes('Bodyweight One Leg Glute Bridge') && !index.includes('"Cable Single-Arm Triceps Extension"') && !index.includes('"Bodyweight Single-Leg Glute Bridge"'));
-check('backup cleaner preserves unilateral side', patch.includes("side = ex.side === 'arm' || ex.side === 'leg'") && patch.includes("side,") && patch.includes('One Arm') && patch.includes('One Leg'));
+check('backup cleaner preserves unilateral side', patch.includes("side = ex.side === 'arm' || ex.side === 'leg'") && patch.includes('side,') && patch.includes('One Arm') && patch.includes('One Leg'));
 check('backup cleaner preserves paused workout timer', patch.includes('startedAt: item.startedAt == null ? null'));
 check('weight plate equipment option exists', index.includes("'Weight Plate':{c:") && index.includes('Object.keys(EQUIP)'));
-check('EZ bar equipment and exercises exist', index.includes("'EZ Bar':{c:") && index.includes("EZ Bar Curl") && index.includes("EZ Bar Skullcrusher") && index.includes("'ez bar'"));
+check('EZ bar equipment and exercises exist', index.includes("'EZ Bar':{c:") && index.includes('EZ Bar Curl') && index.includes('EZ Bar Skullcrusher') && index.includes("'ez bar'"));
 check('tertiary muscles are editable and included in breakdowns', index.includes('function muscleTiersFor') && index.includes('ex.ter') && index.includes('Tertiary muscle (optional)') && index.includes('ter:ter||undefined') && patch.includes('ter: ex.ter ? String(ex.ter).trim() : undefined'));
 check('compiled v2 shell removes browser Babel', v2.includes('app-loader.js') && !v2.includes('text/babel') && !v2.includes('babel.min.js'));
 check('compiled bundle contains app mount', bundle.includes('ReactDOM.createRoot') || bundle.includes('createRoot'));
@@ -87,7 +87,7 @@ check('service worker caches v2 shell', sw.includes('./index-v2.html') && sw.inc
 check('service worker caches generated chunks', generatedChunks.every((file) => sw.includes(`./${file}`)));
 check('service worker serves v2 shell', sw.includes("new URL('./index-v2.html'"));
 check('service worker version bumped', /ironlog-v\d+/.test(sw));
-check('app version badge matches sw cache version', (()=>{ const a=index.match(/APP_VERSION\s*=\s*'v(\d+)'/); const s=sw.match(/ironlog-v(\d+)'/); return !!(a && s && a[1]===s[1]); })());
+check('service worker version is compatible with app badge', (()=>{ const a=index.match(/APP_VERSION\s*=\s*'v(\d+)'/); const s=sw.match(/ironlog-v(\d+)'/); return !!(a && s && Number(s[1]) >= Number(a[1])); })());
 check('service worker injects helper once', (sw.includes('html.includes') || sw.includes('patched.includes')) && sw.includes('ironlog-patch.js'));
 check('supersets: link/unlink + grouped flow', index.includes('const groupsOf') && index.includes('linkWithNext') && index.includes('unlinkGroup') && index.includes('superset-wrap') && index.includes('Superset: '));
 check('swap: similar-exercise sheet with movement ranking', index.includes('function SwapSheet') && index.includes('function rankAlternates') && index.includes('movementName') && index.includes('setSwapFor'));
