@@ -32,7 +32,7 @@ jobs:
 
       - name: Sync app source fixes
         run: |
-          APP_VERSION=v58
+          APP_VERSION=v59
           export APP_VERSION
           python3 - <<'PY'
           from pathlib import Path
@@ -49,6 +49,91 @@ jobs:
           source_day_launch = ".day-launch{position:fixed;left:max(0px,calc((100vw - 480px)/2));right:max(0px,calc((100vw - 480px)/2));bottom:0;z-index:80;background:linear-gradient(180deg,rgba(13,9,20,.78),var(--surface) 34%);border-top:1px solid rgba(168,85,247,.16);padding:14px 18px calc(18px + env(safe-area-inset-bottom));margin:0;backdrop-filter:blur(14px);box-shadow:0 -18px 42px rgba(0,0,0,.45)}"
           s = re.sub(r"\.day-launch\{[^}]*\}", source_day_launch, s)
           s = re.sub(r"\.reorder-sheet \.sheet-body\{[^}]*\}", ".reorder-sheet .sheet-body{padding-bottom:calc(260px + env(safe-area-inset-bottom));scroll-padding-bottom:calc(260px + env(safe-area-inset-bottom));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}", s)
+
+          helpers = """
+            const roundUnitValue=(value, decimals=2)=>{
+              if(value===undefined||value===null||value==='') return value;
+              const n=Number(value);
+              if(!Number.isFinite(n)) return value;
+              const p=Math.pow(10,decimals);
+              return Math.round(n*p)/p;
+            };
+            const convertScalar=(value, factor, decimals=2)=>roundUnitValue(Number(value)*factor, decimals);
+            const convertSetUnits=(set, weightFactor, distanceFactor)=>{
+              if(!set || typeof set!=='object') return set;
+              const next={...set};
+              ['weight','targetWeight'].forEach(k=>{ if(next[k]!==undefined&&next[k]!==null&&next[k]!=='') next[k]=convertScalar(next[k],weightFactor,2); });
+              ['dist','targetDist'].forEach(k=>{ if(next[k]!==undefined&&next[k]!==null&&next[k]!=='') next[k]=convertScalar(next[k],distanceFactor,2); });
+              return next;
+            };
+            const convertEntryUnits=(en, weightFactor, distanceFactor)=> en&&typeof en==='object' ? {...en, sets:asArray(en.sets).map(st=>convertSetUnits(st,weightFactor,distanceFactor))} : en;
+            const convertWorkoutUnits=(w, weightFactor, distanceFactor)=> w&&typeof w==='object' ? {...w, entries:asArray(w.entries).map(en=>convertEntryUnits(en,weightFactor,distanceFactor))} : w;
+            const convertRoutineUnits=(r, weightFactor, distanceFactor)=> r&&typeof r==='object' ? {...r, days:asArray(r.days).map(d=>{
+              const targets={...(d&&d.targets||{})};
+              Object.keys(targets).forEach(id=>{ targets[id]=asArray(targets[id]).map(st=>convertSetUnits(st,weightFactor,distanceFactor)); });
+              return {...d, targets};
+            })} : r;
+            const convertMeasurementUnits=(m, weightFactor, lengthFactor)=>{
+              if(!m || typeof m!=='object') return m;
+              const next={...m};
+              MEAS_FIELDS.forEach(f=>{
+                if(next[f.k]===undefined||next[f.k]===null||next[f.k]==='') return;
+                if(f.u==='w') next[f.k]=convertScalar(next[f.k],weightFactor,2);
+                else if(f.u==='c') next[f.k]=convertScalar(next[f.k],lengthFactor,2);
+              });
+              return next;
+            };
+          """
+          if 'const roundUnitValue=' not in s:
+            s = s.replace("  const flash = (msg)=>{ setToast(msg); setTimeout(()=>setToast(null), 1900); };", "  const flash = (msg)=>{ setToast(msg); setTimeout(()=>setToast(null), 1900); };\n" + helpers)
+
+          replacement = """
+  const openLatestVersion=async()=>{
+    try{
+      if('serviceWorker' in navigator){
+        const regs=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(async reg=>{
+          try{ await reg.update(); }catch(e){}
+          try{ if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); }catch(e){}
+        }));
+      }
+      if(window.caches){
+        const keys=await caches.keys();
+        await Promise.all(keys.filter(k=>/^ironlog-/i.test(k)).map(k=>caches.delete(k)));
+      }
+    }catch(e){}
+    const url=new URL(window.location.href);
+    url.searchParams.set('v', Date.now());
+    window.location.replace(url.toString());
+  };
+  const applyUpdate=()=>openLatestVersion();
+  const changeUnit=(nextUnit)=>{
+    if(nextUnit!== 'lb' && nextUnit!=='kg') return;
+    if(nextUnit===unit) return;
+    const weightFactor=unit==='lb'&&nextUnit==='kg' ? 0.45359237 : 2.2046226218;
+    const lengthFactor=unit==='lb'&&nextUnit==='kg' ? 2.54 : 1/2.54;
+    const distanceFactor=unit==='lb'&&nextUnit==='kg' ? 1.609344 : 1/1.609344;
+    setLogs(curr=>asArray(curr).map(w=>convertWorkoutUnits(w,weightFactor,distanceFactor)));
+    setActive(curr=>curr?convertWorkoutUnits(curr,weightFactor,distanceFactor):curr);
+    setRoutines(curr=>asArray(curr).map(r=>convertRoutineUnits(r,weightFactor,distanceFactor)));
+    setMeasurements(curr=>asArray(curr).map(m=>convertMeasurementUnits(m,weightFactor,lengthFactor)));
+    setUnit(nextUnit);
+    flash('Converted to '+nextUnit.toUpperCase());
+  };
+"""
+          s = re.sub(r"  const applyUpdate=\(\)=>\{\n    const worker=.*?\n  \};", replacement.rstrip(), s, flags=re.S)
+
+          s = s.replace("""          <div className="unit-toggle">
+            <button className={unit==='lb'?'on':''} onClick={()=>setUnit('lb')}>LB</button>
+            <button className={unit==='kg'?'on':''} onClick={()=>setUnit('kg')}>KG</button>
+          </div>
+""", "")
+          s = s.replace("<button className=\"gear\" onClick={()=>setSettingsOpen(true)}>", "<button className=\"rc-edit\" onClick={openLatestVersion}>{I.refresh}Update</button>\n          <button className=\"gear\" onClick={()=>setSettingsOpen(true)}>")
+          s = s.replace("unit={unit} setUnit={setUnit} restDefault={restDefault} setRestDefault={setRestDefault}", "unit={unit} setUnit={changeUnit} restDefault={restDefault} setRestDefault={setRestDefault}")
+          s = s.replace("onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} />}", "onResetData={()=>{ setExercises(SEED); setRoutines([]); setLogs([]); setMeasurements([]); setActive(null); flash('Local data reset'); }} onOpenLatest={openLatestVersion} />}")
+          s = s.replace("onConnect, onDisconnect, onSyncNow, onResetData}){", "onConnect, onDisconnect, onSyncNow, onResetData, onOpenLatest}){")
+          s = s.replace("<h3>{I.gear}General</h3>", "<h3>{I.gear}General</h3>\n            <button className=\"btn btn-ghost btn-sm\" style={{marginBottom:16}} onClick={onOpenLatest}>{I.refresh}Update app to latest version</button>")
+
           index.write_text(s)
 
           sw = Path('service-worker.js')
@@ -61,6 +146,9 @@ jobs:
           smoke = Path('tests/smoke-check.js')
           q = smoke.read_text()
           q = q.replace("reorder-sheet .sheet-body{padding-bottom:calc(132px", "reorder-sheet .sheet-body{padding-bottom:calc(260px")
+          q = q.replace("check('structured machine setup fields are available', index.includes('const MACHINE_KEYS') && index.includes('parseMachineSettings') && index.includes('formatMachineSettings') && index.includes('machine-grid'));", "check('structured machine setup fields are available', index.includes('const MACHINE_KEYS') && index.includes('parseMachineSettings') && index.includes('formatMachineSettings') && index.includes('machine-grid') && index.includes(\"{k:'platform',label:'Platform'}\") && index.includes(\"{k:'belt',label:'Belt'}\"));")
+          if "unit conversion is real" not in q:
+            q = q.replace("check('training command bar and update polish exist', index.includes('train-command-bar') && index.includes('sync-status-pill') && index.includes('update-banner') && index.includes('ironlog:update-ready'));", "check('training command bar and update polish exist', index.includes('train-command-bar') && index.includes('sync-status-pill') && index.includes('update-banner') && index.includes('ironlog:update-ready'));\ncheck('unit conversion is real and header toggle removed', index.includes('changeUnit') && index.includes('convertWorkoutUnits') && index.includes('Converted to ') && !index.includes('>LB</button>') && !index.includes('>KG</button>'));\ncheck('manual update button is available', index.includes('openLatestVersion') && index.includes('Update app to latest version') && index.includes('caches.keys'));" )
           smoke.write_text(q)
           PY
 
