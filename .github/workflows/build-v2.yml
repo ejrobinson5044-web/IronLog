@@ -12,6 +12,7 @@ on:
       - service-worker.js
       - tests/smoke-check.js
       - ironlog-native-patch.js
+      - ironlog-public-auth.js
       - .github/workflows/build-v2.yml
 
 permissions:
@@ -31,31 +32,46 @@ jobs:
       - name: Install build tools
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Sync v61 source fixes
+      - name: Sync v62 account source fixes
         run: |
-          APP_VERSION=v61
+          APP_VERSION=v62
           export APP_VERSION
           python3 - <<'PY'
           from pathlib import Path
           import os, re
 
           version = os.environ['APP_VERSION']
+          public_url = 'https://tqszscrxtddljiwjoriw.supabase.co'
+          public_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxc3pzY3J4dGRkbGppd2pvcml3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODU1MDcsImV4cCI6MjA5NjA2MTUwN30.tuceNVTA9Pm3OyjX5xy5xfJRCEWc9RT38jtA5Eys5Kg'
 
           index = Path('index.html')
           s = index.read_text()
           s = re.sub(r"const APP_VERSION = 'v[0-9]+';", "const APP_VERSION = '%s';" % version, s)
+          s = re.sub(r'const SUPABASE_URL = "[^"]*";', 'const SUPABASE_URL = "%s";' % public_url, s)
+          s = re.sub(r'const SUPABASE_ANON_KEY = "[^"]*";', 'const SUPABASE_ANON_KEY = "%s";' % public_key, s)
+          s = s.replace('Cloud sync', 'Account & Sync').replace('Cloud Sync', 'Account & Sync')
+          s = s.replace('check the URL & key', 'try signing in again')
           index.write_text(s)
 
           sw = Path('service-worker.js')
           t = sw.read_text()
           t = re.sub(r"const CACHE_VERSION = 'ironlog-v[0-9]+';", "const CACHE_VERSION = 'ironlog-%s';" % version, t)
-          t = t.replace('v60', version)
+          t = re.sub(r"v[0-9]+", version, t)
           if "./ironlog-native-patch.js" not in t:
             t = t.replace("'./ironlog-update-patch.js'", "'./ironlog-update-patch.js','./ironlog-native-patch.js'")
+          if "./ironlog-public-auth.js" not in t:
+            anchor = "'./ironlog-native-patch.js'" if "'./ironlog-native-patch.js'" in t else "'./ironlog-update-patch.js'"
+            t = t.replace(anchor, anchor + ",'./ironlog-public-auth.js'")
           if "p.endsWith('/ironlog-native-patch.js')" not in t:
             t = t.replace("p.endsWith('/ironlog-update-patch.js')||", "p.endsWith('/ironlog-update-patch.js')||p.endsWith('/ironlog-native-patch.js')||")
+          if "p.endsWith('/ironlog-public-auth.js')" not in t:
+            t = t.replace("p.endsWith('/ironlog-native-patch.js')||", "p.endsWith('/ironlog-native-patch.js')||p.endsWith('/ironlog-public-auth.js')||")
           if "ironlog-native-patch.js" not in t.split('async function appShellWithPatch',1)[-1]:
             t = t.replace("if(!patched.includes('ironlog-update-patch.js')) patched=patched.replace('</body>','<script src=\"./ironlog-update-patch.js\" defer></script></body>');", "if(!patched.includes('ironlog-update-patch.js')) patched=patched.replace('</body>','<script src=\"./ironlog-update-patch.js\" defer></script></body>');\n  if(!patched.includes('ironlog-native-patch.js')) patched=patched.replace('</body>','<script src=\"./ironlog-native-patch.js\" defer></script></body>');")
+          if "ironlog-public-auth.js" not in t.split('async function appShellWithPatch',1)[-1]:
+            insertion = "if(!patched.includes('ironlog-native-patch.js')) patched=patched.replace('</body>','<script src=\"./ironlog-native-patch.js\" defer></script></body>');"
+            replacement = insertion + "\n  if(!patched.includes('ironlog-public-auth.js')) patched=patched.replace('</body>','<script src=\"./ironlog-public-auth.js\" defer></script></body>');"
+            t = t.replace(insertion, replacement)
           if 'TimestampTrigger' not in t:
             t += "\n/* TimestampTrigger support marker: compact service worker falls back to setTimeout when unavailable. */\n"
           sw.write_text(t)
@@ -64,7 +80,9 @@ jobs:
           q = smoke.read_text()
           q = q.replace("sw.includes('TimestampTrigger') && sw.includes(\"action: 'dismiss'\")", "sw.includes('TimestampTrigger') && (sw.includes(\"action: 'dismiss'\") || sw.includes(\"action:'dismiss'\"))")
           if "native feel patch is available" not in q:
-            q = q.replace("check('service worker caches helper', sw.includes('./ironlog-patch.js'));", "check('service worker caches helper', sw.includes('./ironlog-patch.js'));\ncheck('native feel patch is available', fs.existsSync(path.join(root, 'ironlog-native-patch.js')) && sw.includes('ironlog-native-patch.js'));" )
+            q = q.replace("check('service worker caches helper', sw.includes('./ironlog-patch.js'));", "check('service worker caches helper', sw.includes('./ironlog-patch.js'));\ncheck('native feel patch is available', fs.existsSync(path.join(root, 'ironlog-native-patch.js')) && sw.includes('ironlog-native-patch.js'));")
+          if "public account sync bootstrap" not in q:
+            q = q.replace("check('service worker caches helper', sw.includes('./ironlog-patch.js'));", "check('service worker caches helper', sw.includes('./ironlog-patch.js'));\ncheck('public account sync bootstrap is available', fs.existsSync(path.join(root, 'ironlog-public-auth.js')) && index.includes('const SUPABASE_URL = \\\"https://tqszscrxtddljiwjoriw.supabase.co\\\"') && index.includes('const SUPABASE_ANON_KEY = \\\"eyJ') && sw.includes('ironlog-public-auth.js'));")
           smoke.write_text(q)
           PY
 
@@ -78,10 +96,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html service-worker.js tests/smoke-check.js index-v2.html app.bundle.js app-loader.js app-chunks/ ironlog-native-patch.js
+          git add index.html service-worker.js tests/smoke-check.js index-v2.html app.bundle.js app-loader.js app-chunks/ ironlog-native-patch.js ironlog-public-auth.js
           if git diff --cached --quiet; then
             echo "No generated changes to commit."
           else
-            git commit -m "Build v61 native feel app shell [skip v2 build]"
+            git commit -m "Build v62 public account sync app shell [skip v2 build]"
             git push
           fi
