@@ -1,5 +1,4 @@
 (function(){
-  const VERSION='v75';
   const read=(k,f)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f}};
   const write=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
   function markDirty(reason){write('ironlogNeedsSync',{reason:reason||'local-change',at:Date.now()});}
@@ -7,7 +6,6 @@
   function isDirty(){return !!read('ironlogNeedsSync',null);}
   function toast(msg){let el=document.getElementById('ironlog-sync-toast');if(!el){el=document.createElement('div');el.id='ironlog-sync-toast';el.style.cssText='position:fixed;left:max(12px,calc((100vw - 480px)/2 + 12px));right:max(12px,calc((100vw - 480px)/2 + 12px));bottom:calc(84px + env(safe-area-inset-bottom));z-index:1200;padding:10px 12px;border-radius:14px;background:rgba(8,11,31,.94);border:1px solid rgba(99,102,241,.22);color:#c7d2fe;font-size:12px;font-weight:800;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.42);';document.body.appendChild(el);}el.textContent=msg;clearTimeout(window.__ironlogSyncToastTimer);window.__ironlogSyncToastTimer=setTimeout(()=>{el&&el.remove();},2600);}
   function decorate(){
-    document.querySelectorAll('div[style*="position: fixed"]').forEach(el=>{if(/^v\d+$/.test((el.textContent||'').trim()))el.textContent=VERSION;});
     let pill=document.getElementById('ironlog-network-pill');
     const online=navigator.onLine;
     if(!pill){pill=document.createElement('div');pill.id='ironlog-network-pill';pill.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:1190;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:900;pointer-events:none;opacity:.92;';document.body.appendChild(pill);}
