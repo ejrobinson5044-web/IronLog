@@ -1,5 +1,4 @@
 (function(){
-  const VERSION='v73';
   const read=(k,f)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f}};
   const write=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
   const arr=v=>Array.isArray(v)?v:[];
@@ -35,7 +34,6 @@
     custom.forEach(ex=>{const name=typeof ex==='string'?ex:(ex&&ex.name);if(!name)return;const key=norm(name);if(!map[key]){map[key]=CARDIO_WORDS.test(name)?'cardio':'strength';changed=true;}if(typeof ex==='object'&&ex&&!ex.type){ex.type=map[key];changed=true;}});
     if(changed){write('exerciseTypes',map);write('customExercises',custom);}
   }
-  function setVersion(){document.querySelectorAll('div[style*="position: fixed"]').forEach(el=>{if(/^v\d+$/.test((el.textContent||'').trim()))el.textContent=VERSION;});}
-  function run(){injectCss();patchCustomExerciseSaves();addTypeToggleToForms();annotateCardioRows();setVersion();}
+  function run(){injectCss();patchCustomExerciseSaves();addTypeToggleToForms();annotateCardioRows();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();setInterval(run,1200);window.IronLogExerciseTypes={get:getExerciseType,set:setExerciseType,map:exerciseTypeMap};
 })();
