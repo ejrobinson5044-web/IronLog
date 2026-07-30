@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v83';
+const APP_VERSION = 'v84';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2519,6 +2519,12 @@ function App(){
     setEditRoutine(undefined); flash(synced?'Routine saved · active workout updated':'Routine saved');
   };
   const deleteRoutine = (id)=>{ setRoutines(routines.filter(r=>r.id!==id)); setEditRoutine(undefined); flash('Routine deleted'); };
+  const copyDayToRoutine = (day, targetRoutineId)=>{
+    const cloned={ id:uid(), slot:uid(), name:day.name||'', exerciseIds:asArray(day.exerciseIds).slice(), groups:{...(day.groups||{})}, targets:{...(day.targets||{})} };
+    const targetName=(routines.find(r=>r.id===targetRoutineId)||{}).name||'routine';
+    setRoutines(routines.map(r=> r.id===targetRoutineId ? {...r, days:[...asArray(r.days), cloned]} : r));
+    flash('Day copied to '+targetName);
+  };
 
   const addCustomExercise = (e)=>{ const ex=normalizeExerciseVariant({id:uid(), custom:true, media:'', ...e}); setExercises(curr=>[ex, ...asArray(curr)]); setNewExOpen(false); flash('Exercise added'); return ex; };
   const updateExercise = (id, p)=>{ const upd=normalizeExerciseVariant({...exById[id], ...p, edited:true}); setExercises(exercises.map(e=>e.id===id?upd:e)); if(detailEx&&detailEx.id===id) setDetailEx(upd); setEditEx(null); flash('Exercise updated'); };
@@ -2622,7 +2628,7 @@ function App(){
         unit={unit} onClose={()=>setMeasSheet(null)} onSave={saveMeasurement} />}
       {newExOpen && <NewExerciseSheet onClose={()=>setNewExOpen(false)} onSave={addCustomExercise} />}
       {editEx && <NewExerciseSheet exercise={editEx} onClose={()=>setEditEx(null)} onSave={(p)=>updateExercise(editEx.id, p)} />}
-      {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
+      {editRoutine!==undefined && <RoutineEditor routine={editRoutine} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} routines={routines} onCopyDayToRoutine={copyDayToRoutine} onCreateExercise={addCustomExercise} onClose={()=>setEditRoutine(undefined)} onSave={saveRoutine} onDelete={deleteRoutine} />}
       {previewDay && <DayPreviewSheet preview={previewDay} exById={exById} unit={unit} logs={logs} restDefault={restDefault} active={active}
         onClose={()=>setPreviewDay(null)} onResume={()=>{ setPreviewDay(null); setTab('train'); }} onStart={(idx=0)=>{ const p=previewDay; setPreviewDay(null); startDay(p.day,p.program,p.label,idx); }} onUpdateDay={updatePreviewDay} onDeleteEx={deleteFromPreviewDay} exercises={exercises} onCreateExercise={addCustomExercise} onSaveExercise={(updated)=>{ setExercises(curr=>curr.map(e=>e.id===updated.id?updated:e)); flash('Exercise updated'); }} />}
       {pickerFor==='active' && active &&
@@ -4338,13 +4344,15 @@ const daySlotIndex=(day,days)=>{ const keys=[]; asArray(days).forEach(d=>{ const
 const dayVariant=(day,days)=>{ const key=slotKeyOf(day); const mates=asArray(days).filter(d=>slotKeyOf(d)===key); let idx=mates.indexOf(day); if(idx<0) idx=mates.findIndex(d=>d&&day&&d.id===day.id); return {index:Math.max(0,idx), size:mates.length}; };
 const dayCode=(day,days,mode)=>{ const base=posLabel(daySlotIndex(day,days),mode); const v=dayVariant(day,days); return v.size>1 ? base+variantLetter(v.index) : base; };
 const dayLabel=(day,days,mode)=> (day&&day.name) ? (dayCode(day,days,mode)+' · '+day.name) : dayCode(day,days,mode);
-function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateExercise, onClose, onSave, onDelete}){
+function RoutineEditor({routine, exById, exercises, logs, restDefault, routines, onCopyDayToRoutine, onCreateExercise, onClose, onSave, onDelete}){
   const editing=!!routine;
   const [name,setName]=useState(routine?routine.name:'');
   const [note,setNote]=useState(routine?routine.note||'':'');
   const [labelMode,setLabelMode]=useState(routine?(routine.labelMode||'num'):'num');
   const [days,setDays]=useState(routine? clone(routine.days||[]) : [{id:uid(),slot:uid(),name:'',exerciseIds:[]}]);
   const [dayIdx,setDayIdx]=useState(null);
+  const [copyFor,setCopyFor]=useState(null);
+  const otherRoutines=asArray(routines).filter(r=>!routine || r.id!==routine.id);
   const valid = !!name.trim();
   const addDay=()=> setDays([...days, {id:uid(), slot:uid(), name:'', exerciseIds:[]}]);
   const addVersion=(slotKey)=>{ const a=clone(days); let last=-1; a.forEach((d,idx)=>{ if(slotKeyOf(d)===slotKey) last=idx; }); a.splice(last+1,0,{id:uid(), slot:slotKey, name:'', exerciseIds:[]}); setDays(a); };
@@ -4387,6 +4395,7 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateE
               <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
                 <button className="btn btn-ghost btn-sm" onClick={()=>setDayIdx(i)}>{I.dumbbell}Edit exercises</button>
                 <button className="btn btn-ghost btn-sm" onClick={()=>addVersion(slotKeyOf(d))}>{I.plus}Add alternate version</button>
+                {otherRoutines.length>0 && <button className="btn btn-ghost btn-sm" onClick={()=>setCopyFor(i)}>{I.link}Copy to…</button>}
               </div>
             </div>
           ))}
@@ -4398,6 +4407,25 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, onCreateE
       {dayIdx!==null &&
         <DayEditor day={days[dayIdx]} exById={exById} exercises={exercises} logs={logs} restDefault={restDefault} onCreate={onCreateExercise}
           onClose={()=>setDayIdx(null)} onSave={saveDay} />}
+      {copyFor!==null && days[copyFor] &&
+        <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) setCopyFor(null);}}>
+          <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'72vh'}}>
+            <div className="sheet-grip"></div>
+            <div className="sheet-head"><h2>Copy day to…</h2><button className="x-btn" onClick={()=>setCopyFor(null)}>{I.x}</button></div>
+            <div className="sheet-body">
+              <div style={{fontSize:12.5,color:'var(--muted2)',marginBottom:14,lineHeight:1.45}}>Adds <b style={{color:'var(--text)'}}>{dayCode(days[copyFor],days,labelMode)}{days[copyFor].name?' · '+days[copyFor].name:''}</b> ({asArray(days[copyFor].exerciseIds).length} exercise{asArray(days[copyFor].exerciseIds).length!==1?'s':''}) to another routine as a new day. The original stays put.</div>
+              {otherRoutines.length===0 ?
+                <div style={{color:'var(--muted)',fontSize:13,textAlign:'center',padding:'22px 0'}}>No other routines yet — create one to copy into.</div>
+                :
+                otherRoutines.map(r=>(
+                  <div key={r.id} className="day-row" style={{cursor:'pointer'}} onClick={()=>{ onCopyDayToRoutine(days[copyFor], r.id); setCopyFor(null); }}>
+                    <div className="day-info"><div className="day-name">{r.name}</div><div className="day-meta">{new Set(asArray(r.days).map(slotKeyOf)).size} day{new Set(asArray(r.days).map(slotKeyOf)).size!==1?'s':''}</div></div>
+                    <span style={{color:'var(--accent)',display:'inline-flex'}}>{I.plus}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>}
     </div>
   );
 }
