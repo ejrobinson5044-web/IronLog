@@ -829,7 +829,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const EQUIP = {Barbell:{c:'#7aa2ff'},Dumbbell:{c:'#9d7bff'},'EZ Bar':{c:'#d8b4fe'},'Smith Machine':{c:'#4f8ef7'},Cable:{c:'#ff9f45'},Machine:{c:'#5ddca5'},
   Bodyweight:{c:'#ffd166'},Kettlebell:{c:'#ff6b9d'},Band:{c:'#4dd0c7'},'Weight Plate':{c:'#c084fc'},Landmine:{c:'#e8915a'},Leverage:{c:'#00b8a9'},'Pit Shark':{c:'#d65db1'},Other:{c:'#9095ad'}};
 const MUSCLE = {Chest:'#ff7a8a',Back:'#7aa2ff','Front Delts':'#ff9f45','Side Delts':'#ffc04d','Rear Delts':'#e07b3c',Biceps:'#9d7bff',Triceps:'#b794ff',
-  Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8'};
+  Forearms:'#4dd0c7',Quads:'#ff6b9d',Hamstrings:'#5ddca5',Glutes:'#ffd166',Calves:'#8ab4ff',Core:'#ff9f45','Full Body':'#a3aab8',Cardio:'#22d3ee'};
 const tint = (hex, a) => { const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
 const MACHINE_SETTING_EQUIPMENT = new Set(['Machine','Smith Machine','Cable','Leverage','Pit Shark']);
 const PLATE_LOAD_EQUIPMENT = new Set(['Barbell','EZ Bar','Smith Machine','Machine','Leverage','Pit Shark','Landmine']);
@@ -1658,21 +1658,21 @@ const SEED = [
   {name:"Pit Shark Shrug", eq:"Pit Shark", m:"Back", sec:"Forearms", cue:"Load the belt, shrug tall, pause at the top."},
   {name:"Pit Shark Pull-Through", eq:"Pit Shark", m:"Glutes", sec:"Hamstrings", cue:"Hinge then snap the hips forward to lockout."},
   // ---- Cardio & conditioning ----
-  {name:"Running", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Outdoor run \u2014 log distance and time."},
-  {name:"Treadmill Run", eq:"Machine", m:"Full Body", track:"dt", cue:"Set pace and incline; log distance and time."},
-  {name:"Walking", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Steady walk \u2014 distance and time."},
-  {name:"Incline Treadmill Walk", eq:"Machine", m:"Full Body", track:"dt", cue:"High incline, brisk pace."},
+  {name:"Running", eq:"Bodyweight", m:"Cardio", track:"dt", cue:"Outdoor run \u2014 log distance and time."},
+  {name:"Treadmill Run", eq:"Machine", m:"Cardio", track:"dt", cue:"Set pace and incline; log distance and time."},
+  {name:"Walking", eq:"Bodyweight", m:"Cardio", track:"dt", cue:"Steady walk \u2014 distance and time."},
+  {name:"Incline Treadmill Walk", eq:"Machine", m:"Cardio", track:"dt", cue:"High incline, brisk pace."},
   {name:"Hiking", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Trail hike \u2014 distance and time."},
-  {name:"Sprints", eq:"Bodyweight", m:"Hamstrings", track:"dt", cue:"Max-effort intervals \u2014 log total distance and time."},
-  {name:"Cycling", eq:"Bodyweight", m:"Quads", track:"dt", cue:"Road or trail ride."},
-  {name:"Stationary Bike", eq:"Machine", m:"Quads", track:"dt", cue:"Log distance and time; adjust resistance."},
-  {name:"Swimming", eq:"Bodyweight", m:"Full Body", track:"dt", cue:"Laps \u2014 distance and time."},
-  {name:"Rowing Machine", eq:"Machine", m:"Back", track:"dt", cue:"Drive with the legs, finish with back and arms."},
-  {name:"Elliptical", eq:"Machine", m:"Full Body", track:"dt", cue:"Smooth stride; log distance and time."},
-  {name:"Stair Climber", eq:"Machine", m:"Quads", track:"t", cue:"Steady climb for time."},
-  {name:"Jump Rope", eq:"Bodyweight", m:"Calves", track:"t", cue:"Light on the feet; log total time."},
-  {name:"Boxing", eq:"Bodyweight", m:"Full Body", track:"t", cue:"Rounds on the bag or pads; log total time."},
-  {name:"Kickboxing", eq:"Bodyweight", m:"Full Body", track:"t", cue:"Strikes and kicks; log total time."},
+  {name:"Sprints", eq:"Bodyweight", m:"Cardio", track:"dt", cue:"Max-effort intervals \u2014 log total distance and time."},
+  {name:"Cycling", eq:"Bodyweight", m:"Cardio", track:"dt", cue:"Road or trail ride."},
+  {name:"Stationary Bike", eq:"Machine", m:"Cardio", track:"dt", cue:"Log distance and time; adjust resistance."},
+  {name:"Swimming", eq:"Bodyweight", m:"Cardio", track:"dt", cue:"Laps \u2014 distance and time."},
+  {name:"Rowing Machine", eq:"Machine", m:"Cardio", track:"dt", cue:"Drive with the legs, finish with back and arms."},
+  {name:"Elliptical", eq:"Machine", m:"Cardio", track:"dt", cue:"Smooth stride; log distance and time."},
+  {name:"Stair Climber", eq:"Machine", m:"Cardio", track:"t", cue:"Steady climb for time."},
+  {name:"Jump Rope", eq:"Bodyweight", m:"Cardio", track:"t", cue:"Light on the feet; log total time."},
+  {name:"Boxing", eq:"Bodyweight", m:"Cardio", track:"t", cue:"Rounds on the bag or pads; log total time."},
+  {name:"Kickboxing", eq:"Bodyweight", m:"Cardio", track:"t", cue:"Strikes and kicks; log total time."},
   {name:"Plank", eq:"Bodyweight", m:"Core", track:"t", cue:"Hold a straight line; log total time."},
   {name:"Dead Hang", eq:"Bodyweight", m:"Forearms", track:"t", cue:"Hang for time \u2014 grip and shoulders."},
   {name:"Farmer's Carry", eq:"Dumbbell", m:"Forearms", sec:"Core", track:"wt", cue:"Heavy carry \u2014 log load and time."},
@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v80';
+const APP_VERSION = 'v81';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
