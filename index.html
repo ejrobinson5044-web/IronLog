@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v82';
+const APP_VERSION = 'v83';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2058,6 +2058,7 @@ function App(){
   const [notificationPermission, setNotificationPermission] = useState(()=>notificationSupport()?Notification.permission:'unsupported');
   const [exercises, setExercises] = useState(()=>migrateExercises(store.get('exercises', null)));
   const [routines, setRoutines] = useState(()=>migrateRoutines(store.get('routines', [])));
+  const [activeRoutineId, setActiveRoutineId] = useState(()=>store.get('activeRoutineId', null));
   const [logs, setLogs] = useState(()=>cleanLogs(store.get('logs', [])));
   const [measurements, setMeasurements] = useState(()=>cleanMeasurements(store.get('measurements', [])));
   const [active, setActive] = useState(()=>cleanActive(store.get('active', null)));
@@ -2094,6 +2095,7 @@ function App(){
   useEffect(()=>store.set('notifyRest',notifyRest),[notifyRest]);
   useEffect(()=>store.set('exercises',exercises),[exercises]);
   useEffect(()=>store.set('routines',routines),[routines]);
+  useEffect(()=>store.set('activeRoutineId',activeRoutineId),[activeRoutineId]);
   useEffect(()=>store.set('logs',logs),[logs]);
   useEffect(()=>store.set('measurements',measurements),[measurements]);
   useEffect(()=>store.set('active',active),[active]);
@@ -2583,7 +2585,7 @@ function App(){
             onGoRoutines={()=>setTab('routines')} onGoLibrary={()=>setTab('library')} onGoRecords={()=>setTab('records')}
             onGoCalendar={()=>setTab('calendar')} onMeasure={()=>setMeasSheet({date:todayISO(), entry:null})} />}
         {tab==='routines' &&
-          <RoutinesView routines={routines} exById={exById} active={active} logs={logs} restDefault={restDefault}
+          <RoutinesView routines={routines} exById={exById} active={active} logs={logs} restDefault={restDefault} activeRoutineId={activeRoutineId} onSetActiveRoutine={setActiveRoutineId}
             onStartDay={startDay} onOpenDay={openDayPreview} onNew={()=>setEditRoutine(null)} onEdit={setEditRoutine} onResume={()=>setTab('train')} />}
         {tab==='library' &&
           <LibraryView exercises={exercises} onOpen={setDetailEx} onNew={()=>setNewExOpen(true)} />}
@@ -3135,8 +3137,50 @@ function TodayView({active, routines, logs, measurements, exById, unit, restDefa
 }
 
 
-function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, onOpenDay, onNew, onEdit, onResume}){
+/* renders a routine's days grouped by slot; a slot with multiple versions gets an A/B/C picker */
+function RoutineDayList({routine, exById, active, logs, restDefault, onOpenDay, onStartDay, onResume}){
+  const days=asArray(routine.days);
+  const mode=routine.labelMode||'num';
+  const [sel,setSel]=useState({});
+  if(days.length===0) return <div className="day-list"><div style={{color:'var(--muted2)',fontSize:12.5,padding:'8px 2px'}}>No days yet — tap Edit to add days.</div></div>;
+  const order=[]; const groups={};
+  days.forEach(d=>{ const k=slotKeyOf(d); if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(d); });
+  return (
+    <div className="day-list">
+      {order.map(k=>{
+        const variants=groups[k];
+        const multi=variants.length>1;
+        const vi=Math.min(sel[k]||0, variants.length-1);
+        const d=variants[vi];
+        const label=dayLabel(d, days, mode);
+        const muscles=[...new Set(asArray(d.exerciseIds).map(id=>exById[id]&&exById[id].m).filter(Boolean))];
+        const isActiveDay=!!(active && active.routineId===routine.id && active.dayId===d.id);
+        return (
+          <div key={k} className="day-row">
+            <div className="day-info" onClick={()=>onOpenDay(d, routine, label)}>
+              <div className="day-name">{multi ? posLabel(daySlotIndex(d,days),mode) : label}</div>
+              {multi && <div className="seg" style={{gap:6,marginTop:7,marginBottom:2}} onClick={e=>e.stopPropagation()}>
+                {variants.map((v,idx)=><button key={v.id} className={idx===vi?'on':''} style={{padding:'5px 11px',fontSize:12}} onClick={()=>setSel(s=>({...s,[k]:idx}))}>{variantLetter(idx)}{v.name?' · '+v.name:''}</button>)}
+              </div>}
+              <div className="day-meta">{asArray(d.exerciseIds).length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
+              {muscles.length>0 && <div className="day-tags">{muscles.slice(0,4).map(m=><span key={m} className="day-dot" style={{background:MUSCLE[m]||'#8b93a2'}} title={m}></span>)}</div>}
+            </div>
+            <button className="day-start" disabled={!isActiveDay && asArray(d.exerciseIds).length===0} style={{opacity:(isActiveDay||d.exerciseIds.length)?1:.4}}
+              onClick={(e)=>{e.stopPropagation(); if(isActiveDay) onResume(); else if(d.exerciseIds.length) onStartDay(d, routine, label);}}>{isActiveDay?'Resume':'Start'}</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RoutinesView({routines, exById, active, logs, restDefault, activeRoutineId, onSetActiveRoutine, onStartDay, onOpenDay, onNew, onEdit, onResume}){
   const target=nextTrainingTarget(routines, logs);
+  const [showOthers,setShowOthers]=useState(false);
+  const [openId,setOpenId]=useState(null);
+  const current = routines.find(r=>r.id===activeRoutineId) || routines[0] || null;
+  const others = routines.filter(r=>!current || r.id!==current.id);
+  const meta=(r)=>{ const ds=asArray(r.days); const slots=new Set(ds.map(slotKeyOf)).size; const totalEx=ds.reduce((n,d)=>n+asArray(d.exerciseIds).length,0); return `${slots} day${slots!==1?'s':''} · ${totalEx} exercise${totalEx!==1?'s':''}`; };
   return (
     <div>
       {active &&
@@ -3155,47 +3199,61 @@ function RoutinesView({routines, exById, active, logs, restDefault, onStartDay, 
           </div>
           <button className="day-start" onClick={e=>{e.stopPropagation();onStartDay(target.day,target.routine,target.label);}}>Start</button>
         </div>}
-      <div className="section-h"><span>Your Routines</span><button className="mini-link" onClick={onNew}>{I.plus}New</button></div>
       {routines.length===0 ?
-        <div className="empty"><div className="ic">{I.list}</div><h3>No routines yet</h3>
-          <p>A routine is your program — build one with days like Push, Pull, and Legs, each with its own exercises. Tap + to start.</p>
-          <div style={{marginTop:20}}><button className="btn btn-accent" onClick={onNew}>{I.plus}New Routine</button></div></div>
+        <div>
+          <div className="section-h"><span>Your Routines</span><button className="mini-link" onClick={onNew}>{I.plus}New</button></div>
+          <div className="empty"><div className="ic">{I.list}</div><h3>No routines yet</h3>
+            <p>A routine is your program — build one with days like Push, Pull, and Legs, each with its own exercises. Tap + to start.</p>
+            <div style={{marginTop:20}}><button className="btn btn-accent" onClick={onNew}>{I.plus}New Routine</button></div></div>
+        </div>
         :
-        routines.map(r=>{
-          const days=r.days||[];
-          const totalEx=days.reduce((n,d)=>n+d.exerciseIds.length,0);
-          return (
-            <div key={r.id} className="card routine-card">
+        <div>
+          <div className="section-h"><span>Current Plan</span><button className="mini-link" onClick={onNew}>{I.plus}New</button></div>
+          {current &&
+            <div className="card routine-card">
               <div className="rc-top">
                 <div style={{flex:1,minWidth:0}}>
-                  <div className="rc-name">{r.name}</div>
-                  <div className="rc-meta">{days.length} day{days.length!==1?'s':''} · {totalEx} exercise{totalEx!==1?'s':''}{r.note?' · '+r.note:''}</div>
+                  <div className="rc-name">{current.name}</div>
+                  <div className="rc-meta">{meta(current)}{current.note?' · '+current.note:''}</div>
                 </div>
-                <button className="rc-edit" onClick={()=>onEdit(r)}>Edit</button>
+                <button className="rc-edit" onClick={()=>onEdit(current)}>Edit</button>
               </div>
-              <div className="day-list">
-                {days.length===0 ?
-                  <div style={{color:'var(--muted2)',fontSize:12.5,padding:'8px 2px'}}>No days yet — tap Edit to add days.</div>
-                  :
-                  days.map((d,i)=>{
-                    const muscles=[...new Set(d.exerciseIds.map(id=>exById[id]&&exById[id].m).filter(Boolean))];
-                    const isActiveDay=!!(active && active.routineId===r.id && active.dayId===d.id);
+              <RoutineDayList routine={current} exById={exById} active={active} logs={logs} restDefault={restDefault} onOpenDay={onOpenDay} onStartDay={onStartDay} onResume={onResume} />
+            </div>}
+          {others.length>0 &&
+            <div style={{marginTop:4}}>
+              <button className="btn btn-ghost" style={{width:'100%',justifyContent:'space-between'}} onClick={()=>setShowOthers(v=>!v)}>
+                <span style={{display:'inline-flex',alignItems:'center',gap:8}}>{I.list}View other plans ({others.length})</span>
+                <span style={{display:'inline-flex',transform:showOthers?'rotate(90deg)':'none',transition:'.15s'}}>{I.chevron}</span>
+              </button>
+              {showOthers &&
+                <div style={{marginTop:10}}>
+                  {others.map(r=>{
+                    const open=openId===r.id;
                     return (
-                      <div key={d.id} className="day-row" onClick={()=>onOpenDay(d, r, dayLabel(d, r.days, r.labelMode||'num'))}>
-                        <div className="day-info">
-                          <div className="day-name">{dayLabel(d, r.days, r.labelMode||'num')}</div>
-                          <div className="day-meta">{d.exerciseIds.length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
-                          {muscles.length>0 && <div className="day-tags">{muscles.slice(0,4).map(m=><span key={m} className="day-dot" style={{background:MUSCLE[m]||'#8b93a2'}} title={m}></span>)}</div>}
+                      <div key={r.id} className="card" style={{marginBottom:10}}>
+                        <div className="rc-top" onClick={()=>setOpenId(open?null:r.id)} style={{cursor:'pointer'}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div className="rc-name" style={{fontSize:15}}>{r.name}</div>
+                            <div className="rc-meta">{meta(r)}</div>
+                          </div>
+                          <span style={{display:'inline-flex',color:'var(--muted)',transform:open?'rotate(90deg)':'none',transition:'.15s'}}>{I.chevron}</span>
                         </div>
-                        <button className="day-start" disabled={!isActiveDay && d.exerciseIds.length===0} style={{opacity:(isActiveDay||d.exerciseIds.length)?1:.4}}
-                          onClick={(e)=>{e.stopPropagation(); if(isActiveDay) onResume(); else if(d.exerciseIds.length) onStartDay(d, r, dayLabel(d, r.days, r.labelMode||'num'));}}>{isActiveDay?'Resume':'Start'}</button>
+                        {open &&
+                          <div style={{marginTop:6}}>
+                            <RoutineDayList routine={r} exById={exById} active={active} logs={logs} restDefault={restDefault} onOpenDay={onOpenDay} onStartDay={onStartDay} onResume={onResume} />
+                            <div style={{display:'flex',gap:8,marginTop:10}}>
+                              <button className="btn btn-accent btn-sm" onClick={()=>{onSetActiveRoutine(r.id); setShowOthers(false); setOpenId(null);}}>{I.check}Use this plan</button>
+                              <button className="btn btn-ghost btn-sm" onClick={()=>onEdit(r)}>{I.gear}Edit</button>
+                            </div>
+                          </div>}
                       </div>
                     );
                   })}
-              </div>
-            </div>
-          );
-        })}
+                </div>}
+            </div>}
+        </div>
+      }
       {!active && <div style={{marginTop:8}}><button className="btn btn-ghost" onClick={()=>onStartDay(null,null)}>{I.flame}Start an empty workout</button></div>}
     </div>
   );
