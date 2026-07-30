@@ -509,7 +509,7 @@
   .review-toggle b{color:var(--accent);font-family:var(--display)}
   .review-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:9px;position:sticky;bottom:0;margin:0 -18px -18px;padding:14px 18px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);backdrop-filter:blur(14px)}
 
-  .selected-count{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(13,9,20,.64),var(--surface) 34%);border-top:1px solid var(--border);padding:14px 18px calc(18px + env(safe-area-inset-bottom));margin:0 -18px;backdrop-filter:blur(14px)}
+  .picker-footer{flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 18px calc(18px + env(safe-area-inset-bottom))}
   .added-badge{width:28px;height:28px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0}
   .added-badge svg{width:16px;height:16px}
   .add-circle{width:28px;height:28px;border-radius:999px;border:1.5px solid var(--border2);color:var(--muted2);display:grid;place-items:center;flex-shrink:0;transition:.12s}
@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v84';
+const APP_VERSION = 'v85';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -4560,9 +4560,9 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
                 {on ? <div className="added-badge">{I.check}</div> : <div className="add-circle">{I.plus}</div>}
               </div>
             ); })}
-          <div className="selected-count">
-            <button className="btn btn-accent" disabled={!addedCount} style={{opacity:addedCount?1:.45}} onClick={()=>addedCount&&onConfirm([...sel])}>{I.check}Add {addedCount>0?addedCount+' ':''}exercise{addedCount!==1?'s':''}</button>
-          </div>
+        </div>
+        <div className="picker-footer">
+          <button className="btn btn-accent" disabled={!addedCount} style={{opacity:addedCount?1:.45}} onClick={()=>addedCount&&onConfirm([...sel])}>{I.check}Add {addedCount>0?addedCount+' ':''}exercise{addedCount!==1?'s':''}</button>
         </div>
       </div>
       {creating && <NewExerciseSheet initialName={q} onClose={()=>setCreating(false)} onSave={handleCreated} />}
