@@ -1,11 +1,27 @@
-const CACHE_VERSION = 'ironlog-v85';
+const CACHE_VERSION = 'ironlog-v86';
 
 const SHELL = [
   './','./index.html','./index-v2.html','./app-loader.js',
-  './app-chunks/app.00.js','./app-chunks/app.01.js','./app-chunks/app.02.js','./app-chunks/app.03.js','./app-chunks/app.04.js',
-  './app-chunks/app.05.js','./app-chunks/app.06.js','./app-chunks/app.07.js','./app-chunks/app.08.js','./app-chunks/app.09.js',
-  './app-chunks/app.10.js','./app-chunks/app.11.js','./app-chunks/app.12.js','./app-chunks/app.13.js','./app-chunks/app.14.js',
-  './app-chunks/app.15.js','./app-chunks/app.16.js','./app-chunks/app.17.js','./app-chunks/app.18.js',
+  './app-chunks/app.00.js',
+  './app-chunks/app.01.js',
+  './app-chunks/app.02.js',
+  './app-chunks/app.03.js',
+  './app-chunks/app.04.js',
+  './app-chunks/app.05.js',
+  './app-chunks/app.06.js',
+  './app-chunks/app.07.js',
+  './app-chunks/app.08.js',
+  './app-chunks/app.09.js',
+  './app-chunks/app.10.js',
+  './app-chunks/app.11.js',
+  './app-chunks/app.12.js',
+  './app-chunks/app.13.js',
+  './app-chunks/app.14.js',
+  './app-chunks/app.15.js',
+  './app-chunks/app.16.js',
+  './app-chunks/app.17.js',
+  './app-chunks/app.18.js',
+  './app-chunks/app.19.js',
   './ironlog-patch.js','./ironlog-update-patch.js','./manifest.json','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./favicon-32.png'
 ];
 const CDN = [

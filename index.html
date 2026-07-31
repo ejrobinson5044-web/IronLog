@@ -364,7 +364,7 @@
   .workout-demo .demo-hero{height:190px;margin-bottom:2px}
   .workout-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px}
   .workout-actions .btn{padding:11px 10px;font-size:13px}
-  .train-command-bar{position:sticky;bottom:calc(78px + env(safe-area-inset-bottom));z-index:25;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px -4px 14px;padding:8px;background:rgba(5,4,8,.88);border:1px solid rgba(168,85,247,.18);border-radius:16px;backdrop-filter:blur(16px);box-shadow:0 16px 42px rgba(0,0,0,.45)}
+  .train-command-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:6px -2px 14px;padding:8px;background:rgba(5,4,8,.82);border:1px solid rgba(168,85,247,.18);border-radius:16px}
   .train-command-bar button{min-height:44px;border-radius:12px;background:rgba(23,16,33,.92);border:1px solid rgba(168,85,247,.14);color:var(--text);font-size:11.5px;font-weight:800;font-family:var(--display);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
   .train-command-bar button.primary{background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:var(--accent-ink)}
   .train-command-bar button:disabled{opacity:.4}
@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v85';
+const APP_VERSION = 'v86';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2634,12 +2634,17 @@ function App(){
       {pickerFor==='active' && active &&
         <ExercisePicker exercises={exercises} preselected={asArray(active.entries).map(e=>e.exerciseId)}
           onClose={()=>setPickerFor(null)} onCreate={addCustomExercise}
-          onConfirm={(ids)=>{ if(!active){ setPickerFor(null); return; }
+          positions={(()=>{ const es=asArray(active.entries); const arr=[{label:'Start of workout', index:0}]; es.forEach((e,i)=>{ const nm=(exById[e.exerciseId]||{}).name||('Exercise '+(i+1)); arr.push({label:(i===es.length-1?'End of workout':'After '+nm), index:i+1}); }); return arr; })()}
+          onConfirm={(ids, insertIdx)=>{ if(!active){ setPickerFor(null); return; }
             const currentEntries=asArray(active.entries);
             const ex=currentEntries.map(e=>e.exerciseId);
             const addIds=ids.filter(id=>!ex.includes(id));
             const add=addIds.map(id=>liveEntry(id, active&&(active.mode==='guided'||!!active.routineId)));
-            const next={...active, entries:[...currentEntries, ...add]};
+            const at=(insertIdx==null||insertIdx<0||insertIdx>currentEntries.length)?currentEntries.length:insertIdx;
+            const nextEntries=[...currentEntries.slice(0,at), ...add, ...currentEntries.slice(at)];
+            const curIdx=Math.floor(+active.currentEntryIndex||0);
+            const nextCurIdx=(add.length && at<=curIdx)?curIdx+add.length:curIdx;
+            const next={...active, entries:nextEntries, currentEntryIndex:nextCurIdx};
             setActive(next); persistRoutineDayShape(next); setPickerFor(null);
             if(addIds.length && currentEntries.length){
               const anchorIndex=(active.mode==='guided'||!!active.routineId)
@@ -3398,6 +3403,7 @@ function SwapSheet({current, exercises, onClose, onSwap, onCreate}){
     ? asArray(exercises).filter(e=>e&&e.id&&e.name&&e.id!==(current&&current.id)&&e.name.toLowerCase().includes(ql)).slice(0,40)
     : ranked.map(r=>r.e).slice(0,12);
   return (
+    <>
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh'}}>
         <div className="sheet-grip"></div>
@@ -3422,10 +3428,11 @@ function SwapSheet({current, exercises, onClose, onSwap, onCreate}){
               <span className="chevron">{I.swap}</span>
             </div>
           ))}
-          {creating && onCreate && <NewExerciseSheet initialName={q.trim()} onClose={()=>setCreating(false)} onSave={(p)=>{ const ex=onCreate(p); setCreating(false); if(ex&&ex.id) onSwap(ex.id); }} />}
         </div>
       </div>
     </div>
+    {creating && onCreate && <NewExerciseSheet initialName={q.trim()} onClose={()=>setCreating(false)} onSave={(p)=>{ const ex=onCreate(p); setCreating(false); if(ex&&ex.id) onSwap(ex.id); }} />}
+    </>
   );
 }
 
@@ -4521,12 +4528,13 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
 
 /* ============================================================\n   EXERCISE PICKER
    ============================================================ */
-function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
+function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate, positions}){
   const safeExercises=asArray(exercises).filter(e=>e&&e.id&&e.name);
   const selectedIds=asArray(preselected);
   const [q,setQ]=useState(''); const [eq,setEq]=useState('All'); const [mus,setMus]=useState('All');
   const [sel,setSel]=useState(()=>new Set(selectedIds));
   const [creating,setCreating]=useState(false);
+  const [insertIdx,setInsertIdx]=useState(()=>positions&&positions.length?positions[positions.length-1].index:null);
   const toggle=id=>{ if(selectedIds.includes(id)) return; const s=new Set(sel);s.has(id)?s.delete(id):s.add(id);setSel(s); };
   const filtered=safeExercises.filter(e=>{
     if(q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
@@ -4562,7 +4570,14 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate}){
             ); })}
         </div>
         <div className="picker-footer">
-          <button className="btn btn-accent" disabled={!addedCount} style={{opacity:addedCount?1:.45}} onClick={()=>addedCount&&onConfirm([...sel])}>{I.check}Add {addedCount>0?addedCount+' ':''}exercise{addedCount!==1?'s':''}</button>
+          {positions && positions.length>1 &&
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:10.5,color:'var(--muted2)',display:'block',marginBottom:5,textTransform:'uppercase',letterSpacing:'.06em',fontWeight:700}}>Place in workout</label>
+              <select value={insertIdx==null?'':insertIdx} onChange={e=>setInsertIdx(Number(e.target.value))} style={{width:'100%',padding:'11px 12px',borderRadius:12,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontSize:14,fontFamily:'inherit',appearance:'none',WebkitAppearance:'none'}}>
+                {positions.map(p=><option key={p.index} value={p.index}>{p.label}</option>)}
+              </select>
+            </div>}
+          <button className="btn btn-accent" disabled={!addedCount} style={{opacity:addedCount?1:.45}} onClick={()=>addedCount&&onConfirm([...sel], insertIdx)}>{I.check}Add {addedCount>0?addedCount+' ':''}exercise{addedCount!==1?'s':''}</button>
         </div>
       </div>
       {creating && <NewExerciseSheet initialName={q} onClose={()=>setCreating(false)} onSave={handleCreated} />}
