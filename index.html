@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v86';
+const APP_VERSION = 'v87';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -3732,8 +3732,10 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
     const e=eOverride||clone(active); const entry=asArray(e.entries)[ei]; if(!entry) return;
     const ex=exById[entry.exerciseId]; const tk=trackOf(ex); const set=entry.sets[si]; if(!set) return;
     clearAutoTimer(ei,si);
-    if(useTargets) applySuggestedReps(tk,set);
-    if(!setHasData(tk,set)){ set.done=false; setActive(e); return; }
+    if(useTargets) applyTargetDefaults(tk,set);
+    const _fields = TRACK[tk] ? TRACK[tk].fields : ['weight','reps'];
+    const _hasAny = _fields.some(f=>{ const v=set[f]; return v!==undefined&&v!==null&&v!==''&&!isNaN(parseFloat(v)); });
+    if(!_hasAny){ set.done=false; setActive(e); return; }
     if(!e.startedAt) e.startedAt=Date.now();
     const was=set.done; set.done=true;
     delete set._touchedFields;
