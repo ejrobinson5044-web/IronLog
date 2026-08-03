@@ -87,6 +87,7 @@ check('service worker caches v2 shell', sw.includes('./index-v2.html') && sw.inc
 check('service worker caches generated chunks', generatedChunks.every((file) => sw.includes(`./${file}`)));
 check('service worker serves v2 shell', sw.includes("new URL('./index-v2.html'"));
 check('service worker version bumped', /ironlog-v\d+/.test(sw));
+check('day warm-up/cooldown sections present', index.includes('const sortIdsBySection') && index.includes('SECTION_LABEL') && index.includes('sections:sectionsOut') && index.includes('Warm-up / Prep'));
 check('day slot/variant model present', index.includes('const dayCode=') && index.includes('function daySlotIndex')===false && index.includes('const daySlotIndex=') && index.includes('variantLetter') && index.includes('addVersion') && index.includes('Add alternate version'));
 check('app version badge matches sw cache version', (()=>{ const a=index.match(/APP_VERSION\s*=\s*'v(\d+)'/); const s=sw.match(/ironlog-v(\d+)'/); return !!(a && s && a[1] === s[1]); })());
 check('service worker injects helper once', (sw.includes('html.includes') || sw.includes('patched.includes')) && sw.includes('ironlog-patch.js'));

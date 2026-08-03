@@ -1699,11 +1699,11 @@ function migrateExercises(saved){
 /* Routines are now PROGRAMS that contain days. Wrap any old flat routine (exerciseIds) into one day. */
 function migrateRoutines(saved){
   if(!Array.isArray(saved)) return [];
-  const fixDay=(d)=>({ id:d.id||uid(), slot:d.slot||d.id||uid(), name: isAutoName(d.name)?'':(d.name||''), exerciseIds:Array.isArray(d.exerciseIds)?d.exerciseIds:[], groups:d.groups||{}, targets:d.targets||{} });
+  const fixDay=(d)=>({ id:d.id||uid(), slot:d.slot||d.id||uid(), name: isAutoName(d.name)?'':(d.name||''), exerciseIds:Array.isArray(d.exerciseIds)?d.exerciseIds:[], groups:d.groups||{}, targets:d.targets||{}, sections:d.sections||{} });
   return saved.map(r=>{
     if(Array.isArray(r.days)) return { labelMode:'num', ...r, days:r.days.map(fixDay) };
     return { id:r.id||uid(), name:r.name||'Routine', note:r.note||'', labelMode:'num',
-      days:[{id:uid(), slot:uid(), name:'', exerciseIds:Array.isArray(r.exerciseIds)?r.exerciseIds:[], groups:r.groups||{}, targets:r.targets||{}}] };
+      days:[{id:uid(), slot:uid(), name:'', exerciseIds:Array.isArray(r.exerciseIds)?r.exerciseIds:[], groups:r.groups||{}, targets:r.targets||{}, sections:{}}] };
   });
 }
 
@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v89';
+const APP_VERSION = 'v90';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2401,7 +2401,9 @@ function App(){
       if(!r || r.id!==workout.routineId) return r;
       return {...r, days:asArray(r.days).map(d=>{
         if(!d || d.id!==workout.dayId) return d;
-        return {...d, exerciseIds:shape.exerciseIds, groups:shape.groups, targets:shape.targets};
+        const keepSet=new Set(shape.exerciseIds);
+        const sections={}; Object.keys(d.sections||{}).forEach(id=>{ if(keepSet.has(id)) sections[id]=d.sections[id]; });
+        return {...d, exerciseIds:shape.exerciseIds, groups:shape.groups, targets:shape.targets, sections};
       })};
     }));
   };
@@ -4348,6 +4350,11 @@ const daySlotIndex=(day,days)=>{ const keys=[]; asArray(days).forEach(d=>{ const
 const dayVariant=(day,days)=>{ const key=slotKeyOf(day); const mates=asArray(days).filter(d=>slotKeyOf(d)===key); let idx=mates.indexOf(day); if(idx<0) idx=mates.findIndex(d=>d&&day&&d.id===day.id); return {index:Math.max(0,idx), size:mates.length}; };
 const dayCode=(day,days,mode)=>{ const base=posLabel(daySlotIndex(day,days),mode); const v=dayVariant(day,days); return v.size>1 ? base+variantLetter(v.index) : base; };
 const dayLabel=(day,days,mode)=> (day&&day.name) ? (dayCode(day,days,mode)+' · '+day.name) : dayCode(day,days,mode);
+const SECTION_DEFS=[['warmup','Warm-up / Prep'],['main','Workout'],['cooldown','Cooldown / Post']];
+const SECTION_LABEL={warmup:'Warm-up / Prep',main:'Workout',cooldown:'Cooldown / Post'};
+const SECTION_RANK={warmup:0,main:1,cooldown:2};
+const sectionOf=(sections,id)=> (sections&&sections[id])||'main';
+const sortIdsBySection=(ids,sections)=>{ const rank=(id)=>{ const r=SECTION_RANK[sectionOf(sections,id)]; return r===undefined?1:r; }; return asArray(ids).map((id,i)=>[id,i]).sort((a,b)=> (rank(a[0])-rank(b[0])) || (a[1]-b[1])).map(x=>x[0]); };
 function RoutineEditor({routine, exById, exercises, logs, restDefault, routines, onCopyDayToRoutine, onCreateExercise, onClose, onSave, onDelete}){
   const editing=!!routine;
   const [name,setName]=useState(routine?routine.name:'');
@@ -4482,7 +4489,11 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
     asArray(created).forEach(ex=>{ if(ex&&ex.id) map[ex.id]=ex; });
     return map;
   },[exById, created]);
-  const {dragId, holdId, handleProps, rowProps}=useDragReorder({ids, onMove:reorderMove(setIds)});
+  const [sections,setSections]=useState(()=>({...(day.sections||{})}));
+  const orderedIds=useMemo(()=>sortIdsBySection(ids, sections),[ids, sections]);
+  const setSection=(id,sec)=>{ setSections(s=>{ const n={...s}; if(sec==='main'){ delete n[id]; } else { n[id]=sec; } return n; }); };
+  const dragMove=(from,to)=>{ setIds(()=>{ const a=[...orderedIds]; const [m]=a.splice(from,1); a.splice(to,0,m); return sortIdsBySection(a, sections); }); };
+  const {dragId, holdId, handleProps, rowProps}=useDragReorder({ids:orderedIds, onMove:dragMove});
   const stopButton=e=>e.stopPropagation();
   const remove=id=>{ setIds(ids.filter(x=>x!==id)); };
   const delBtnProps=(id)=>({ onClick:(e)=>{ e.stopPropagation(); remove(id); } });
@@ -4501,7 +4512,8 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
     });
     const targets={};
     ids.forEach(id=>{ if(day.targets && day.targets[id]) targets[id]=day.targets[id]; });
-    onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:ids, groups, targets});
+    const sectionsOut={}; orderedIds.forEach(id=>{ const s=sectionOf(sections,id); if(s!=='main') sectionsOut[id]=s; });
+    onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:orderedIds, groups, targets, sections:sectionsOut});
   };
   const handleCreate=(payload)=>{
     const ex=onCreate&&onCreate(payload);
@@ -4517,28 +4529,30 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
           <div className="field"><label>Day name</label><input placeholder="e.g. Push, Pull, Legs, Arms" value={name} onChange={e=>setName(e.target.value)} /></div>
           <div className="section-h" style={{margin:'4px 0 10px'}}><span>Exercises ({ids.length})</span>
             <button onClick={()=>setPicking(true)} style={{color:'var(--accent)',fontSize:12,fontFamily:'var(--display)',fontWeight:700}}>+ Add</button></div>
-          {ids.length===0 ?
+          {orderedIds.length===0 ?
             <div style={{textAlign:'center',padding:'24px 10px',color:'var(--muted)',fontSize:13.5}}>No exercises yet. Tap <b style={{color:'var(--accent)'}}>+ Add</b> to pull from your library.</div>
             :
-            ids.map((id,i)=>{ const ex=localExById[id]; if(!ex) return (
+            (()=>{ const out=[]; orderedIds.forEach((id,i)=>{
+              const sec=sectionOf(sections,id);
+              if(i===0 || sectionOf(sections,orderedIds[i-1])!==sec) out.push(<div key={'h'+i} className="section-h" style={{margin:i===0?'2px 0 9px':'16px 0 9px'}}><span>{SECTION_LABEL[sec]}</span></div>);
+              const secSel=(<select value={sec} onClick={e=>e.stopPropagation()} onChange={e=>setSection(id,e.target.value)} style={{marginTop:7,padding:'4px 8px',fontSize:11,borderRadius:8,background:'var(--surface3)',border:'1px solid var(--border)',color:'var(--muted)',fontFamily:'inherit',appearance:'none',WebkitAppearance:'none'}}><option value="warmup">Warm-up / Prep</option><option value="main">Workout</option><option value="cooldown">Cooldown / Post</option></select>);
+              const ex=localExById[id];
+              if(!ex){ out.push(
                 <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')+(holdId===id?' holding':'')} style={{marginBottom:8,opacity:.78}} {...rowProps(id)}>
                   <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                   <div className="ex-info"><div className="ex-name">Missing exercise</div>
-                    <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div></div>
+                    <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div>{secSel}</div>
                   <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
-                </div>
-              );
-              const dragging=dragId===id;
-              const holding=holdId===id;
-              return (
-                <div key={id} className={'ex-row reorder-row'+(dragging?' dragging':'')+(holding?' holding':'')} style={{marginBottom:8}} {...rowProps(id)}>
+                </div>); return; }
+              out.push(
+                <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')+(holdId===id?' holding':'')} style={{marginBottom:8}} {...rowProps(id)}>
                   <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
                   <Thumb ex={ex} cls="" />
                   <div className="ex-info"><div className="ex-name">{ex.name}</div>
-                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div></div>
+                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div>{secSel}</div>
                   <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
-                </div>
-              ); })}
+                </div>);
+            }); return out; })()}
           {ids.length>0 &&
             <div>
               <div className="section-h" style={{margin:'20px 0 10px'}}>Muscles Worked</div>
