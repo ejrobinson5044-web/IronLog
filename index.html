@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v87';
+const APP_VERSION = 'v88';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2646,12 +2646,7 @@ function App(){
             const nextCurIdx=(add.length && at<=curIdx)?curIdx+add.length:curIdx;
             const next={...active, entries:nextEntries, currentEntryIndex:nextCurIdx};
             setActive(next); persistRoutineDayShape(next); setPickerFor(null);
-            if(addIds.length && currentEntries.length){
-              const anchorIndex=(active.mode==='guided'||!!active.routineId)
-                ? Math.max(0, Math.min(currentEntries.length-1, Math.floor(+active.currentEntryIndex||0)))
-                : currentEntries.length-1;
-              setActiveAddPrompt({ids:addIds, anchorId:currentEntries[anchorIndex]&&currentEntries[anchorIndex].exerciseId});
-            } else if(addIds.length) flash(addIds.length>1?'Exercises added':'Exercise added');
+            if(addIds.length) flash(addIds.length>1?'Exercises added':'Exercise added');
           }} />}
       {activeAddPrompt && active &&
         <ActiveAddOptionsSheet prompt={activeAddPrompt} active={active} exById={exById}
@@ -4361,13 +4356,17 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, routines,
   const [days,setDays]=useState(routine? clone(routine.days||[]) : [{id:uid(),slot:uid(),name:'',exerciseIds:[]}]);
   const [dayIdx,setDayIdx]=useState(null);
   const [copyFor,setCopyFor]=useState(null);
+  const [moveFor,setMoveFor]=useState(null);
   const otherRoutines=asArray(routines).filter(r=>!routine || r.id!==routine.id);
   const valid = !!name.trim();
   const addDay=()=> setDays([...days, {id:uid(), slot:uid(), name:'', exerciseIds:[]}]);
   const addVersion=(slotKey)=>{ const a=clone(days); let last=-1; a.forEach((d,idx)=>{ if(slotKeyOf(d)===slotKey) last=idx; }); a.splice(last+1,0,{id:uid(), slot:slotKey, name:'', exerciseIds:[]}); setDays(a); };
   const renameDay=(i,v)=>{ const a=clone(days); a[i].name=v; setDays(a); };
   const delDay=(i)=> setDays(days.filter((_,j)=>j!==i));
-  const moveDay=(i,dir)=>{ const j=i+dir; if(j<0||j>=days.length) return; const a=clone(days); [a[i],a[j]]=[a[j],a[i]]; setDays(a); };
+  const slotOrderKeys=(arr)=>{ const o=[]; asArray(arr).forEach(d=>{ const k=slotKeyOf(d); if(o.indexOf(k)<0) o.push(k); }); return o; };
+  const regroupBySlot=(arr)=>{ const o=slotOrderKeys(arr); const by={}; arr.forEach(d=>{(by[slotKeyOf(d)]=by[slotKeyOf(d)]||[]).push(d);}); const out=[]; o.forEach(k=>(by[k]||[]).forEach(d=>out.push(d))); return out; };
+  const moveSlotDir=(slotKey,dir)=>{ const a=clone(days); const o=slotOrderKeys(a); const idx=o.indexOf(slotKey); const j=idx+dir; if(idx<0||j<0||j>=o.length) return; [o[idx],o[j]]=[o[j],o[idx]]; const by={}; a.forEach(d=>{(by[slotKeyOf(d)]=by[slotKeyOf(d)]||[]).push(d);}); const out=[]; o.forEach(k=>(by[k]||[]).forEach(d=>out.push(d))); setDays(out); };
+  const assignDaySlot=(dayId,targetKey)=>{ const a=clone(days).map(d=> d.id===dayId ? {...d, slot: targetKey||uid()} : d); setDays(regroupBySlot(a)); };
   const saveDay=(updated)=>{ const a=clone(days); a[dayIdx]=updated; setDays(a); setDayIdx(null); };
   const saveRoutineEdits=()=>valid&&onSave({id:routine?routine.id:uid(),name:name.trim(),note:note.trim(),labelMode,days});
   return (
@@ -4392,10 +4391,7 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, routines,
           {days.map((d,i)=>(
             <div key={d.id} className="day-edit">
               <div className="day-edit-top">
-                <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                  <button onClick={()=>moveDay(i,-1)} style={{color:i===0?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▲</button>
-                  <button onClick={()=>moveDay(i,1)} style={{color:i===days.length-1?'var(--muted2)':'var(--muted)',padding:'1px 5px',fontSize:11}}>▼</button>
-                </div>
+                <button title="Move / reorder this day" onClick={()=>setMoveFor(d.id)} style={{color:'var(--muted)',padding:'6px 7px',display:'inline-flex',alignItems:'center'}}>{I.grip}</button>
                 <span className="day-pos">{dayCode(d, days, labelMode)}</span>
                 <input className="day-name-input" placeholder="Optional name — e.g. Legs, Push" value={d.name||''} onChange={e=>renameDay(i,e.target.value)} />
                 <button className="delset" onClick={()=>delDay(i)}>{I.trash}</button>
@@ -4435,6 +4431,37 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, routines,
             </div>
           </div>
         </div>}
+      {moveFor!=null && days.some(d=>d.id===moveFor) &&
+        (()=>{ const d=days.find(x=>x.id===moveFor); const key=slotKeyOf(d); const order=slotOrderKeys(days); const slotIdx=order.indexOf(key); const mateCount=days.filter(x=>slotKeyOf(x)===key).length;
+          return (
+        <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) setMoveFor(null);}}>
+          <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'76vh'}}>
+            <div className="sheet-grip"></div>
+            <div className="sheet-head"><h2>Move day</h2><button className="x-btn" onClick={()=>setMoveFor(null)}>{I.x}</button></div>
+            <div className="sheet-body">
+              <div style={{fontSize:13,marginBottom:16}}>Moving <b style={{color:'var(--text)'}}>{dayCode(d,days,labelMode)}{d.name?' · '+d.name:''}</b></div>
+              <div className="section-h" style={{margin:'2px 0 8px'}}>Reorder</div>
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginBottom:18}}>
+                <button className="btn btn-ghost btn-sm" disabled={slotIdx<=0} style={{opacity:slotIdx<=0?.4:1}} onClick={()=>moveSlotDir(key,-1)}>↑ Earlier</button>
+                <button className="btn btn-ghost btn-sm" disabled={slotIdx>=order.length-1} style={{opacity:slotIdx>=order.length-1?.4:1}} onClick={()=>moveSlotDir(key,1)}>↓ Later</button>
+                <span style={{fontSize:11.5,color:'var(--muted2)'}}>moves the whole slot, versions stay together</span>
+              </div>
+              <div className="section-h" style={{margin:'2px 0 8px'}}>Make this day…</div>
+              {mateCount>1 &&
+                <div className="day-row" style={{cursor:'pointer'}} onClick={()=>{ assignDaySlot(moveFor, null); setMoveFor(null); }}>
+                  <div className="day-info"><div className="day-name">Its own separate day</div><div className="day-meta">Split it out into a new slot</div></div>
+                  <span style={{color:'var(--accent)',display:'inline-flex'}}>{I.plus}</span>
+                </div>}
+              {order.filter(k=>k!==key).map(k=>{ const rep=days.find(x=>slotKeyOf(x)===k); const li=order.indexOf(k); return (
+                <div key={k} className="day-row" style={{cursor:'pointer'}} onClick={()=>{ assignDaySlot(moveFor, k); setMoveFor(null); }}>
+                  <div className="day-info"><div className="day-name">Alternate of {posLabel(li,labelMode)}{rep&&rep.name?' · '+rep.name:''}</div><div className="day-meta">Same slot — pick which to run from your plan</div></div>
+                  <span style={{color:'var(--accent)',display:'inline-flex'}}>{I.link}</span>
+                </div>); })}
+              {order.length<=1 && mateCount<=1 && <div style={{fontSize:12,color:'var(--muted2)',textAlign:'center',padding:'14px 0'}}>Add another day first to move this one into it as an alternate.</div>}
+            </div>
+          </div>
+        </div>
+          ); })()}
     </div>
   );
 }
