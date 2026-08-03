@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v90';
+const APP_VERSION = 'v91';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2373,12 +2373,13 @@ function App(){
     return true;
   };
   const routineShapeFromEntries=(entries)=>{
-    const exerciseIds=[]; const groups={}; const targets={};
+    const exerciseIds=[]; const groups={}; const targets={}; const sections={};
     asArray(entries).forEach(en=>{
       if(!en || !en.exerciseId) return;
       if(en.sessionOnly) return;
       exerciseIds.push(en.exerciseId);
       if(en.group) groups[en.exerciseId]=en.group;
+      if(en.section && en.section!=='main') sections[en.exerciseId]=en.section;
       const ex=exById[en.exerciseId]; const tk=trackOf(ex);
       const fields=TRACK[tk] ? TRACK[tk].fields : [];
       const sets=asArray(en.sets).map(s=>{
@@ -2392,7 +2393,7 @@ function App(){
       }).filter(s=>Object.keys(s).length);
       if(sets.length) targets[en.exerciseId]=sets;
     });
-    return {exerciseIds, groups, targets};
+    return {exerciseIds, groups, targets, sections};
   };
   const persistRoutineDayShape=(workout)=>{
     if(!workout || !workout.routineId || !workout.dayId) return;
@@ -2402,7 +2403,7 @@ function App(){
       return {...r, days:asArray(r.days).map(d=>{
         if(!d || d.id!==workout.dayId) return d;
         const keepSet=new Set(shape.exerciseIds);
-        const sections={}; Object.keys(d.sections||{}).forEach(id=>{ if(keepSet.has(id)) sections[id]=d.sections[id]; });
+        const sections={}; keepSet.forEach(id=>{ const s=shape.sections[id]||(d.sections&&d.sections[id]); if(s&&s!=='main') sections[id]=s; });
         return {...d, exerciseIds:shape.exerciseIds, groups:shape.groups, targets:shape.targets, sections};
       })};
     }));
@@ -2440,9 +2441,10 @@ function App(){
     flash(ids.length>1?'Superset linked':'Exercise linked as superset');
   };
   const startDay = (day, program, label, focusIndex=0)=>{
-    const dayIds=asArray(day&&day.exerciseIds).filter(id=>exById[id]);
+    const daySections=(day&&day.sections)||{};
+    const dayIds=sortIdsBySection(asArray(day&&day.exerciseIds).filter(id=>exById[id]), daySections);
     const dayGroups=(day&&day.groups)||{};
-    const entries=dayIds.map(id=>{ const en=liveEntry(id, !!day, day); if(dayGroups[id]) en.group=dayGroups[id]; return en; });
+    const entries=dayIds.map(id=>{ const en=liveEntry(id, !!day, day); if(dayGroups[id]) en.group=dayGroups[id]; if(daySections[id]&&daySections[id]!=='main') en.section=daySections[id]; return en; });
     const currentEntryIndex=Math.max(0, Math.min(entries.length-1, Math.floor(+focusIndex||0)));
     setActive({ id:uid(), date:todayISO(), startedAt:null, note:'',
       routineId: program?program.id:null, dayId: day?day.id:null,
@@ -3845,7 +3847,7 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
         <div className="guided-head">
           <div className="guided-top">
             <div>
-              <div className="guided-meta">Routine flow</div>
+              <div className="guided-meta" style={{color: (entries[currentIndex]&&entries[currentIndex].section)==='warmup'?'#5ddca5':(entries[currentIndex]&&entries[currentIndex].section)==='cooldown'?'#8ab4ff':undefined}}>{entries.some(e=>e&&e.section) ? SECTION_LABEL[(entries[currentIndex]&&entries[currentIndex].section)||'main'] : 'Routine flow'}</div>
               <div className="guided-title">{allExercisesDone?'All exercises complete':'Exercise '+(currentIndex+1)+' of '+entries.length}</div>
             </div>
             <div className="guided-meta">{completeExercises}/{entries.length}</div>
@@ -4490,6 +4492,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
     return map;
   },[exById, created]);
   const [sections,setSections]=useState(()=>({...(day.sections||{})}));
+  const [pendingSection,setPendingSection]=useState('main');
   const orderedIds=useMemo(()=>sortIdsBySection(ids, sections),[ids, sections]);
   const setSection=(id,sec)=>{ setSections(s=>{ const n={...s}; if(sec==='main'){ delete n[id]; } else { n[id]=sec; } return n; }); };
   const dragMove=(from,to)=>{ setIds(()=>{ const a=[...orderedIds]; const [m]=a.splice(from,1); a.splice(to,0,m); return sortIdsBySection(a, sections); }); };
@@ -4527,32 +4530,40 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
         <div className="sheet-head"><h2>Edit Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={saveDayEdits}>{I.check}Done</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Day name</label><input placeholder="e.g. Push, Pull, Legs, Arms" value={name} onChange={e=>setName(e.target.value)} /></div>
-          <div className="section-h" style={{margin:'4px 0 10px'}}><span>Exercises ({ids.length})</span>
-            <button onClick={()=>setPicking(true)} style={{color:'var(--accent)',fontSize:12,fontFamily:'var(--display)',fontWeight:700}}>+ Add</button></div>
-          {orderedIds.length===0 ?
-            <div style={{textAlign:'center',padding:'24px 10px',color:'var(--muted)',fontSize:13.5}}>No exercises yet. Tap <b style={{color:'var(--accent)'}}>+ Add</b> to pull from your library.</div>
-            :
-            (()=>{ const out=[]; orderedIds.forEach((id,i)=>{
-              const sec=sectionOf(sections,id);
-              if(i===0 || sectionOf(sections,orderedIds[i-1])!==sec) out.push(<div key={'h'+i} className="section-h" style={{margin:i===0?'2px 0 9px':'16px 0 9px'}}><span>{SECTION_LABEL[sec]}</span></div>);
-              const secSel=(<select value={sec} onClick={e=>e.stopPropagation()} onChange={e=>setSection(id,e.target.value)} style={{marginTop:7,padding:'4px 8px',fontSize:11,borderRadius:8,background:'var(--surface3)',border:'1px solid var(--border)',color:'var(--muted)',fontFamily:'inherit',appearance:'none',WebkitAppearance:'none'}}><option value="warmup">Warm-up / Prep</option><option value="main">Workout</option><option value="cooldown">Cooldown / Post</option></select>);
-              const ex=localExById[id];
-              if(!ex){ out.push(
-                <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')+(holdId===id?' holding':'')} style={{marginBottom:8,opacity:.78}} {...rowProps(id)}>
-                  <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
-                  <div className="ex-info"><div className="ex-name">Missing exercise</div>
-                    <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div>{secSel}</div>
-                  <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
-                </div>); return; }
-              out.push(
-                <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')+(holdId===id?' holding':'')} style={{marginBottom:8}} {...rowProps(id)}>
-                  <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
-                  <Thumb ex={ex} cls="" />
-                  <div className="ex-info"><div className="ex-name">{ex.name}</div>
-                    <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div>{secSel}</div>
-                  <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
-                </div>);
-            }); return out; })()}
+          <div className="section-h" style={{margin:'4px 0 2px'}}><span>Exercises ({ids.length})</span></div>
+          {SECTION_DEFS.map(([sec,label])=>{
+            const secIds=orderedIds.filter(id=>sectionOf(sections,id)===sec);
+            return (
+              <div key={sec} style={{marginBottom:12}}>
+                <div className="section-h" style={{margin:'14px 0 8px'}}>
+                  <span style={{color: sec==='warmup'?'#5ddca5':sec==='cooldown'?'#8ab4ff':'var(--muted)'}}>{label}{secIds.length?' · '+secIds.length:''}</span>
+                  <button onClick={()=>{ setPendingSection(sec); setPicking(true); }} style={{color:'var(--accent)',fontSize:12,fontFamily:'var(--display)',fontWeight:700}}>+ Add</button>
+                </div>
+                {secIds.length===0 ?
+                  <div style={{color:'var(--muted2)',fontSize:12.5,padding:'2px 2px 6px'}}>Tap <b style={{color:'var(--accent)'}}>+ Add</b> to put exercises here.</div>
+                  :
+                  secIds.map(id=>{
+                    const ex=localExById[id];
+                    const secSel=(<select value={sectionOf(sections,id)} onClick={e=>e.stopPropagation()} onChange={e=>setSection(id,e.target.value)} style={{marginTop:7,padding:'4px 8px',fontSize:11,borderRadius:8,background:'var(--surface3)',border:'1px solid var(--border)',color:'var(--muted)',fontFamily:'inherit',appearance:'none',WebkitAppearance:'none'}}><option value="warmup">Warm-up / Prep</option><option value="main">Workout</option><option value="cooldown">Cooldown / Post</option></select>);
+                    if(!ex) return (
+                      <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')+(holdId===id?' holding':'')} style={{marginBottom:8,opacity:.78}} {...rowProps(id)}>
+                        <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
+                        <div className="ex-info"><div className="ex-name">Missing exercise</div>
+                          <div className="ex-sub">This slot points to an exercise that is no longer in your library.</div>{secSel}</div>
+                        <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
+                      </div>);
+                    return (
+                      <div key={id} className={'ex-row reorder-row'+(dragId===id?' dragging':'')+(holdId===id?' holding':'')} style={{marginBottom:8}} {...rowProps(id)}>
+                        <div className="reorder-handle" title="Drag to reorder" aria-hidden="true" {...handleProps(id)}>{I.grip}</div>
+                        <Thumb ex={ex} cls="" />
+                        <div className="ex-info"><div className="ex-name">{ex.name}</div>
+                          <div className="ex-sub"><span style={{color:EQUIP[ex.eq]?EQUIP[ex.eq].c:'#888'}}>{ex.eq}</span>·<span style={{color:MUSCLE[ex.m]||'#888'}}>{ex.m}</span>{sideOf(ex)&&<span style={{color:'var(--accent)'}}>· {sideLabel(ex)}</span>}</div>{secSel}</div>
+                        <button className="delset" {...delBtnProps(id)}>{I.trash}</button>
+                      </div>);
+                  })}
+              </div>
+            );
+          })}
           {ids.length>0 &&
             <div>
               <div className="section-h" style={{margin:'20px 0 10px'}}>Muscles Worked</div>
@@ -4564,7 +4575,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
             </div>}
         </div>
       </div>
-      {picking && <ExercisePicker exercises={localExercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={handleCreate} onConfirm={(sel)=>{setIds([...new Set([...ids,...sel])]);setPicking(false);}} />}
+      {picking && <ExercisePicker exercises={localExercises} preselected={ids} onClose={()=>setPicking(false)} onCreate={handleCreate} onConfirm={(sel)=>{ const before=ids; setIds([...new Set([...ids,...sel])]); if(pendingSection&&pendingSection!=='main'){ setSections(s=>{ const n={...s}; asArray(sel).forEach(id=>{ if(!before.includes(id)) n[id]=pendingSection; }); return n; }); } setPicking(false); }} />}
     </div>
   );
 }
