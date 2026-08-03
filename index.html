@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v88';
+const APP_VERSION = 'v89';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -4391,7 +4391,6 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, routines,
           {days.map((d,i)=>(
             <div key={d.id} className="day-edit">
               <div className="day-edit-top">
-                <button title="Move / reorder this day" onClick={()=>setMoveFor(d.id)} style={{color:'var(--muted)',padding:'6px 7px',display:'inline-flex',alignItems:'center'}}>{I.grip}</button>
                 <span className="day-pos">{dayCode(d, days, labelMode)}</span>
                 <input className="day-name-input" placeholder="Optional name — e.g. Legs, Push" value={d.name||''} onChange={e=>renameDay(i,e.target.value)} />
                 <button className="delset" onClick={()=>delDay(i)}>{I.trash}</button>
@@ -4399,6 +4398,7 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, routines,
               <div className="day-edit-meta">{d.exerciseIds.length} exercise{d.exerciseIds.length!==1?'s':''} · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
               <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
                 <button className="btn btn-ghost btn-sm" onClick={()=>setDayIdx(i)}>{I.dumbbell}Edit exercises</button>
+                {days.length>1 && <button className="btn btn-ghost btn-sm" onClick={()=>setMoveFor(d.id)}>{I.grip}Move / reorder</button>}
                 <button className="btn btn-ghost btn-sm" onClick={()=>addVersion(slotKeyOf(d))}>{I.plus}Add alternate version</button>
                 {otherRoutines.length>0 && <button className="btn btn-ghost btn-sm" onClick={()=>setCopyFor(i)}>{I.link}Copy to…</button>}
               </div>
