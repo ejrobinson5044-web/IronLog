@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v91';
+const APP_VERSION = 'v92';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -3152,6 +3152,10 @@ function RoutineDayList({routine, exById, active, logs, restDefault, onOpenDay, 
   const days=asArray(routine.days);
   const mode=routine.labelMode||'num';
   const [sel,setSel]=useState({});
+  const holdT=useRef(null); const holdPt=useRef(null); const suppressTap=useRef(false);
+  const beginHold=(e,d,label)=>{ if(e.pointerType==='mouse'&&e.button!==0) return; holdPt.current={x:e.clientX,y:e.clientY}; if(holdT.current) clearTimeout(holdT.current); holdT.current=setTimeout(()=>{ holdT.current=null; if(holdPt.current){ suppressTap.current=true; if(navigator.vibrate) navigator.vibrate(12); onOpenDay(d, routine, label); holdPt.current=null; } }, 400); };
+  const moveHold=(e)=>{ const h=holdPt.current; if(h&&(Math.abs(e.clientX-h.x)>10||Math.abs(e.clientY-h.y)>10)){ if(holdT.current)clearTimeout(holdT.current); holdT.current=null; holdPt.current=null; } };
+  const endHold=()=>{ if(holdT.current)clearTimeout(holdT.current); holdT.current=null; holdPt.current=null; };
   if(days.length===0) return <div className="day-list"><div style={{color:'var(--muted2)',fontSize:12.5,padding:'8px 2px'}}>No days yet — tap Edit to add days.</div></div>;
   const order=[]; const groups={};
   days.forEach(d=>{ const k=slotKeyOf(d); if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(d); });
@@ -3167,9 +3171,10 @@ function RoutineDayList({routine, exById, active, logs, restDefault, onOpenDay, 
         const isActiveDay=!!(active && active.routineId===routine.id && active.dayId===d.id);
         return (
           <div key={k} className="day-row">
-            <div className="day-info" onClick={()=>onOpenDay(d, routine, label)}>
-              <div className="day-name">{multi ? posLabel(daySlotIndex(d,days),mode) : label}</div>
-              {multi && <div className="seg" style={{gap:6,marginTop:7,marginBottom:2}} onClick={e=>e.stopPropagation()}>
+            <div className="day-info" onPointerDown={e=>beginHold(e,d,label)} onPointerMove={moveHold} onPointerUp={endHold} onPointerCancel={endHold} onPointerLeave={endHold}
+              onClick={()=>{ if(suppressTap.current){ suppressTap.current=false; return; } onOpenDay(d, routine, label); }}>
+              <div className="day-name">{multi ? posLabel(daySlotIndex(d,days),mode) : label}<span style={{color:'var(--muted2)',opacity:.55,marginLeft:7,fontSize:12,fontWeight:400}}>· tap or hold to preview</span></div>
+              {multi && <div className="seg" style={{gap:6,marginTop:7,marginBottom:2}} onClick={e=>e.stopPropagation()} onPointerDown={e=>e.stopPropagation()}>
                 {variants.map((v,idx)=><button key={v.id} className={idx===vi?'on':''} style={{padding:'5px 11px',fontSize:12}} onClick={()=>setSel(s=>({...s,[k]:idx}))}>{variantLetter(idx)}{v.name?' · '+v.name:''}</button>)}
               </div>}
               <div className="day-meta">{asArray(d.exerciseIds).length} ex · ~{estimateMinutes(d.exerciseIds, logs, restDefault)} min</div>
