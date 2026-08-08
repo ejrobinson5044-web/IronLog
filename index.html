@@ -2049,7 +2049,7 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v92';
+const APP_VERSION = 'v93';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -3027,6 +3027,7 @@ function DayPreviewSheet({preview, exById, unit, logs, restDefault, active, onCl
               </div>
             );
           })}
+          <div style={{height:'calc(132px + env(safe-area-inset-bottom))'}} aria-hidden="true"></div>
           <div className="day-launch">
             <div className="day-launch-meta"><span>{label}</span><b>{availableCount} lift{availableCount!==1?'s':''} · ~{estimateMinutes(ids, logs, restDefault)} min</b></div>
             <button className="btn btn-accent" disabled={primaryDisabled} style={{opacity:primaryDisabled ? .45 : 1}} onClick={launchDay}>{primaryIcon}{primaryLabel}</button>
