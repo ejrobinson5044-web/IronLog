@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ironlog-v93';
+const CACHE_VERSION = 'ironlog-v94';
 
 const SHELL = [
   './','./index.html','./index-v2.html','./app-loader.js',
@@ -22,6 +22,7 @@ const SHELL = [
   './app-chunks/app.17.js',
   './app-chunks/app.18.js',
   './app-chunks/app.19.js',
+  './app-chunks/app.20.js',
   './ironlog-patch.js','./ironlog-update-patch.js','./manifest.json','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./favicon-32.png'
 ];
 const CDN = [

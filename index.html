@@ -2049,7 +2049,50 @@ function RestBar({rest, onAdjust, onSkip, onDone, onComplete}){
 /* ============================================================
    MAIN APP
    ============================================================ */
-const APP_VERSION = 'v93';
+function ExportSheet({routine, exById, unit, onClose}){
+  const text=useMemo(()=>routineExportText(routine, exById, unit),[routine,exById,unit]);
+  const json=useMemo(()=>routineExportJSON(routine, exById),[routine,exById]);
+  const [copied,setCopied]=useState('');
+  const copy=(val,which)=>{ try{ navigator.clipboard.writeText(val); setCopied(which); setTimeout(()=>setCopied(''),1600); }catch(e){} };
+  const download=()=>{ try{ const blob=new Blob([text+'\n\n--- IMPORT DATA (paste into Import) ---\n'+json],{type:'text/plain'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=String(routine.name||'routine').replace(/[^\w-]+/g,'_')+'.txt'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); }catch(e){} };
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) onClose();}}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'88vh'}}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Export routine</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div style={{fontSize:12.5,color:'var(--muted2)',marginBottom:12,lineHeight:1.45}}>A readable list of this routine you can review or paste into an AI to analyze. "Copy import data" copies the block that loads it back later.</div>
+          <pre style={{whiteSpace:'pre-wrap',wordBreak:'break-word',fontSize:12,lineHeight:1.5,background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:14,color:'var(--text)',fontFamily:'ui-monospace,Menlo,monospace',maxHeight:'42vh',overflow:'auto',margin:0}}>{text}</pre>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12}}>
+            <button className="btn btn-accent btn-sm" onClick={()=>copy(text,'text')}>{I.check}{copied==='text'?'Copied':'Copy list'}</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>copy(json,'json')}>{copied==='json'?'Copied':'Copy import data'}</button>
+            <button className="btn btn-ghost btn-sm" onClick={download}>{I.down}Download</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function ImportSheet({exercises, onCreate, onImport, onClose}){
+  const [text,setText]=useState('');
+  const [err,setErr]=useState('');
+  const doImport=()=>{ const res=parseRoutineImport(text, exercises, onCreate); if(res.error){ setErr(res.error); return; } onImport(res.routine); };
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) onClose();}}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh'}}>
+        <div className="sheet-grip"></div>
+        <div className="sheet-head"><h2>Import routine</h2><button className="x-btn" onClick={onClose}>{I.x}</button></div>
+        <div className="sheet-body">
+          <div style={{fontSize:12.5,color:'var(--muted2)',marginBottom:12,lineHeight:1.45}}>Paste an IronLog import block (the JSON that starts with {'{'}"ironlog":"routine"…{'}'}). Missing exercises are created automatically. It loads as a new routine.</div>
+          <textarea value={text} onChange={e=>{setText(e.target.value);setErr('');}} placeholder={'{"ironlog":"routine",...}'} style={{width:'100%',minHeight:160,padding:12,borderRadius:12,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontFamily:'ui-monospace,Menlo,monospace',fontSize:12,resize:'vertical'}}></textarea>
+          {err && <div style={{color:'#ff6b6b',fontSize:12.5,marginTop:8}}>{err}</div>}
+          <button className="btn btn-accent" style={{marginTop:12,opacity:text.trim()?1:.45}} disabled={!text.trim()} onClick={doImport}>{I.plus}Import as new routine</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+const APP_VERSION = 'v94';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2071,6 +2114,8 @@ function App(){
   const [editEx, setEditEx] = useState(null);
   const [measSheet, setMeasSheet] = useState(null);
   const [editRoutine, setEditRoutine] = useState(undefined);
+  const [exportRoutine, setExportRoutine] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [previewDay, setPreviewDay] = useState(null);
   const [pickerFor, setPickerFor] = useState(null);
   const [activeAddPrompt, setActiveAddPrompt] = useState(null);
@@ -2596,7 +2641,9 @@ function App(){
             onGoCalendar={()=>setTab('calendar')} onMeasure={()=>setMeasSheet({date:todayISO(), entry:null})} />}
         {tab==='routines' &&
           <RoutinesView routines={routines} exById={exById} active={active} logs={logs} restDefault={restDefault} activeRoutineId={activeRoutineId} onSetActiveRoutine={setActiveRoutineId}
-            onStartDay={startDay} onOpenDay={openDayPreview} onNew={()=>setEditRoutine(null)} onEdit={setEditRoutine} onResume={()=>setTab('train')} />}
+            onStartDay={startDay} onOpenDay={openDayPreview} onNew={()=>setEditRoutine(null)} onEdit={setEditRoutine} onResume={()=>setTab('train')} onExport={setExportRoutine} onImport={()=>setImportOpen(true)} />}
+        {exportRoutine && <ExportSheet routine={exportRoutine} exById={exById} unit={unit} onClose={()=>setExportRoutine(null)} />}
+        {importOpen && <ImportSheet exercises={exercises} onCreate={addCustomExercise} onImport={(r)=>{ setRoutines([r, ...routines]); setActiveRoutineId(r.id); setImportOpen(false); flash('Routine imported'); }} onClose={()=>setImportOpen(false)} />}
         {tab==='library' &&
           <LibraryView exercises={exercises} onOpen={setDetailEx} onNew={()=>setNewExOpen(true)} />}
         {tab==='train' &&
@@ -2728,6 +2775,54 @@ function targetSummary(entry, ex, unit){
     return vals.length===1 ? vals[0]+' '+label : vals.join('/')+' '+label;
   }).filter(Boolean);
   return sets.length+' goal set'+(sets.length!==1?'s':'')+(parts.length?' \u00b7 '+parts.join(' \u00b7 '):'');
+}
+function routineExportText(routine, exById, unit){
+  const days=asArray(routine.days);
+  let out='IRONLOG ROUTINE — '+(routine.name||'Routine')+'\n';
+  if(routine.note) out+=routine.note+'\n';
+  out+='\n';
+  days.forEach(d=>{
+    const ids=asArray(d.exerciseIds);
+    out+='## '+dayLabel(d, days, routine.labelMode||'num')+'  ('+ids.length+' exercise'+(ids.length!==1?'s':'')+')\n';
+    if(!ids.length){ out+='  (empty)\n\n'; return; }
+    let lastSec=null;
+    sortIdsBySection(ids, d.sections||{}).forEach(id=>{
+      const ex=exById[id]; if(!ex) return;
+      const sec=sectionOf(d.sections, id);
+      if(sec!==lastSec){ out+='  ['+SECTION_LABEL[sec]+']\n'; lastSec=sec; }
+      const tgt=targetSummary({sets:asArray(d.targets&&d.targets[id])}, ex, unit);
+      out+='   - '+ex.name+' ('+ex.eq+', '+ex.m+')'+(tgt?' — '+tgt:'')+'\n';
+    });
+    out+='\n';
+  });
+  return out.trim();
+}
+function routineExportJSON(routine, exById){
+  const days=asArray(routine.days).map(d=>({
+    name:d.name||'',
+    exercises: asArray(d.exerciseIds).map(id=>{ const ex=exById[id]; if(!ex) return null; return { name:ex.name, eq:ex.eq, m:ex.m, track:trackOf(ex), section:sectionOf(d.sections,id), targets:asArray(d.targets&&d.targets[id]) }; }).filter(Boolean)
+  }));
+  return JSON.stringify({ ironlog:'routine', v:1, name:routine.name||'Routine', note:routine.note||'', labelMode:routine.labelMode||'num', days });
+}
+function parseRoutineImport(text, exercises, addExercise){
+  let data; try{ data=JSON.parse(String(text||'').trim()); }catch(e){ return {error:'That is not valid data. Paste the JSON export block (starts with {"ironlog":"routine"…).'}; }
+  if(!data || data.ironlog!=='routine' || !Array.isArray(data.days)) return {error:'This does not look like an IronLog routine export.'};
+  const byName={}; asArray(exercises).forEach(ex=>{ if(ex&&ex.name) byName[String(ex.name).toLowerCase()]=ex; });
+  const findOrCreate=(exDef)=>{
+    if(!exDef||!exDef.name) return null;
+    const key=String(exDef.name).toLowerCase();
+    if(byName[key]) return byName[key].id;
+    const created=addExercise&&addExercise({ name:exDef.name, eq:exDef.eq||'Other', m:exDef.m||'Full Body', track:exDef.track||'ws' });
+    if(created&&created.id){ byName[key]=created; return created.id; }
+    return null;
+  };
+  const days=asArray(data.days).map(d=>{
+    const exerciseIds=[]; const targets={}; const sections={};
+    asArray(d.exercises).forEach(exDef=>{ const id=findOrCreate(exDef); if(!id) return; exerciseIds.push(id); if(exDef.targets&&exDef.targets.length) targets[id]=exDef.targets; if(exDef.section&&exDef.section!=='main') sections[id]=exDef.section; });
+    return { id:uid(), slot:uid(), name:d.name||'', exerciseIds, groups:{}, targets, sections };
+  }).filter(d=>d.exerciseIds.length || d.name);
+  if(!days.length) return {error:'No usable days found in that export.'};
+  return { routine:{ id:uid(), name:(data.name||'Imported routine'), note:data.note||'', labelMode:data.labelMode||'num', days } };
 }
 
 function nextTrainingTarget(routines, logs){
@@ -3190,7 +3285,7 @@ function RoutineDayList({routine, exById, active, logs, restDefault, onOpenDay, 
   );
 }
 
-function RoutinesView({routines, exById, active, logs, restDefault, activeRoutineId, onSetActiveRoutine, onStartDay, onOpenDay, onNew, onEdit, onResume}){
+function RoutinesView({routines, exById, active, logs, restDefault, activeRoutineId, onSetActiveRoutine, onStartDay, onOpenDay, onNew, onEdit, onResume, onExport, onImport}){
   const target=nextTrainingTarget(routines, logs);
   const [showOthers,setShowOthers]=useState(false);
   const [openId,setOpenId]=useState(null);
@@ -3224,7 +3319,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, activeRoutin
         </div>
         :
         <div>
-          <div className="section-h"><span>Current Plan</span><button className="mini-link" onClick={onNew}>{I.plus}New</button></div>
+          <div className="section-h"><span>Current Plan</span><div style={{display:'flex',gap:14,alignItems:'center'}}><button className="mini-link" onClick={onImport}>{I.down}Import</button><button className="mini-link" onClick={onNew}>{I.plus}New</button></div></div>
           {current &&
             <div className="card routine-card">
               <div className="rc-top">
@@ -3232,6 +3327,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, activeRoutin
                   <div className="rc-name">{current.name}</div>
                   <div className="rc-meta">{meta(current)}{current.note?' · '+current.note:''}</div>
                 </div>
+                <button className="rc-edit" onClick={()=>onExport(current)}>Export</button>
                 <button className="rc-edit" onClick={()=>onEdit(current)}>Edit</button>
               </div>
               <RoutineDayList routine={current} exById={exById} active={active} logs={logs} restDefault={restDefault} onOpenDay={onOpenDay} onStartDay={onStartDay} onResume={onResume} />
@@ -3261,6 +3357,7 @@ function RoutinesView({routines, exById, active, logs, restDefault, activeRoutin
                             <div style={{display:'flex',gap:8,marginTop:10}}>
                               <button className="btn btn-accent btn-sm" onClick={()=>{onSetActiveRoutine(r.id); setShowOthers(false); setOpenId(null);}}>{I.check}Use this plan</button>
                               <button className="btn btn-ghost btn-sm" onClick={()=>onEdit(r)}>{I.gear}Edit</button>
+                              <button className="btn btn-ghost btn-sm" onClick={()=>onExport(r)}>{I.down}Export</button>
                             </div>
                           </div>}
                       </div>
