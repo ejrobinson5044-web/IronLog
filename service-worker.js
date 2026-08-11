@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ironlog-v94';
+const CACHE_VERSION = 'ironlog-v95';
 
 const SHELL = [
   './','./index.html','./index-v2.html','./app-loader.js',

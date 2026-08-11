@@ -2092,7 +2092,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v94';
+const APP_VERSION = 'v95';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2535,7 +2535,7 @@ function App(){
       const tk = trackOf(exById[en.exerciseId]);
       const keep = anyDone ? (s=>s.done && setHasData(tk,s)) : (s=>setHasData(tk,s));
       return {...en, sets: asArray(en.sets).filter(keep).map(({_touchedFields, ...set})=>set)};
-    }).filter(en=>en.sets.length>0)};
+    }).filter(en=>en.sets.length>0 || (en.machineSettings&&String(en.machineSettings).trim()) || (en.note&&String(en.note).trim()))};
     return c;
   };
   const requestFinishWorkout = ()=>{
