@@ -2101,7 +2101,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v98';
+const APP_VERSION = 'v99';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -4243,12 +4243,17 @@ function MeasurementsSheet({date, entry, last, unit, onClose, onSave}){
 
 function RecordsView({records, exById, logs, unit, onOpen, onOpenCalendar}){
   const ids=Object.keys(records);
+  const [sortMode,setSortMode]=useState('az');
   const totalWorkouts=logs.length;
   const totalVol=logs.reduce((n,s)=>n+s.entries.reduce((v,e)=>v+e.sets.reduce((vv,st)=>vv+(+st.weight||0)*(+st.reps||0),0),0),0);
   const weekAgo=new Date(Date.now()-6*864e5).toISOString().slice(0,10);
   const thisWeek=logs.filter(l=>l.date>=weekAgo).length;
   const lastDate=id=>{const s=records[id].sessions;return s[s.length-1].date;};
-  const sorted=ids.slice().sort((a,b)=>{ const na=(exById[a]&&exById[a].name)||''; const nb=(exById[b]&&exById[b].name)||''; return na.localeCompare(nb, undefined, {sensitivity:'base', numeric:true}); });
+  const sorted=ids.slice().sort((a,b)=>{
+    if(sortMode==='recent') return lastDate(b).localeCompare(lastDate(a));
+    const na=(exById[a]&&exById[a].name)||''; const nb=(exById[b]&&exById[b].name)||'';
+    return na.localeCompare(nb, undefined, {sensitivity:'base', numeric:true});
+  });
   return (
     <div>
       <div className="section-h" style={{marginTop:8}}><span>Overview</span><button className="mini-link" onClick={onOpenCalendar}>{I.calendar}Calendar</button></div>
@@ -4257,7 +4262,10 @@ function RecordsView({records, exById, logs, unit, onOpen, onOpenCalendar}){
         <div className="stat-card"><div className="v">{thisWeek}</div><div className="l">This week</div></div>
         <div className="stat-card"><div className="v">{(totalVol/1000).toFixed(1)}k</div><div className="l">{unit} lifted</div></div>
       </div>
-      <div className="section-h">Personal Records</div>
+      <div className="section-h"><span>Personal Records</span>{ids.length>0 && <div className="seg" style={{gap:6}}>
+        <button className={sortMode==='az'?'on':''} style={{padding:'5px 11px',fontSize:12}} onClick={()=>setSortMode('az')}>A–Z</button>
+        <button className={sortMode==='recent'?'on':''} style={{padding:'5px 11px',fontSize:12}} onClick={()=>setSortMode('recent')}>Recent</button>
+      </div>}</div>
       {ids.length===0 ?
         <div className="empty"><div className="ic">{I.trophy}</div><h3>No records yet</h3>
           <p>Log a workout and your estimated 1RMs, heaviest sets, and volume PRs show up here automatically.</p></div>
