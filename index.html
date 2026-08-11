@@ -709,7 +709,7 @@ function sideOptionsFor(ex){
 }
 const trackOf = (ex)=> (ex && TRACK[ex.track]) ? ex.track : 'ws';
 const distUnit = (unit)=> unit==='lb' ? 'mi' : 'km';
-const fieldLabel = (f, unit, ex)=> f==='weight' ? ('Weight ('+unit+')') : f==='reps' ? sideRepLabel(ex) : f==='time' ? 'Time (min)' : ('Dist ('+distUnit(unit)+')');
+const fieldLabel = (f, unit, ex)=> f==='weight' ? ((ex&&ex.assisted)?('Assist ('+unit+')'):('Weight ('+unit+')')) : f==='reps' ? sideRepLabel(ex) : f==='time' ? 'Time (min)' : ('Dist ('+distUnit(unit)+')');
 const fieldMode = (f)=> f==='reps' ? 'numeric' : 'decimal';
 const targetKey = (f)=> 'target'+f.charAt(0).toUpperCase()+f.slice(1);
 function setHasData(track, s){
@@ -933,8 +933,14 @@ function progressionFor(entry, ex, rec, unit){
     const targetReps=sets.map(s=>Number(s.targetReps)||0).filter(Boolean);
     const goal=targetReps.length ? Math.min(...targetReps) : 8;
     const allHit=sets.every(s=>(+s.reps||0)>=goal);
-    const top=Math.max(...sets.map(s=>+s.weight||0));
     const inc=unit==='kg'?2.5:5;
+    if(ex.assisted){
+      const low=Math.min(...sets.map(s=>+s.weight||0));
+      const next=Math.max(0, low-inc);
+      return allHit ? {tone:'good',label:'Drop assistance',detail:'Try '+next+' '+unit+' assist for '+goal+' reps — less help = stronger.'}
+        : {tone:'hold',label:'Hold assistance',detail:'Stay at '+low+' '+unit+' assist until every set hits '+goal+' reps.'};
+    }
+    const top=Math.max(...sets.map(s=>+s.weight||0));
     return allHit ? {tone:'good',label:'Progress next time',detail:'Try '+(top+inc)+' '+unit+' for '+goal+' reps.'}
       : {tone:'hold',label:'Hold weight',detail:'Stay at '+top+' '+unit+' until every set reaches '+goal+' reps.'};
   }
@@ -962,7 +968,10 @@ function workoutSummary(workout, exById, records, unit){
     const rec=records[r.entry.exerciseId];
     if(!rec) return false;
     const tk=trackOf(r.ex);
-    if(tk==='ws') return r.done.some(s=>epley(s.weight,s.reps)>rec.best);
+    if(tk==='ws'){
+      if(r.ex&&r.ex.assisted) return r.done.some(s=>(+s.reps>0) && rec.bestAssist!==undefined && (+s.weight||0)<rec.bestAssist);
+      return r.done.some(s=>epley(s.weight,s.reps)>rec.best);
+    }
     if(tk==='r') return r.done.some(s=>(+s.reps||0)>rec.best);
     return r.volume>rec.bestVol;
   });
@@ -2092,7 +2101,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v95';
+const APP_VERSION = 'v96';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2593,10 +2602,14 @@ function App(){
       session.entries.forEach(en=>{
         const tk = trackOf(exById[en.exerciseId]);
         const valid = en.sets.filter(s=>setHasData(tk,s)); if(!valid.length) return;
+        const exObj=exById[en.exerciseId]; const assisted=!!(exObj&&exObj.assisted&&tk==='ws');
         if(!r[en.exerciseId]) r[en.exerciseId]={track:tk,best:0,maxW:0,bestVol:0,sessions:[],count:0};
-        const rec=r[en.exerciseId]; rec.track=tk;
-        let val=0,vol=0,top='',tw=0,tr=0,mw=0;
-        if(tk==='ws'||tk==='wt'){
+        const rec=r[en.exerciseId]; rec.track=tk; if(assisted) rec.assisted=true;
+        let val=0,vol=0,top='',tw=0,tr=0,mw=0,minAssist;
+        if(assisted){
+          valid.forEach(s=>{ const w=+s.weight||0, reps=+s.reps||0; if(reps>0){ if(minAssist===undefined||w<minAssist){ minAssist=w; top=`${w} ${unit} × ${reps}`; tw=w; tr=reps; } } if(w>mw)mw=w; vol+=reps; });
+          val = minAssist!==undefined ? minAssist : 0;
+        } else if(tk==='ws'||tk==='wt'){
           valid.forEach(s=>{ const w=+s.weight, sec= tk==='ws'?+s.reps:+s.time; const e= tk==='ws'?epley(w,sec):w;
             if(e>val){val=e; top= tk==='ws'?`${w}×${sec}`:`${w}×${sec}min`; tw=w; tr=sec;} if(w>mw)mw=w; vol+= tk==='ws'? w*sec : w; });
         } else if(tk==='r'){
@@ -2606,7 +2619,9 @@ function App(){
         } else {
           valid.forEach(s=>{ const d=+s.dist; if(d>val){val=d; top= tk==='dt'?`${d} · ${+s.time||0}m`:`${d}`;} vol+=d; });
         }
-        rec.best=Math.max(rec.best,val); rec.maxW=Math.max(rec.maxW,mw); rec.bestVol=Math.max(rec.bestVol,vol); rec.count++;
+        if(assisted){ if(minAssist!==undefined){ rec.bestAssist = rec.bestAssist===undefined ? minAssist : Math.min(rec.bestAssist, minAssist); rec.best=rec.bestAssist; } }
+        else { rec.best=Math.max(rec.best,val); }
+        rec.maxW=Math.max(rec.maxW,mw); rec.bestVol=Math.max(rec.bestVol,vol); rec.count++;
         rec.sessions.push({date:session.date, top, val, vol, topW:tw, topR:tr, note:en.note||'', machineSettings:en.machineSettings||'', snote:session.note||'',
           sets:valid.map(s=>({w:+s.weight||0,r:+s.reps||0,t:+s.time||0,d:+s.dist||0}))});
       });
@@ -4021,7 +4036,7 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
             <div className={'log-ex-head'+(compactGuidedHeader?' compact':'')}>
               {!compactGuidedHeader && <Thumb ex={ex} />}
               <div style={{flex:1,minWidth:0}}>{!compactGuidedHeader && <div className="log-ex-name">{ssLabel[ei]&&<span className="ss-tag">{ssLabel[ei].tag}</span>}{ex.name}</div>}
-                <div className="log-prev">{rec?`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`:'No history yet — set the baseline'}</div>
+                <div className="log-prev">{rec?(ex.assisted?`Lowest assist ${rec.best} ${unit}`:`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`):'No history yet — set the baseline'}</div>
                 <div className="target-line">{en.skipped?'Skipped today':targetSummary(en, ex, unit)} · Rest {formatRest(restSec)}</div></div>
               <div className="log-ex-actions">
                 <button className="iconbtn" title="Swap for a similar exercise" onClick={()=>setSwapFor(ei)}>{I.swap}</button>
@@ -4247,12 +4262,12 @@ function RecordsView({records, exById, logs, unit, onOpen, onOpenCalendar}){
         <div className="empty"><div className="ic">{I.trophy}</div><h3>No records yet</h3>
           <p>Log a workout and your estimated 1RMs, heaviest sets, and volume PRs show up here automatically.</p></div>
         :
-        sorted.map(id=>{ const ex=exById[id]; if(!ex) return null; const rec=records[id]; const mi=metricInfo(rec.track,unit);
+        sorted.map(id=>{ const ex=exById[id]; if(!ex) return null; const rec=records[id]; const mi=ex.assisted ? {label:'Lowest assist', suffix:' '+unit} : metricInfo(rec.track,unit);
           return (
             <div key={id} className="rec-row tap" onClick={()=>onOpen(ex)}>
               <Thumb ex={ex} />
               <div style={{flex:1,minWidth:0}}><div className="ex-name">{ex.name}</div>
-                <div className="ex-sub">{rec.count} session{rec.count!==1?'s':''}{(rec.track==='ws'||rec.track==='wt')?<span> · heaviest <b>{rec.maxW}{unit}</b></span>:''}</div></div>
+                <div className="ex-sub">{rec.count} session{rec.count!==1?'s':''}{(rec.track==='ws'||rec.track==='wt') && !ex.assisted?<span> · heaviest <b>{rec.maxW}{unit}</b></span>:''}</div></div>
               <div className="rec-1rm"><div className="n">{rec.best}</div><div className="u">{mi.label}{mi.suffix?' ('+mi.suffix.trim()+')':''}</div></div>
             </div>
           ); })}
@@ -4405,6 +4420,7 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
   const [name,setName]=useState(ed?exercise.name:(initialName||'')); const [eq,setEq]=useState(ed?exercise.eq:(guessEquipmentFromName(initialName)||'Barbell')); const [m,setM]=useState(ed?exercise.m:(guessMuscleFromName(initialName)||'Chest'));
   const [sec,setSec]=useState(ed?(exercise.sec||''):''); const [ter,setTer]=useState(ed?(exercise.ter||''):''); const [cue,setCue]=useState(ed?(exercise.cue||''):''); const [media,setMedia]=useState(ed?(exercise.media||''):'');
   const [track,setTrack]=useState(ed?trackOf(exercise):'ws');
+  const [assisted,setAssisted]=useState(ed?!!exercise.assisted:/assist/i.test(initialName||''));
   const [side,setSide]=useState(ed?sideOf(exercise):sideFromName(initialName||''));
   const finalName=formatExerciseName(name.trim(),eq,side);
   const valid=finalName.length>0;
@@ -4412,13 +4428,18 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,ter:ter||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side})}>{I.check}{ed?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
+        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,ter:ter||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side,assisted:(track==='ws'&&assisted)||undefined})}>{I.check}{ed?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Name</label>
             <input placeholder="e.g. Smith Machine Squat" value={name} onChange={e=>setName(e.target.value)} autoFocus={!ed} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Tip: name it <b style={{color:'var(--muted)'}}>Equipment + Movement</b> to match the library.</div></div>
           <div className="field"><label>Tracks</label><div className="seg">{Object.keys(TRACK).map(x=><button key={x} className={track===x?'on':''} onClick={()=>setTrack(x)}>{TRACK[x].label}</button>)}</div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set — weights, bodyweight reps, a hold/time, a run’s distance &amp; time, etc.</div></div>
+          {track==='ws' && <div className="field"><label>Load type</label><div className="seg">
+            <button className={!assisted?'on':''} onClick={()=>setAssisted(false)}>Standard</button>
+            <button className={assisted?'on':''} onClick={()=>setAssisted(true)}>Assisted</button>
+          </div>
+            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>For assist machines (assisted dip / pull-up): the number you log is the <b style={{color:'var(--muted)'}}>assistance</b>. Progress = the number going <b style={{color:'var(--muted)'}}>down</b>, and PRs track your lowest assist.</div></div>}
           <div className="field"><label>Variation</label><div className="seg">
             <button className={side===''?'on':''} onClick={()=>setSide('')}>Standard</button>
             <button className={side==='arm'?'on':''} onClick={()=>setSide('arm')}>One Arm</button>
