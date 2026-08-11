@@ -2101,7 +2101,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v97';
+const APP_VERSION = 'v98';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -3398,7 +3398,7 @@ function LibraryView({exercises, onOpen, onNew}){
     if(eq!=='All' && e.eq!==eq) return false;
     if(mus!=='All' && e.m!==mus) return false;
     return true;
-  });
+  }).sort((a,b)=>a.name.localeCompare(b.name, undefined, {sensitivity:'base', numeric:true}));
   return (
     <div>
       <div className="search-wrap">{I.search}<input className="search" placeholder="Search exercises…" value={q} onChange={e=>setQ(e.target.value)} /></div>
@@ -4248,7 +4248,7 @@ function RecordsView({records, exById, logs, unit, onOpen, onOpenCalendar}){
   const weekAgo=new Date(Date.now()-6*864e5).toISOString().slice(0,10);
   const thisWeek=logs.filter(l=>l.date>=weekAgo).length;
   const lastDate=id=>{const s=records[id].sessions;return s[s.length-1].date;};
-  const sorted=ids.sort((a,b)=>lastDate(b).localeCompare(lastDate(a)));
+  const sorted=ids.slice().sort((a,b)=>{ const na=(exById[a]&&exById[a].name)||''; const nb=(exById[b]&&exById[b].name)||''; return na.localeCompare(nb, undefined, {sensitivity:'base', numeric:true}); });
   return (
     <div>
       <div className="section-h" style={{marginTop:8}}><span>Overview</span><button className="mini-link" onClick={onOpenCalendar}>{I.calendar}Calendar</button></div>
