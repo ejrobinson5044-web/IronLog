@@ -2101,7 +2101,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v96';
+const APP_VERSION = 'v97';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -4719,7 +4719,7 @@ function ExercisePicker({exercises, preselected, onClose, onConfirm, onCreate, p
     if(eq!=='All' && e.eq!==eq) return false;
     if(mus!=='All' && e.m!==mus) return false;
     return true;
-  });
+  }).sort((a,b)=>a.name.localeCompare(b.name, undefined, {sensitivity:'base', numeric:true}));
   const addedCount=[...sel].filter(id=>!selectedIds.includes(id)).length;
   const handleCreated=(e)=>{ const ex=onCreate&&onCreate(e); if(ex&&ex.id){ const s=new Set(sel); s.add(ex.id); setSel(s); } setCreating(false); };
   return (
