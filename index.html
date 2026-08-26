@@ -2101,7 +2101,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v99';
+const APP_VERSION = 'v100';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2840,6 +2840,16 @@ function parseRoutineImport(text, exercises, addExercise){
   return { routine:{ id:uid(), name:(data.name||'Imported routine'), note:data.note||'', labelMode:data.labelMode||'num', days } };
 }
 
+function rotationSequence(days){
+  const arr=asArray(days);
+  const slotKeys=[]; arr.forEach(d=>{ const k=slotKeyOf(d); if(slotKeys.indexOf(k)<0) slotKeys.push(k); });
+  const maxV=slotKeys.reduce((m,k)=>Math.max(m, arr.filter(d=>slotKeyOf(d)===k).length), 1);
+  const seq=[];
+  for(let v=0; v<maxV; v++){
+    slotKeys.forEach(k=>{ const mates=arr.filter(d=>slotKeyOf(d)===k); if(mates[v]) seq.push(mates[v]); });
+  }
+  return seq;
+}
 function nextTrainingTarget(routines, logs){
   const plans=(routines||[]).filter(r=>(r.days||[]).some(d=>d.exerciseIds&&d.exerciseIds.length));
   if(!plans.length) return null;
@@ -2848,10 +2858,13 @@ function nextTrainingTarget(routines, logs){
     const routine=plans.find(r=>r.id===recent.routineId);
     if(routine){
       const days=routine.days||[];
-      const idx=days.findIndex(d=>d.id===recent.dayId);
-      for(let step=1;step<=days.length;step++){
-        const day=days[(idx+step+days.length)%days.length];
-        if(day && day.exerciseIds && day.exerciseIds.length) return {routine,day,label:dayLabel(day,days,routine.labelMode||'num')};
+      const seq=rotationSequence(days);
+      const pos=seq.findIndex(d=>d.id===recent.dayId);
+      if(pos>=0){
+        for(let step=1;step<=seq.length;step++){
+          const day=seq[(pos+step)%seq.length];
+          if(day && day.exerciseIds && day.exerciseIds.length) return {routine,day,label:dayLabel(day,days,routine.labelMode||'num')};
+        }
       }
     }
   }
