@@ -90,6 +90,7 @@ check('service worker version bumped', /ironlog-v\d+/.test(sw));
 check('routine export/import present', index.includes('function routineExportText') && index.includes('function parseRoutineImport') && index.includes('function ExportSheet') && index.includes('function ImportSheet') && index.includes('Import as new routine'));
 check('assisted exercise mode present', index.includes('Drop assistance') && index.includes('bestAssist') && index.includes("'Lowest assist'") && index.includes('Load type') && index.includes('assisted:(track'));
 check('rotation advances by variant then slot', index.includes('function rotationSequence') && index.includes('const seq=rotationSequence(days)'));
+check('off day + weight-distance track', index.includes("wd: {label:'Weight & distance'") && index.includes("if(day&&day.off) return 'Off'") && index.includes('Off / rest') && index.includes('Distance unit'));
 check('day warm-up/cooldown sections present', index.includes('const sortIdsBySection') && index.includes('SECTION_LABEL') && index.includes('sections:sectionsOut') && index.includes('Warm-up / Prep'));
 check('day slot/variant model present', index.includes('const dayCode=') && index.includes('function daySlotIndex')===false && index.includes('const daySlotIndex=') && index.includes('variantLetter') && index.includes('addVersion') && index.includes('Add alternate version'));
 check('app version badge matches sw cache version', (()=>{ const a=index.match(/APP_VERSION\s*=\s*'v(\d+)'/); const s=sw.match(/ironlog-v(\d+)'/); return !!(a && s && a[1] === s[1]); })());

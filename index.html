@@ -628,6 +628,7 @@ const TRACK = {
   dt: {label:'Distance & time',fields:['dist','time']},
   d:  {label:'Distance',      fields:['dist']},
   wt: {label:'Weight & time', fields:['weight','time']},
+  wd: {label:'Weight & distance', fields:['weight','dist']},
 };
 const SIDE_OPTIONS = {
   arm:{label:'One Arm', per:'arm'},
@@ -709,7 +710,8 @@ function sideOptionsFor(ex){
 }
 const trackOf = (ex)=> (ex && TRACK[ex.track]) ? ex.track : 'ws';
 const distUnit = (unit)=> unit==='lb' ? 'mi' : 'km';
-const fieldLabel = (f, unit, ex)=> f==='weight' ? ((ex&&ex.assisted)?('Assist ('+unit+')'):('Weight ('+unit+')')) : f==='reps' ? sideRepLabel(ex) : f==='time' ? 'Time (min)' : ('Dist ('+distUnit(unit)+')');
+const distLabelFor = (ex, unit)=> (ex&&ex.distUnit) || distUnit(unit);
+const fieldLabel = (f, unit, ex)=> f==='weight' ? ((ex&&ex.assisted)?('Assist ('+unit+')'):('Weight ('+unit+')')) : f==='reps' ? sideRepLabel(ex) : f==='time' ? 'Time (min)' : ('Dist ('+distLabelFor(ex,unit)+')');
 const fieldMode = (f)=> f==='reps' ? 'numeric' : 'decimal';
 const targetKey = (f)=> 'target'+f.charAt(0).toUpperCase()+f.slice(1);
 function setHasData(track, s){
@@ -736,14 +738,15 @@ function defaultSetFor(ex, planned=false){
   if(planned && TRACK[tk] && TRACK[tk].fields.includes('reps')) set.targetReps=8;
   return set;
 }
-function metricInfo(track, unit){
-  const du=distUnit(unit);
+function metricInfo(track, unit, ex){
+  const du=distLabelFor(ex, unit);
   switch(track){
     case 'r':  return {label:'Max reps', suffix:'', volLabel:'total reps', volSuffix:''};
     case 't':  return {label:'Best time', suffix:' min', volLabel:'total', volSuffix:' min'};
     case 'd':  return {label:'Best distance', suffix:' '+du, volLabel:'total', volSuffix:' '+du};
     case 'dt': return {label:'Best distance', suffix:' '+du, volLabel:'total', volSuffix:' '+du};
     case 'wt': return {label:'Top weight', suffix:' '+unit, volLabel:'volume', volSuffix:' '+unit};
+    case 'wd': return {label:'Top weight', suffix:' '+unit, volLabel:'load', volSuffix:' '+unit};
     default:   return {label:'Est. 1RM', suffix:' '+unit, volLabel:'volume', volSuffix:' '+unit};
   }
 }
@@ -1708,7 +1711,7 @@ function migrateExercises(saved){
 /* Routines are now PROGRAMS that contain days. Wrap any old flat routine (exerciseIds) into one day. */
 function migrateRoutines(saved){
   if(!Array.isArray(saved)) return [];
-  const fixDay=(d)=>({ id:d.id||uid(), slot:d.slot||d.id||uid(), name: isAutoName(d.name)?'':(d.name||''), exerciseIds:Array.isArray(d.exerciseIds)?d.exerciseIds:[], groups:d.groups||{}, targets:d.targets||{}, sections:d.sections||{} });
+  const fixDay=(d)=>({ id:d.id||uid(), slot:d.slot||d.id||uid(), name: isAutoName(d.name)?'':(d.name||''), exerciseIds:Array.isArray(d.exerciseIds)?d.exerciseIds:[], groups:d.groups||{}, targets:d.targets||{}, sections:d.sections||{}, off:!!d.off });
   return saved.map(r=>{
     if(Array.isArray(r.days)) return { labelMode:'num', ...r, days:r.days.map(fixDay) };
     return { id:r.id||uid(), name:r.name||'Routine', note:r.note||'', labelMode:'num',
@@ -2101,7 +2104,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v100';
+const APP_VERSION = 'v101';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -2616,6 +2619,8 @@ function App(){
           valid.forEach(s=>{ const rr=+s.reps; if(rr>val){val=rr;top=`${rr} reps`;tr=rr;} vol+=rr; });
         } else if(tk==='t'){
           valid.forEach(s=>{ const t=+s.time; if(t>val){val=t;top=`${t} min`;} vol+=t; });
+        } else if(tk==='wd'){
+          valid.forEach(s=>{ const w=+s.weight||0; if(w>val){val=w; top=`${w} ${unit} · ${+s.dist||0}`; tw=w;} if(w>mw)mw=w; vol+=w; });
         } else {
           valid.forEach(s=>{ const d=+s.dist; if(d>val){val=d; top= tk==='dt'?`${d} · ${+s.time||0}m`:`${d}`;} vol+=d; });
         }
@@ -2786,7 +2791,7 @@ function targetSummary(entry, ex, unit){
   const parts=fields.map(f=>{
     const vals=[...new Set(sets.map(s=>s[targetKey(f)]).filter(v=>v!==''&&v!==undefined&&v!==null))];
     if(!vals.length) return null;
-    const label=f==='weight'?unit:f==='reps'?'reps':f==='time'?'min':distUnit(unit);
+    const label=f==='weight'?unit:f==='reps'?'reps':f==='time'?'min':distLabelFor(ex,unit);
     return vals.length===1 ? vals[0]+' '+label : vals.join('/')+' '+label;
   }).filter(Boolean);
   return sets.length+' goal set'+(sets.length!==1?'s':'')+(parts.length?' \u00b7 '+parts.join(' \u00b7 '):'');
@@ -4049,7 +4054,7 @@ function TrainView({active, exById, unit, restDefault, records, logs, setActive,
             <div className={'log-ex-head'+(compactGuidedHeader?' compact':'')}>
               {!compactGuidedHeader && <Thumb ex={ex} />}
               <div style={{flex:1,minWidth:0}}>{!compactGuidedHeader && <div className="log-ex-name">{ssLabel[ei]&&<span className="ss-tag">{ssLabel[ei].tag}</span>}{ex.name}</div>}
-                <div className="log-prev">{rec?(ex.assisted?`Lowest assist ${rec.best} ${unit}`:`${metricInfo(rec.track,unit).label} ${rec.best}${metricInfo(rec.track,unit).suffix}`):'No history yet — set the baseline'}</div>
+                <div className="log-prev">{rec?(ex.assisted?`Lowest assist ${rec.best} ${unit}`:`${metricInfo(rec.track,unit,ex).label} ${rec.best}${metricInfo(rec.track,unit,ex).suffix}`):'No history yet — set the baseline'}</div>
                 <div className="target-line">{en.skipped?'Skipped today':targetSummary(en, ex, unit)} · Rest {formatRest(restSec)}</div></div>
               <div className="log-ex-actions">
                 <button className="iconbtn" title="Swap for a similar exercise" onClick={()=>setSwapFor(ei)}>{I.swap}</button>
@@ -4283,7 +4288,7 @@ function RecordsView({records, exById, logs, unit, onOpen, onOpenCalendar}){
         <div className="empty"><div className="ic">{I.trophy}</div><h3>No records yet</h3>
           <p>Log a workout and your estimated 1RMs, heaviest sets, and volume PRs show up here automatically.</p></div>
         :
-        sorted.map(id=>{ const ex=exById[id]; if(!ex) return null; const rec=records[id]; const mi=ex.assisted ? {label:'Lowest assist', suffix:' '+unit} : metricInfo(rec.track,unit);
+        sorted.map(id=>{ const ex=exById[id]; if(!ex) return null; const rec=records[id]; const mi=ex.assisted ? {label:'Lowest assist', suffix:' '+unit} : metricInfo(rec.track,unit,ex);
           return (
             <div key={id} className="rec-row tap" onClick={()=>onOpen(ex)}>
               <Thumb ex={ex} />
@@ -4370,7 +4375,7 @@ function ExerciseDetail({ex, unit, rec, onClose, onDelete, onEdit, onVariant}){
   const ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent(ex.name+' proper form');
   const sessions=safeSessions.slice().reverse();
   const sparkData=safeSessions.map(s=>s&&s.val).filter(Boolean);
-  const mi=safeRec?metricInfo(safeRec.track,unit):null;
+  const mi=safeRec?metricInfo(safeRec.track,unit,ex):null;
   const tk=trackOf(ex);
   const variantOptions=sideOptionsFor(ex).filter(s=>s!==sideOf(ex));
   return (
@@ -4442,6 +4447,7 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
   const [sec,setSec]=useState(ed?(exercise.sec||''):''); const [ter,setTer]=useState(ed?(exercise.ter||''):''); const [cue,setCue]=useState(ed?(exercise.cue||''):''); const [media,setMedia]=useState(ed?(exercise.media||''):'');
   const [track,setTrack]=useState(ed?trackOf(exercise):'ws');
   const [assisted,setAssisted]=useState(ed?!!exercise.assisted:/assist/i.test(initialName||''));
+  const [distU,setDistU]=useState(ed?(exercise.distUnit||''):'');
   const [side,setSide]=useState(ed?sideOf(exercise):sideFromName(initialName||''));
   const finalName=formatExerciseName(name.trim(),eq,side);
   const valid=finalName.length>0;
@@ -4449,13 +4455,17 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-grip"></div>
-        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,ter:ter||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side,assisted:(track==='ws'&&assisted)||undefined})}>{I.check}{ed?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
+        <div className="sheet-head"><h2>{ed?'Edit Exercise':'New Exercise'}</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" disabled={!valid} style={{opacity:valid?1:.45}} onClick={()=>valid&&onSave({name:finalName,eq,m,sec:sec||undefined,ter:ter||undefined,cue:cue.trim()||undefined,media:media.trim(),track,side,assisted:(track==='ws'&&assisted)||undefined,distUnit:(TRACK[track].fields.includes('dist')&&distU)||undefined})}>{I.check}{ed?'Save':'Create'}</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Name</label>
             <input placeholder="e.g. Smith Machine Squat" value={name} onChange={e=>setName(e.target.value)} autoFocus={!ed} />
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Tip: name it <b style={{color:'var(--muted)'}}>Equipment + Movement</b> to match the library.</div></div>
           <div className="field"><label>Tracks</label><div className="seg">{Object.keys(TRACK).map(x=><button key={x} className={track===x?'on':''} onClick={()=>setTrack(x)}>{TRACK[x].label}</button>)}</div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set — weights, bodyweight reps, a hold/time, a run’s distance &amp; time, etc.</div></div>
+          {TRACK[track].fields.includes('dist') && <div className="field"><label>Distance unit</label><div className="seg" style={{flexWrap:'wrap',gap:6}}>
+            {[['','Default ('+distUnit(unit)+')'],['m','m'],['yd','yd'],['ft','ft'],['km','km'],['mi','mi']].map(([v,lbl])=><button key={v||'def'} className={distU===v?'on':''} style={{padding:'5px 11px',fontSize:12}} onClick={()=>setDistU(v)}>{lbl}</button>)}
+          </div>
+            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Units for the distance you log — e.g. <b style={{color:'var(--muted)'}}>yd</b> or <b style={{color:'var(--muted)'}}>m</b> for sled work, <b style={{color:'var(--muted)'}}>mi/km</b> for runs.</div></div>}
           {track==='ws' && <div className="field"><label>Load type</label><div className="seg">
             <button className={!assisted?'on':''} onClick={()=>setAssisted(false)}>Standard</button>
             <button className={assisted?'on':''} onClick={()=>setAssisted(true)}>Assisted</button>
@@ -4495,7 +4505,7 @@ const slotKeyOf=(d)=> (d && (d.slot||d.id)) || '';
 /* distinct day-slots in first-appearance order; days sharing a slot are alternate versions (A/B/C) of that day */
 const daySlotIndex=(day,days)=>{ const keys=[]; asArray(days).forEach(d=>{ const k=slotKeyOf(d); if(k && keys.indexOf(k)<0) keys.push(k); }); return Math.max(0, keys.indexOf(slotKeyOf(day))); };
 const dayVariant=(day,days)=>{ const key=slotKeyOf(day); const mates=asArray(days).filter(d=>slotKeyOf(d)===key); let idx=mates.indexOf(day); if(idx<0) idx=mates.findIndex(d=>d&&day&&d.id===day.id); return {index:Math.max(0,idx), size:mates.length}; };
-const dayCode=(day,days,mode)=>{ const base=posLabel(daySlotIndex(day,days),mode); const v=dayVariant(day,days); return v.size>1 ? base+variantLetter(v.index) : base; };
+const dayCode=(day,days,mode)=>{ if(day&&day.off) return 'Off'; const base=posLabel(daySlotIndex(day,days),mode); const v=dayVariant(day,days); return v.size>1 ? base+variantLetter(v.index) : base; };
 const dayLabel=(day,days,mode)=> (day&&day.name) ? (dayCode(day,days,mode)+' · '+day.name) : dayCode(day,days,mode);
 const SECTION_DEFS=[['warmup','Warm-up / Prep'],['main','Workout'],['cooldown','Cooldown / Post']];
 const SECTION_LABEL={warmup:'Warm-up / Prep',main:'Workout',cooldown:'Cooldown / Post'};
@@ -4623,6 +4633,7 @@ function RoutineEditor({routine, exById, exercises, logs, restDefault, routines,
 /* edits a single day inside a routine (name + its exercises) */
 function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose, onSave}){
   const [name,setName]=useState(day.name||'');
+  const [off,setOff]=useState(!!day.off);
   const [ids,setIds]=useState(()=>asArray(day.exerciseIds));
   const [picking,setPicking]=useState(false);
   const [created,setCreated]=useState([]);
@@ -4661,7 +4672,7 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
     const targets={};
     ids.forEach(id=>{ if(day.targets && day.targets[id]) targets[id]=day.targets[id]; });
     const sectionsOut={}; orderedIds.forEach(id=>{ const s=sectionOf(sections,id); if(s!=='main') sectionsOut[id]=s; });
-    onSave({...day, name:(name.trim()||day.name||'Day'), exerciseIds:orderedIds, groups, targets, sections:sectionsOut});
+    onSave({...day, off:off||undefined, name:(name.trim()||day.name||'Day'), exerciseIds:orderedIds, groups, targets, sections:sectionsOut});
   };
   const handleCreate=(payload)=>{
     const ex=onCreate&&onCreate(payload);
@@ -4675,6 +4686,11 @@ function DayEditor({day, exById, exercises, logs, restDefault, onCreate, onClose
         <div className="sheet-head"><h2>Edit Day</h2><div style={{display:'flex',alignItems:'center',gap:8}}><button className="rc-edit" onClick={saveDayEdits}>{I.check}Done</button><button className="x-btn" onClick={onClose}>{I.x}</button></div></div>
         <div className="sheet-body">
           <div className="field"><label>Day name</label><input placeholder="e.g. Push, Pull, Legs, Arms" value={name} onChange={e=>setName(e.target.value)} /></div>
+          <div className="field"><label>Day type</label><div className="seg">
+            <button className={!off?'on':''} onClick={()=>setOff(false)}>Training</button>
+            <button className={off?'on':''} onClick={()=>setOff(true)}>Off / rest</button>
+          </div>
+            <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>An <b style={{color:'var(--muted)'}}>Off</b> day shows as “Off” in your rotation but can still hold exercises — put running, stretching, or mobility here.</div></div>
           <div className="section-h" style={{margin:'4px 0 2px'}}><span>Exercises ({ids.length})</span></div>
           {SECTION_DEFS.map(([sec,label])=>{
             const secIds=orderedIds.filter(id=>sectionOf(sections,id)===sec);
