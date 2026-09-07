@@ -716,7 +716,7 @@ const fieldMode = (f)=> f==='reps' ? 'numeric' : 'decimal';
 const targetKey = (f)=> 'target'+f.charAt(0).toUpperCase()+f.slice(1);
 function setHasData(track, s){
   const w=+s.weight>0, r=+s.reps>0, t=+s.time>0, d=+s.dist>0;
-  switch(track){ case 'r':return r; case 't':return t; case 'd':return d; case 'dt':return d; case 'wt':return w&&t; default:return w&&r; }
+  switch(track){ case 'r':return r; case 't':return t; case 'd':return d; case 'dt':return d; case 'wt':return w&&t; case 'wd':return w&&d; default:return w&&r; }
 }
 function applyTargetDefaults(track,set){
   const fields=TRACK[track]?TRACK[track].fields:[];
@@ -911,8 +911,8 @@ function parseMachineSettings(text){
 function formatMachineSettings(settings){
   const s=settings||{};
   const parts=[];
-  MACHINE_KEYS.forEach(item=>{ if(String(s[item.k]||'').trim()) parts.push(item.label+': '+String(s[item.k]).trim()); });
-  if(String(s.note||'').trim()) parts.push('Note: '+String(s.note).trim());
+  MACHINE_KEYS.forEach(item=>{ if(String(s[item.k]||'').trim()) parts.push(item.label+': '+String(s[item.k])); });
+  if(String(s.note||'').trim()) parts.push('Note: '+String(s.note));
   return parts.join('; ');
 }
 function setVolume(set, tk){
@@ -921,6 +921,7 @@ function setVolume(set, tk){
   if(tk==='wt') return (+set.weight||0)*(+set.time||0);
   if(tk==='r') return +set.reps||0;
   if(tk==='t') return +set.time||0;
+  if(tk==='wd') return +set.weight||0;
   return +set.dist||0;
 }
 function entryVolume(entry, ex){
@@ -2104,7 +2105,7 @@ function ImportSheet({exercises, onCreate, onImport, onClose}){
     </div>
   );
 }
-const APP_VERSION = 'v101';
+const APP_VERSION = 'v102';
 function App(){
   const [tab, setTab] = useState(()=>cleanActive(store.get('active', null)) ? 'train' : 'today');
   const [unit, setUnit] = useState(()=>store.get('unit','lb'));
@@ -4463,7 +4464,7 @@ function NewExerciseSheet({onClose, onSave, initialName, exercise}){
           <div className="field"><label>Tracks</label><div className="seg">{Object.keys(TRACK).map(x=><button key={x} className={track===x?'on':''} onClick={()=>setTrack(x)}>{TRACK[x].label}</button>)}</div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>What you log per set — weights, bodyweight reps, a hold/time, a run’s distance &amp; time, etc.</div></div>
           {TRACK[track].fields.includes('dist') && <div className="field"><label>Distance unit</label><div className="seg" style={{flexWrap:'wrap',gap:6}}>
-            {[['','Default ('+distUnit(unit)+')'],['m','m'],['yd','yd'],['ft','ft'],['km','km'],['mi','mi']].map(([v,lbl])=><button key={v||'def'} className={distU===v?'on':''} style={{padding:'5px 11px',fontSize:12}} onClick={()=>setDistU(v)}>{lbl}</button>)}
+            {[['','Default'],['m','m'],['yd','yd'],['ft','ft'],['km','km'],['mi','mi']].map(([v,lbl])=><button key={v||'def'} className={distU===v?'on':''} style={{padding:'5px 11px',fontSize:12}} onClick={()=>setDistU(v)}>{lbl}</button>)}
           </div>
             <div style={{fontSize:11.5,color:'var(--muted2)',marginTop:6}}>Units for the distance you log — e.g. <b style={{color:'var(--muted)'}}>yd</b> or <b style={{color:'var(--muted)'}}>m</b> for sled work, <b style={{color:'var(--muted)'}}>mi/km</b> for runs.</div></div>}
           {track==='ws' && <div className="field"><label>Load type</label><div className="seg">
